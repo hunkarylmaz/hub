@@ -52,11 +52,11 @@ export default function Raporlar() {
 
       <div className="grid grid-cols-4 gap-4 mb-8">
         <StatCard
-          icon={<Wallet size={20} className="text-purple-600" />}
+          icon={<Wallet size={20} className="text-blue-600" />}
           label="Toplam Onaylanan"
           value="16.700,60 ₺"
-          borderColor="border-purple-200"
-          iconBg="bg-purple-50"
+          borderColor="border-blue-200"
+          iconBg="bg-blue-50"
         />
         <StatCard
           icon={<CheckCircle size={20} className="text-emerald-600" />}
@@ -99,7 +99,7 @@ export default function Raporlar() {
                   contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: 12 }}
                   formatter={(value: number) => [`${value.toLocaleString('tr-TR')} ₺`, 'Gelir']}
                 />
-                <Line type="monotone" dataKey="gelir" stroke="#7C3AED" strokeWidth={2} dot={{ fill: '#7C3AED', r: 4 }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="gelir" stroke="#2563EB" strokeWidth={2} dot={{ fill: '#2563EB', r: 4 }} activeDot={{ r: 6 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>

@@ -33,12 +33,12 @@ export default function KontorGecmisi() {
     <div>
       {/* Stat Cards */}
       <div className="grid grid-cols-2 gap-4 mb-8">
-        <div className="rounded-xl p-6 flex items-center gap-4" style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)' }}>
+        <div className="rounded-xl p-6 flex items-center gap-4" style={{ background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)' }}>
           <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
             <Wallet size={24} className="text-white" />
           </div>
           <div>
-            <p className="text-sm text-purple-200 font-medium">Mevcut Bakiye</p>
+            <p className="text-sm text-blue-200 font-medium">Mevcut Bakiye</p>
             <p className="text-3xl font-bold text-white mt-0.5">500</p>
           </div>
         </div>
@@ -90,7 +90,7 @@ export default function KontorGecmisi() {
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
                     {k.islemTuru === 'Bayiliğe Dağıtım' ? (
-                      <div className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center">
+                      <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
                         <Upload size={13} className="text-primary-600" />
                       </div>
                     ) : (

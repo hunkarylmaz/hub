@@ -44,7 +44,7 @@ export default function Sidebar() {
         className="absolute bottom-0 left-0 w-full h-40 pointer-events-none"
         style={{
           background:
-            'radial-gradient(ellipse at 30% 100%, rgba(124,58,237,0.12) 0%, rgba(167,139,250,0.06) 50%, transparent 80%)',
+            'radial-gradient(ellipse at 30% 100%, rgba(37,99,235,0.12) 0%, rgba(96,165,250,0.06) 50%, transparent 80%)',
         }}
       />
     </aside>

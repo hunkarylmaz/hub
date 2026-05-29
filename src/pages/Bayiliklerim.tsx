@@ -271,18 +271,18 @@ export default function Bayiliklerim() {
       {/* Kontör Bakiyeniz Banner */}
       <div
         className="rounded-xl p-5 mb-6 flex items-center justify-between"
-        style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)' }}
+        style={{ background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)' }}
       >
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
             <Wallet size={24} className="text-white" />
           </div>
           <div>
-            <p className="text-sm text-purple-200 font-medium">Kontör Bakiyeniz</p>
+            <p className="text-sm text-blue-200 font-medium">Kontör Bakiyeniz</p>
             <p className="text-3xl font-bold text-white mt-0.5">500</p>
           </div>
         </div>
-        <p className="text-sm text-purple-200 text-right max-w-[200px] leading-snug">
+        <p className="text-sm text-blue-200 text-right max-w-[200px] leading-snug">
           Bayiliklere dağıtabileceğiniz toplam kontör miktarı
         </p>
       </div>

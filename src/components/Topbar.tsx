@@ -17,12 +17,12 @@ export default function Topbar({ onMenuToggle }: TopbarProps) {
 
         <div className="flex items-center gap-2">
           {/* Logo: yellow circle with R */}
-          <div className="w-9 h-9 rounded-full bg-yellow-400 flex items-center justify-center font-bold text-white text-lg">
-            R
+          <div className="w-9 h-9 rounded-full bg-primary-600 flex items-center justify-center font-bold text-white text-lg">
+            P
           </div>
           <div className="flex flex-col leading-tight">
-            <span className="font-bold text-gray-800 text-base leading-none">ropaket</span>
-            <span className="text-xs text-gray-400 leading-none">ahtapot</span>
+            <span className="font-bold text-gray-800 text-base leading-none">Paketçi</span>
+            <span className="text-xs text-gray-400 leading-none">app</span>
           </div>
         </div>
       </div>
