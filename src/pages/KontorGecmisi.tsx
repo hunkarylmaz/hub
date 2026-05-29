@@ -80,7 +80,7 @@ export default function KontorGecmisi() {
           </div>
           <div>
             <p className="text-sm text-blue-200 font-medium">Mevcut Bakiye</p>
-            <p className="text-3xl font-bold text-white mt-0.5">{bakiye.mevcut_bakiye.toLocaleString('tr-TR')}</p>
+            <p className="text-3xl font-bold text-white mt-0.5">∞ Sınırsız</p>
           </div>
         </div>
 

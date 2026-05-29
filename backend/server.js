@@ -238,14 +238,13 @@ app.post('/api/bayilikler/:id/kontor-ekle', authMiddleware, wrap(async (req, res
   if (!miktar || miktar <= 0) return res.status(400).json({ message: 'Geçersiz miktar' })
   const b = await get('SELECT * FROM bayilikler WHERE id=? AND user_id=?', [req.params.id, req.user.id])
   if (!b) return res.status(404).json({ message: 'Bayilik bulunamadı' })
-  const ay = await get('SELECT * FROM ayarlar WHERE user_id=?', [req.user.id])
-  if (!ay || ay.kontor_bakiye < miktar) return res.status(400).json({ message: 'Yetersiz kontör bakiyesi' })
-  const yeni = ay.kontor_bakiye - miktar
   await run('UPDATE bayilikler SET token=token+? WHERE id=?', [miktar, req.params.id])
-  await run('UPDATE ayarlar SET kontor_bakiye=?,toplam_dagitilan=toplam_dagitilan+? WHERE user_id=?', [yeni, miktar, req.user.id])
+  await run('INSERT OR IGNORE INTO ayarlar (user_id) VALUES (?)', [req.user.id])
+  await run('UPDATE ayarlar SET toplam_dagitilan=toplam_dagitilan+? WHERE user_id=?', [miktar, req.user.id])
+  const ay = await get('SELECT kontor_bakiye FROM ayarlar WHERE user_id=?', [req.user.id])
   await run('INSERT INTO kontor_gecmisi (islem_turu,bayilik_id,miktar,kalan_bakiye,user_id) VALUES (?,?,?,?,?)',
-    ['Bayiliğe Dağıtım', b.id, -miktar, yeni, req.user.id])
-  res.json({ yeni_bakiye: yeni })
+    ['Bayiliğe Dağıtım', b.id, -miktar, ay?.kontor_bakiye ?? 0, req.user.id])
+  res.json({ yeni_bakiye: ay?.kontor_bakiye ?? 0 })
 }))
 
 app.post('/api/bayilikler/:id/kontor-geri-al', authMiddleware, wrap(async (req, res) => {

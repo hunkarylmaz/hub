@@ -326,7 +326,7 @@ function YeniBayilikModal({ onClose, onSuccess }: YeniBayilikModalProps) {
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function Bayiliklerim() {
   const [bayilikler, setBayilikler] = useState<Bayilik[]>([])
-  const [kontorBakiye, setKontorBakiye] = useState(0)
+  const [, setKontorBakiye] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
@@ -407,11 +407,11 @@ export default function Bayiliklerim() {
           </div>
           <div>
             <p className="text-sm text-blue-200 font-medium">Kontör Bakiyeniz</p>
-            <p className="text-3xl font-bold text-white mt-0.5">{kontorBakiye.toLocaleString('tr-TR')}</p>
+            <p className="text-3xl font-bold text-white mt-0.5">∞ Sınırsız</p>
           </div>
         </div>
-        <p className="text-sm text-blue-200 text-right max-w-[200px] leading-snug">
-          Bayiliklere dağıtabileceğiniz toplam kontör miktarı
+        <p className="text-sm text-blue-200 text-right max-w-[220px] leading-snug">
+          Bayiliklere sınırsız kontör dağıtabilirsiniz
         </p>
       </div>
 
