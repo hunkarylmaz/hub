@@ -18,17 +18,32 @@ export interface Kurye {
   toplam_teslimat: number
   gunluk_teslimat: number
   paket_limiti: number
-  odeme_tipleri: string       // JSON string: e.g. '["Nakit","Kredi Kartı"]'
+  odeme_tipleri: string
   calisma_tipi: string
   paket_basi_ucret: number
   km_baslangic: number
   km_ucret: number
   komisyon_yuzdesi: number
   saatlik_ucret: number
-  coklu_paket: string         // JSON string: e.g. '[100, 60, 40]'
+  coklu_paket: string
   paket_iptali: number
   odeme_duzenleme: number
   olusturma_tarihi: string
+  lat: number | null
+  lon: number | null
+  son_konum_tarihi: string | null
+}
+
+export interface KuryeKonum {
+  id: number
+  ad: string
+  telefon: string | null
+  durum: string
+  lat: number
+  lon: number
+  son_konum_tarihi: string | null
+  gunluk_teslimat: number
+  toplam_teslimat: number
 }
 
 export interface Restoran {
@@ -320,6 +335,9 @@ export const api = {
       request<Kurye>(`/api/bayi/kuryeler/${id}/durum`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ durum }) }),
     delete: (id: number) =>
       request<{ success: boolean }>(`/api/bayi/kuryeler/${id}`, { method: 'DELETE', headers: authHeaders() }),
+    konumlar: () => request<{ kuryeler: KuryeKonum[]; merkez: { lat: number | null; lon: number | null; sehir: string | null } }>('/api/bayi/kuryeler/konumlar', { headers: authHeaders() }),
+    updateKonum: (id: number, lat: number, lon: number) =>
+      request<{ id: number; lat: number; lon: number }>(`/api/bayi/kuryeler/${id}/konum`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ lat, lon }) }),
   },
 
   restoranlar: {

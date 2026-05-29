@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Bike, UtensilsCrossed, Package, BarChart3, TrendingUp,
   Settings, LogOut, ChevronDown, Settings2, Sliders, Gift, Clock, Bell,
   CalendarDays, Coins, List, Users, DollarSign, Store, CreditCard, Building2,
-  FileText, UserCog, Scale
+  FileText, UserCog, Scale, Map
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
@@ -13,6 +13,7 @@ const mainNavItems = [
   { to: '/',              icon: LayoutDashboard, label: 'Güncel Durum' },
   { to: '/siparisler',    icon: Package,          label: 'Siparişler' },
   { to: '/kuryeler',      icon: Bike,             label: 'Kuryeler' },
+  { to: '/harita',        icon: Map,              label: 'Kurye Haritası' },
   { to: '/restoranlar',   icon: UtensilsCrossed,  label: 'Restoranlar' },
   { to: '/kullanicilar',  icon: UserCog,          label: 'Kullanıcılar' },
 ]

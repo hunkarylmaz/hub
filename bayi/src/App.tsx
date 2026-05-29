@@ -26,6 +26,7 @@ import FirmaHakedis from './pages/raporlar/FirmaHakedis'
 import KuryeMutabakat from './pages/raporlar/KuryeMutabakat'
 import RestoranMutabakat from './pages/raporlar/RestoranMutabakat'
 import Kullanicilar from './pages/Kullanicilar'
+import KuryeHarita from './pages/KuryeHarita'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { bayilik, loading } = useAuth()
@@ -47,6 +48,7 @@ function AppRoutes() {
         <Route path="kuryeler" element={<Kuryeler />} />
         <Route path="restoranlar" element={<Restoranlar />} />
         <Route path="kullanicilar" element={<Kullanicilar />} />
+        <Route path="harita" element={<KuryeHarita />} />
         <Route path="periyodik-rapor" element={<PeriyodikRapor />} />
         <Route path="raporlar" element={<RaporlarLayout />}>
           <Route index element={<Navigate to="gecmis" replace />} />

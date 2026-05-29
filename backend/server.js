@@ -448,6 +448,9 @@ async function initBayiDb() {
   try { await run("ALTER TABLE bayi_kuryeler ADD COLUMN coklu_paket TEXT DEFAULT '[]'") } catch {}
   try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN paket_iptali INTEGER DEFAULT 0') } catch {}
   try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN odeme_duzenleme INTEGER DEFAULT 1') } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN lat REAL') } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN lon REAL') } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN son_konum_tarihi TEXT') } catch {}
 
   // Genel Ayarlar extensions for bayi_ayarlar
   try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN calisma_acilis TEXT DEFAULT '11:00'") } catch {}
@@ -664,6 +667,13 @@ async function initBayiDb() {
   const { lastID: k4 } = await insertK('Hasan Çelik',    '05361112233', 'Mola',      3, 87)
   const { lastID: k5 } = await insertK('Emre Şahin',     '05374445566', 'Müsait',    0, 234)
   const { lastID: k6 } = await insertK('Burak Arslan',   '05383334455', 'Çevrimdışı',0, 156)
+
+  // Seed demo GPS locations for Bodrum area
+  await run('UPDATE bayi_kuryeler SET lat=?,lon=?,son_konum_tarihi=datetime("now","localtime") WHERE id=?', [37.0344, 27.4305, k1])
+  await run('UPDATE bayi_kuryeler SET lat=?,lon=?,son_konum_tarihi=datetime("now","localtime") WHERE id=?', [37.0381, 27.4258, k2])
+  await run('UPDATE bayi_kuryeler SET lat=?,lon=?,son_konum_tarihi=datetime("now","localtime") WHERE id=?', [37.0312, 27.4412, k3])
+  await run('UPDATE bayi_kuryeler SET lat=?,lon=?,son_konum_tarihi=datetime("now","localtime") WHERE id=?', [37.0298, 27.4187, k4])
+  await run('UPDATE bayi_kuryeler SET lat=?,lon=?,son_konum_tarihi=datetime("now","localtime") WHERE id=?', [37.0421, 27.4355, k5])
 
   // Seed restaurants
   const insertR = (ad, adres, tel, gunluk) =>
@@ -2181,6 +2191,49 @@ app.get('/api/bayi/mutabakat/restoranlar', bayiAuthMiddleware, wrap(async (req, 
   })
 
   res.json({ restoranlar: sonuc })
+}))
+
+// ── KURYE KONUM TAKİP ─────────────────────────────────────────────────────────
+
+// Get all courier locations for the map (includes bayilik center for default map position)
+app.get('/api/bayi/kuryeler/konumlar', bayiAuthMiddleware, wrap(async (req, res) => {
+  const bid = req.bayi.bayilikId
+
+  const rows = await all(
+    `SELECT id, ad, telefon, durum, aktif, lat, lon, son_konum_tarihi,
+            gunluk_teslimat, toplam_teslimat
+     FROM bayi_kuryeler
+     WHERE bayilik_id=? AND aktif=1 AND lat IS NOT NULL AND lon IS NOT NULL
+     ORDER BY durum ASC, ad ASC`,
+    [bid]
+  )
+
+  // Return bayilik's registered location as fallback map center
+  const ayarlar = await get('SELECT lat, lon FROM bayi_ayarlar WHERE bayilik_id=?', [bid])
+  const b = await get('SELECT sehir FROM bayilikler WHERE id=?', [bid])
+
+  res.json({
+    kuryeler: rows,
+    merkez: {
+      lat: ayarlar?.lat || null,
+      lon: ayarlar?.lon || null,
+      sehir: b?.sehir || null,
+    }
+  })
+}))
+
+// Update courier GPS location (called by courier mobile app)
+app.put('/api/bayi/kuryeler/:id/konum', bayiAuthMiddleware, wrap(async (req, res) => {
+  const bid = req.bayi.bayilikId
+  const { lat, lon } = req.body || {}
+  if (lat == null || lon == null) return res.status(400).json({ message: 'lat ve lon zorunlu' })
+  const k = await get('SELECT id FROM bayi_kuryeler WHERE id=? AND bayilik_id=?', [req.params.id, bid])
+  if (!k) return res.status(404).json({ message: 'Kurye bulunamadı' })
+  await run(
+    'UPDATE bayi_kuryeler SET lat=?, lon=?, son_konum_tarihi=datetime("now","localtime") WHERE id=?',
+    [lat, lon, req.params.id]
+  )
+  res.json({ id: Number(req.params.id), lat, lon })
 }))
 
 // ── Error handler ─────────────────────────────────────────────────────────────
