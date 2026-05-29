@@ -208,6 +208,37 @@ export interface Vardiya {
   not_text: string | null
 }
 
+export interface OdemeGrubu { sayi: number; tutar: number }
+
+export interface GecmisSiparis extends Siparis {
+  restoran_ad: string | undefined
+  kurye_ad: string | undefined
+}
+
+export interface KuryeHakedisRow {
+  id: number
+  ad: string
+  calisma_tipi: string
+  toplam_paket: number
+  brut_kazanc: number
+  aldim_toplam: number
+  ciro: number
+}
+
+export interface RestoranHakedisRow {
+  id: number
+  ad: string
+  paket_sayisi: number
+  nakit: number
+  kredi_karti: number
+  yemek_karti: number
+  online: number
+  diger: number
+  toplam_gelir: number
+  tasima: number
+  net_kazanc: number
+}
+
 function getToken(): string {
   return localStorage.getItem('paketci_bayi_token') || ''
 }
@@ -325,6 +356,75 @@ export const api = {
         ciro: number
         gunluk: { gun: string; sayi: number; kazanc: number }[]
       }>(`/api/bayi/raporlar/kurye?${q}`, { headers: authHeaders() })
+    },
+    gecmis: (params: { restoran_id?: number; kurye_id?: number; baslangic?: string; bitis?: string; odeme_yontemi?: string; durum?: string; sayfa?: number; limit?: number }) => {
+      const q = new URLSearchParams()
+      if (params.restoran_id) q.set('restoran_id', String(params.restoran_id))
+      if (params.kurye_id) q.set('kurye_id', String(params.kurye_id))
+      if (params.baslangic) q.set('baslangic', params.baslangic)
+      if (params.bitis) q.set('bitis', params.bitis)
+      if (params.odeme_yontemi) q.set('odeme_yontemi', params.odeme_yontemi)
+      if (params.durum) q.set('durum', params.durum)
+      if (params.sayfa) q.set('sayfa', String(params.sayfa))
+      if (params.limit) q.set('limit', String(params.limit))
+      return request<{
+        siparisler: GecmisSiparis[]
+        toplam: number
+        sayfa_sayisi: number
+        ozet: { siparis_sayisi: number; toplam_tutar: number; odeme_gruplari: Record<string, OdemeGrubu> }
+      }>(`/api/bayi/raporlar/gecmis?${q}`, { headers: authHeaders() })
+    },
+    kuryelerHakedis: (params?: { baslangic?: string; bitis?: string }) => {
+      const q = new URLSearchParams()
+      if (params?.baslangic) q.set('baslangic', params.baslangic)
+      if (params?.bitis) q.set('bitis', params.bitis)
+      return request<{
+        kuryeler: KuryeHakedisRow[]
+        toplam_kurye: number
+        toplam_paket: number
+        toplam_kazanc: number
+      }>(`/api/bayi/raporlar/kuryeler-hakedis?${q}`, { headers: authHeaders() })
+    },
+    restoranlarHakedis: (params?: { baslangic?: string; bitis?: string; sayfa?: number }) => {
+      const q = new URLSearchParams()
+      if (params?.baslangic) q.set('baslangic', params.baslangic)
+      if (params?.bitis) q.set('bitis', params.bitis)
+      if (params?.sayfa) q.set('sayfa', String(params.sayfa))
+      return request<{
+        restoranlar: RestoranHakedisRow[]
+        toplam_restoran: number
+        toplam_paket: number
+        toplam_gelir: number
+        net_kazanc: number
+        sayfa_sayisi: number
+      }>(`/api/bayi/raporlar/restoranlar-hakedis?${q}`, { headers: authHeaders() })
+    },
+    odemeDagilimi: (params?: { baslangic?: string; bitis?: string; restoran_id?: number; kurye_id?: number }) => {
+      const q = new URLSearchParams()
+      if (params?.baslangic) q.set('baslangic', params.baslangic)
+      if (params?.bitis) q.set('bitis', params.bitis)
+      if (params?.restoran_id) q.set('restoran_id', String(params.restoran_id))
+      if (params?.kurye_id) q.set('kurye_id', String(params.kurye_id))
+      return request<{
+        gruplari: Record<string, OdemeGrubu>
+        toplam_sayi: number
+        toplam_tutar: number
+        kuryeler: { id: number; ad: string; gruplari: Record<string, OdemeGrubu> }[]
+      }>(`/api/bayi/raporlar/odeme-dagilimi?${q}`, { headers: authHeaders() })
+    },
+    firma: (params?: { baslangic?: string; bitis?: string }) => {
+      const q = new URLSearchParams()
+      if (params?.baslangic) q.set('baslangic', params.baslangic)
+      if (params?.bitis) q.set('bitis', params.bitis)
+      return request<{
+        paket_sayisi: number
+        tasima_ucretleri: number
+        kurye_hakedisleri: number
+        kazanc: number
+        ort_paket_tasima: number
+        ort_kurye_hakedis: number
+        gunluk: { gun: string; paket: number; tasima: number; hakedis: number; kazanc: number }[]
+      }>(`/api/bayi/raporlar/firma?${q}`, { headers: authHeaders() })
     },
   },
 

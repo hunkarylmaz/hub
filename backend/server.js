@@ -1440,6 +1440,399 @@ app.get('/api/bayi/raporlar/kurye', bayiAuthMiddleware, wrap(async (req, res) =>
   })
 }))
 
+// ── BAYİ DETAYLI RAPORLAR ─────────────────────────────────────────────────────
+
+function hesaplaKuryeKazanc(kurye, toplam_paket, ciro) {
+  const ct = kurye.calisma_tipi || 'Paket Başı'
+  let brut = 0
+  if (ct === 'Paket Başı') brut = (kurye.paket_basi_ucret||0) * toplam_paket
+  else if (ct === 'Km Aralığı') brut = ((kurye.km_baslangic||0)+(kurye.km_ucret||0)) * toplam_paket
+  else if (ct === 'Komisyon') brut = ciro * ((kurye.komisyon_yuzdesi||0)/100)
+  else if (ct === 'Paket + Km') brut = ((kurye.paket_basi_ucret||0)+(kurye.km_baslangic||0)+(kurye.km_ucret||0)) * toplam_paket
+  else if (ct === 'Saatlik Ücret') brut = kurye.saatlik_ucret||0
+  else if (ct === 'Çoklu Paket') {
+    let tiers=[]; try{tiers=JSON.parse(kurye.coklu_paket||'[]')}catch{}
+    if(!tiers.length) tiers=[kurye.paket_basi_ucret||0]
+    const g=tiers.length, tam=Math.floor(toplam_paket/g), kal=toplam_paket%g
+    const gTop=tiers.reduce((a,b)=>a+(b||0),0)
+    brut=tam*gTop+tiers.slice(0,kal).reduce((a,b)=>a+(b||0),0)
+  }
+  return brut
+}
+
+function hesaplaRestoranTasima(restoran, toplam_paket, toplam_gelir) {
+  const ct = restoran.calisma_tipi || 'Paket Başı'
+  let tasima = 0
+  if (ct === 'Paket Başı') tasima = (restoran.paket_basi_ucret||0) * toplam_paket
+  else if (ct === 'Km Aralığı') tasima = ((restoran.km_baslangic||0)+(restoran.km_ucret||0)) * toplam_paket
+  else if (ct === 'Komisyon') tasima = toplam_gelir * ((restoran.komisyon_yuzdesi||0)/100)
+  else if (ct === 'Paket + Km') tasima = ((restoran.paket_basi_ucret||0)+(restoran.km_baslangic||0)+(restoran.km_ucret||0)) * toplam_paket
+  else if (ct === 'Saatlik Ücret') tasima = restoran.saatlik_ucret||0
+  else if (ct === 'Çoklu Paket') {
+    let tiers=[]; try{tiers=JSON.parse(restoran.coklu_paket||'[]')}catch{}
+    if(!tiers.length) tiers=[restoran.paket_basi_ucret||0]
+    const g=tiers.length, tam=Math.floor(toplam_paket/g), kal=toplam_paket%g
+    const gTop=tiers.reduce((a,b)=>a+(b||0),0)
+    tasima=tam*gTop+tiers.slice(0,kal).reduce((a,b)=>a+(b||0),0)
+  }
+  return tasima
+}
+
+// Endpoint 1: Geçmiş Siparişler (filtrelenebilir, sayfalı)
+app.get('/api/bayi/raporlar/gecmis', bayiAuthMiddleware, wrap(async (req, res) => {
+  const bid = req.bayi.bayilikId
+  const {
+    restoran_id, kurye_id, baslangic, bitis,
+    odeme_yontemi, durum,
+    sayfa = 1, limit: limitRaw = 25
+  } = req.query
+
+  const limit = Math.max(1, parseInt(limitRaw) || 25)
+  const offset = (Math.max(1, parseInt(sayfa) || 1) - 1) * limit
+
+  let where = 'bs.bayilik_id=?'
+  const params = [bid]
+
+  if (restoran_id)    { where += ' AND bs.restoran_id=?';        params.push(restoran_id) }
+  if (kurye_id)       { where += ' AND bs.kurye_id=?';           params.push(kurye_id) }
+  if (baslangic)      { where += ' AND bs.olusturma_tarihi >= ?'; params.push(baslangic) }
+  if (bitis)          { where += ' AND bs.olusturma_tarihi <= ?'; params.push(bitis) }
+  if (odeme_yontemi)  { where += ' AND bs.odeme_yontemi=?';      params.push(odeme_yontemi) }
+  if (durum)          { where += ' AND bs.durum=?';              params.push(durum) }
+
+  const countRow = await get(
+    `SELECT COUNT(*) as toplam FROM bayi_siparisler bs WHERE ${where}`,
+    params
+  )
+  const toplam = countRow?.toplam || 0
+  const sayfa_sayisi = Math.ceil(toplam / limit)
+
+  const siparisler = await all(
+    `SELECT bs.*,
+            br.ad AS restoran_ad,
+            bk.ad AS kurye_ad
+     FROM bayi_siparisler bs
+     LEFT JOIN bayi_restoranlar br ON br.id=bs.restoran_id
+     LEFT JOIN bayi_kuryeler bk ON bk.id=bs.kurye_id
+     WHERE ${where}
+     ORDER BY bs.olusturma_tarihi DESC
+     LIMIT ? OFFSET ?`,
+    [...params, limit, offset]
+  )
+
+  // Özet: tüm filtrelere uyan satırları (sayfalama olmadan)
+  const tumRows = await all(
+    `SELECT tutar, odeme_yontemi FROM bayi_siparisler bs WHERE ${where}`,
+    params
+  )
+  const siparis_sayisi = tumRows.length
+  const toplam_tutar = tumRows.reduce((a, s) => a + (s.tutar || 0), 0)
+  const odeme_gruplari = {}
+  for (const s of tumRows) {
+    const key = s.odeme_yontemi || 'Diğer'
+    if (!odeme_gruplari[key]) odeme_gruplari[key] = { sayi: 0, tutar: 0 }
+    odeme_gruplari[key].sayi++
+    odeme_gruplari[key].tutar += s.tutar || 0
+  }
+
+  res.json({
+    siparisler,
+    toplam,
+    sayfa_sayisi,
+    ozet: { siparis_sayisi, toplam_tutar, odeme_gruplari },
+  })
+}))
+
+// Endpoint 2: Kuryeler Hakediş Raporu
+app.get('/api/bayi/raporlar/kuryeler-hakedis', bayiAuthMiddleware, wrap(async (req, res) => {
+  const bid = req.bayi.bayilikId
+  const { baslangic, bitis } = req.query
+
+  const kuryeler = await all(
+    'SELECT * FROM bayi_kuryeler WHERE bayilik_id=? AND aktif=1 ORDER BY ad ASC',
+    [bid]
+  )
+
+  let gt_paket = 0
+  let gt_kazanc = 0
+
+  const kuryelerSonuc = await Promise.all(kuryeler.map(async (kurye) => {
+    let sipWhere = `bayilik_id=? AND kurye_id=? AND durum='Teslim Edildi'`
+    const sipParams = [bid, kurye.id]
+    if (baslangic) { sipWhere += ' AND olusturma_tarihi >= ?'; sipParams.push(baslangic) }
+    if (bitis)     { sipWhere += ' AND olusturma_tarihi <= ?'; sipParams.push(bitis) }
+
+    const sipRow = await get(
+      `SELECT COUNT(*) as sayi, COALESCE(SUM(tutar),0) as ciro FROM bayi_siparisler WHERE ${sipWhere}`,
+      sipParams
+    )
+    const toplam_paket = sipRow?.sayi || 0
+    const ciro = sipRow?.ciro || 0
+
+    const brut_kazanc = hesaplaKuryeKazanc(kurye, toplam_paket, ciro)
+
+    let bhWhere = `bayilik_id=? AND entity_type='kurye' AND entity_id=? AND tur='Aldım' AND faturaya_dahil=1`
+    const bhParams = [bid, kurye.id]
+    if (baslangic) { bhWhere += ' AND tarih >= ?'; bhParams.push(baslangic) }
+    if (bitis)     { bhWhere += ' AND tarih <= ?'; bhParams.push(bitis) }
+    const aldimRow = await get(
+      `SELECT COALESCE(SUM(tutar),0) as toplam FROM bakiye_hareketleri WHERE ${bhWhere}`,
+      bhParams
+    )
+    const aldim_toplam = aldimRow?.toplam || 0
+
+    gt_paket  += toplam_paket
+    gt_kazanc += brut_kazanc
+
+    return {
+      id: kurye.id,
+      ad: kurye.ad,
+      durum: kurye.durum,
+      calisma_tipi: kurye.calisma_tipi,
+      toplam_paket,
+      brut_kazanc,
+      aldim_toplam,
+      ciro,
+    }
+  }))
+
+  kuryelerSonuc.sort((a, b) => b.brut_kazanc - a.brut_kazanc)
+
+  res.json({
+    kuryeler: kuryelerSonuc,
+    toplam_kurye: kuryelerSonuc.length,
+    toplam_paket: gt_paket,
+    toplam_kazanc: gt_kazanc,
+  })
+}))
+
+// Endpoint 3: Restoranlar Hakediş Raporu
+app.get('/api/bayi/raporlar/restoranlar-hakedis', bayiAuthMiddleware, wrap(async (req, res) => {
+  const bid = req.bayi.bayilikId
+  const { baslangic, bitis, sayfa = 1, limit: limitRaw = 20 } = req.query
+
+  const limit = Math.max(1, parseInt(limitRaw) || 20)
+  const page  = Math.max(1, parseInt(sayfa) || 1)
+
+  const restoranlar = await all(
+    'SELECT * FROM bayi_restoranlar WHERE bayilik_id=? ORDER BY ad ASC',
+    [bid]
+  )
+
+  const ODEME_KEYS = ['Nakit', 'Kredi Kartı', 'Yemek Kartı', 'Online', 'Diğer']
+  let gt_paket = 0, gt_gelir = 0, gt_net = 0
+
+  const restoranlarSonuc = await Promise.all(restoranlar.map(async (restoran) => {
+    let sipWhere = `bayilik_id=? AND restoran_id=? AND durum='Teslim Edildi'`
+    const sipParams = [bid, restoran.id]
+    if (baslangic) { sipWhere += ' AND olusturma_tarihi >= ?'; sipParams.push(baslangic) }
+    if (bitis)     { sipWhere += ' AND olusturma_tarihi <= ?'; sipParams.push(bitis) }
+
+    const siparisler = await all(
+      `SELECT tutar, odeme_yontemi FROM bayi_siparisler WHERE ${sipWhere}`,
+      sipParams
+    )
+
+    const paket_sayisi = siparisler.length
+    const toplam_gelir = siparisler.reduce((a, s) => a + (s.tutar || 0), 0)
+
+    const odemeMap = { 'Nakit': 0, 'Kredi Kartı': 0, 'Yemek Kartı': 0, 'Online': 0, 'Diğer': 0 }
+    for (const s of siparisler) {
+      const key = ODEME_KEYS.includes(s.odeme_yontemi) ? s.odeme_yontemi : 'Diğer'
+      odemeMap[key] += s.tutar || 0
+    }
+
+    const tasima = hesaplaRestoranTasima(restoran, paket_sayisi, toplam_gelir)
+    const net_kazanc = tasima
+
+    gt_paket += paket_sayisi
+    gt_gelir += toplam_gelir
+    gt_net   += net_kazanc
+
+    return {
+      id: restoran.id,
+      ad: restoran.ad,
+      paket_sayisi,
+      nakit: odemeMap['Nakit'],
+      kredi_karti: odemeMap['Kredi Kartı'],
+      yemek_karti: odemeMap['Yemek Kartı'],
+      online: odemeMap['Online'],
+      diger: odemeMap['Diğer'],
+      toplam_gelir,
+      tasima,
+      net_kazanc,
+    }
+  }))
+
+  const toplam_restoran = restoranlarSonuc.length
+  const sayfa_sayisi = Math.ceil(toplam_restoran / limit)
+  const paginated = restoranlarSonuc.slice((page - 1) * limit, page * limit)
+
+  res.json({
+    restoranlar: paginated,
+    toplam_restoran,
+    toplam_paket: gt_paket,
+    toplam_gelir: gt_gelir,
+    net_kazanc: gt_net,
+    sayfa_sayisi,
+  })
+}))
+
+// Endpoint 4: Ödeme Dağılımı Raporu
+app.get('/api/bayi/raporlar/odeme-dagilimi', bayiAuthMiddleware, wrap(async (req, res) => {
+  const bid = req.bayi.bayilikId
+  const { baslangic, bitis, restoran_id, kurye_id } = req.query
+
+  let where = `bs.bayilik_id=? AND bs.durum='Teslim Edildi'`
+  const params = [bid]
+  if (baslangic)   { where += ' AND bs.olusturma_tarihi >= ?'; params.push(baslangic) }
+  if (bitis)       { where += ' AND bs.olusturma_tarihi <= ?'; params.push(bitis) }
+  if (restoran_id) { where += ' AND bs.restoran_id=?';         params.push(restoran_id) }
+  if (kurye_id)    { where += ' AND bs.kurye_id=?';            params.push(kurye_id) }
+
+  const siparisler = await all(
+    `SELECT bs.tutar, bs.odeme_yontemi, bs.kurye_id, bk.ad AS kurye_ad
+     FROM bayi_siparisler bs
+     LEFT JOIN bayi_kuryeler bk ON bk.id=bs.kurye_id
+     WHERE ${where}
+     ORDER BY bs.olusturma_tarihi DESC`,
+    params
+  )
+
+  const ODEME_KEYS = ['Nakit', 'Kredi Kartı', 'Yemek Kartı', 'Online', 'Diğer']
+  const gruplari = {}
+  let toplam_sayi = 0, toplam_tutar = 0
+
+  for (const s of siparisler) {
+    const key = ODEME_KEYS.includes(s.odeme_yontemi) ? s.odeme_yontemi : 'Diğer'
+    if (!gruplari[key]) gruplari[key] = { sayi: 0, tutar: 0 }
+    gruplari[key].sayi++
+    gruplari[key].tutar += s.tutar || 0
+    toplam_sayi++
+    toplam_tutar += s.tutar || 0
+  }
+
+  // Per-courier payment breakdown
+  const kuryeMap = {}
+  for (const s of siparisler) {
+    const kid = s.kurye_id
+    if (kid == null) continue
+    if (!kuryeMap[kid]) {
+      kuryeMap[kid] = { kurye_id: kid, kurye_ad: s.kurye_ad || 'Bilinmiyor' }
+      for (const k of ODEME_KEYS) kuryeMap[kid][k] = 0
+    }
+    const key = ODEME_KEYS.includes(s.odeme_yontemi) ? s.odeme_yontemi : 'Diğer'
+    kuryeMap[kid][key] += s.tutar || 0
+  }
+  const kuryeler = Object.values(kuryeMap)
+
+  res.json({ gruplari, toplam_sayi, toplam_tutar, kuryeler })
+}))
+
+// Endpoint 5: Firma Genel Raporu
+app.get('/api/bayi/raporlar/firma', bayiAuthMiddleware, wrap(async (req, res) => {
+  const bid = req.bayi.bayilikId
+  const { baslangic, bitis } = req.query
+
+  let sipWhere = `bayilik_id=? AND durum='Teslim Edildi'`
+  const sipParams = [bid]
+  if (baslangic) { sipWhere += ' AND olusturma_tarihi >= ?'; sipParams.push(baslangic) }
+  if (bitis)     { sipWhere += ' AND olusturma_tarihi <= ?'; sipParams.push(bitis) }
+
+  const siparisler = await all(
+    `SELECT * FROM bayi_siparisler WHERE ${sipWhere} ORDER BY olusturma_tarihi ASC`,
+    sipParams
+  )
+
+  const paket_sayisi = siparisler.length
+
+  // Tasima: loop through restaurants, sum their fee
+  const restoranlar = await all('SELECT * FROM bayi_restoranlar WHERE bayilik_id=?', [bid])
+  const restoranById = {}
+  for (const r of restoranlar) restoranById[r.id] = r
+
+  const restoranPaket = {}, restoranCiro = {}
+  for (const s of siparisler) {
+    const rid = s.restoran_id
+    if (!restoranPaket[rid]) { restoranPaket[rid] = 0; restoranCiro[rid] = 0 }
+    restoranPaket[rid]++
+    restoranCiro[rid] += s.tutar || 0
+  }
+
+  let tasima_ucretleri = 0
+  for (const [rid, pkt] of Object.entries(restoranPaket)) {
+    const r = restoranById[rid]
+    if (!r) continue
+    tasima_ucretleri += hesaplaRestoranTasima(r, pkt, restoranCiro[rid])
+  }
+
+  // Kurye hakedisleri: loop through couriers
+  const kuryeler = await all('SELECT * FROM bayi_kuryeler WHERE bayilik_id=? AND aktif=1', [bid])
+  const kuryeById = {}
+  for (const k of kuryeler) kuryeById[k.id] = k
+
+  const kuryePaket = {}, kuryeCiro = {}
+  for (const s of siparisler) {
+    const kid = s.kurye_id
+    if (kid == null) continue
+    if (!kuryePaket[kid]) { kuryePaket[kid] = 0; kuryeCiro[kid] = 0 }
+    kuryePaket[kid]++
+    kuryeCiro[kid] += s.tutar || 0
+  }
+
+  let kurye_hakedisleri = 0
+  for (const [kid, pkt] of Object.entries(kuryePaket)) {
+    const k = kuryeById[kid]
+    if (!k) continue
+    kurye_hakedisleri += hesaplaKuryeKazanc(k, pkt, kuryeCiro[kid])
+  }
+
+  const kazanc = tasima_ucretleri - kurye_hakedisleri
+  const ort_paket_tasima  = paket_sayisi > 0 ? tasima_ucretleri / paket_sayisi : 0
+  const ort_kurye_hakedis = paket_sayisi > 0 ? kurye_hakedisleri / paket_sayisi : 0
+
+  // Günlük breakdown
+  const gunlukMap = {}
+  for (const s of siparisler) {
+    const gun = s.olusturma_tarihi ? s.olusturma_tarihi.slice(0, 10) : 'Bilinmiyor'
+    if (!gunlukMap[gun]) gunlukMap[gun] = { paket: 0, tasima: 0, hakedis: 0 }
+    gunlukMap[gun].paket++
+
+    const r = restoranById[s.restoran_id]
+    if (r) gunlukMap[gun].tasima += hesaplaRestoranTasima(r, 1, s.tutar || 0)
+
+    if (s.kurye_id != null) {
+      const k = kuryeById[s.kurye_id]
+      if (k) gunlukMap[gun].hakedis += hesaplaKuryeKazanc(k, 1, s.tutar || 0)
+    }
+  }
+
+  // If no date range given, show only last 7 days
+  let gunler = Object.keys(gunlukMap).sort()
+  if (!baslangic && !bitis && gunler.length > 7) gunler = gunler.slice(-7)
+
+  const gunluk = gunler.map((gun) => {
+    const v = gunlukMap[gun]
+    return {
+      gun,
+      paket: v.paket,
+      tasima: v.tasima,
+      hakedis: v.hakedis,
+      kazanc: v.tasima - v.hakedis,
+    }
+  })
+
+  res.json({
+    paket_sayisi,
+    tasima_ucretleri,
+    kurye_hakedisleri,
+    kazanc,
+    ort_paket_tasima,
+    ort_kurye_hakedis,
+    gunluk,
+  })
+}))
+
 // ── Error handler ─────────────────────────────────────────────────────────────
 app.use((err, req, res, _next) => {
   console.error(err.message)

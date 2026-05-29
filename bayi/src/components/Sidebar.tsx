@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Bike, UtensilsCrossed, Package, BarChart3, TrendingUp,
-  Settings, LogOut, ChevronDown, Settings2, Sliders, Gift, Clock, Bell, CalendarDays, Coins
+  Settings, LogOut, ChevronDown, Settings2, Sliders, Gift, Clock, Bell,
+  CalendarDays, Coins, List, Users, DollarSign, Store, CreditCard, Building2,
+  FileText
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
@@ -12,8 +14,15 @@ const mainNavItems = [
   { to: '/siparisler',    icon: Package,          label: 'Siparişler' },
   { to: '/kuryeler',      icon: Bike,             label: 'Kuryeler' },
   { to: '/restoranlar',   icon: UtensilsCrossed,  label: 'Restoranlar' },
-  { to: '/raporlar',      icon: BarChart3,        label: 'Raporlar' },
-  { to: '/performanslar', icon: TrendingUp,       label: 'Performanslar' },
+]
+
+const raporlarSubItems = [
+  { to: '/raporlar/gecmis',           icon: List,       label: 'Geçmiş Siparişler' },
+  { to: '/raporlar/kurye-hakedis',    icon: Users,      label: 'Kurye Hakediş' },
+  { to: '/raporlar/kurye-odeme',      icon: DollarSign, label: 'Kurye Ödeme Dağılımı' },
+  { to: '/raporlar/restoran-hakedis', icon: Store,      label: 'Restoran Hakediş' },
+  { to: '/raporlar/odeme-dagilimi',   icon: CreditCard, label: 'Ödeme Dağılım' },
+  { to: '/raporlar/firma',            icon: Building2,  label: 'Firma Hakediş' },
 ]
 
 const ayarlarSubItems = [
@@ -26,18 +35,58 @@ const ayarlarSubItems = [
   { to: '/ayarlar/kontor',      icon: Coins,        label: 'Kontör Yönetim' },
 ]
 
+function ExpandableNav({
+  icon: Icon, label, basePath, subItems, location,
+}: {
+  icon: React.ElementType; label: string; basePath: string
+  subItems: { to: string; icon: React.ElementType; label: string }[]
+  location: string
+}) {
+  const isActive = location.startsWith(basePath)
+  const [open, setOpen] = useState(isActive)
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+          isActive
+            ? 'bg-primary-50 text-primary-600 border-l-2 border-primary-600'
+            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
+        }`}
+      >
+        <Icon size={17} />
+        <span className="flex-1 text-left">{label}</span>
+        <ChevronDown size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="mt-0.5 ml-3 pl-3 border-l border-gray-100 space-y-0.5">
+          {subItems.map(({ to, icon: SubIcon, label: subLabel }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                `flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
+                  isActive ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                }`
+              }
+            >
+              <SubIcon size={13} />
+              {subLabel}
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Sidebar() {
   const { logout, bayilik } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
-  const isAyarlarActive = location.pathname.startsWith('/ayarlar')
-  const [ayarlarOpen, setAyarlarOpen] = useState(isAyarlarActive)
-
-  function handleLogout() {
-    logout()
-    navigate('/login')
-  }
+  function handleLogout() { logout(); navigate('/login') }
 
   return (
     <aside className="w-56 bg-white border-r border-gray-100 flex flex-col h-screen sticky top-0">
@@ -78,45 +127,52 @@ export default function Sidebar() {
           </NavLink>
         ))}
 
-        {/* Ayarlar expandable section */}
-        <div>
-          <button
-            onClick={() => setAyarlarOpen(o => !o)}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-              isAyarlarActive
+        {/* Periyodik Rapor */}
+        <NavLink
+          to="/periyodik-rapor"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              isActive
                 ? 'bg-primary-50 text-primary-600 border-l-2 border-primary-600'
                 : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
-            }`}
-          >
-            <Settings size={17} />
-            <span className="flex-1 text-left">Ayarlar</span>
-            <ChevronDown
-              size={14}
-              className={`transition-transform ${ayarlarOpen ? 'rotate-180' : ''}`}
-            />
-          </button>
+            }`
+          }
+        >
+          <FileText size={17} />
+          Periyodik Rapor
+        </NavLink>
 
-          {ayarlarOpen && (
-            <div className="mt-0.5 ml-3 pl-3 border-l border-gray-100 space-y-0.5">
-              {ayarlarSubItems.map(({ to, icon: Icon, label }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  className={({ isActive }) =>
-                    `flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-                      isActive
-                        ? 'bg-primary-50 text-primary-600'
-                        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
-                    }`
-                  }
-                >
-                  <Icon size={14} />
-                  {label}
-                </NavLink>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Raporlar expandable */}
+        <ExpandableNav
+          icon={BarChart3}
+          label="Raporlar"
+          basePath="/raporlar"
+          subItems={raporlarSubItems}
+          location={location.pathname}
+        />
+
+        <NavLink
+          to="/performanslar"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              isActive
+                ? 'bg-primary-50 text-primary-600 border-l-2 border-primary-600'
+                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
+            }`
+          }
+        >
+          <TrendingUp size={17} />
+          Performanslar
+        </NavLink>
+
+        {/* Ayarlar expandable */}
+        <ExpandableNav
+          icon={Settings}
+          label="Ayarlar"
+          basePath="/ayarlar"
+          subItems={ayarlarSubItems}
+          location={location.pathname}
+        />
       </nav>
 
       <div className="p-3 border-t border-gray-100">
