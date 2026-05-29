@@ -401,6 +401,19 @@ async function initBayiDb() {
   // Migrations: add columns if not exist
   try { await run('ALTER TABLE bayilikler ADD COLUMN bayi_email TEXT') } catch {}
   try { await run('ALTER TABLE bayilikler ADD COLUMN bayi_sifre TEXT') } catch {}
+  // Kurye extended fields
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN plaka TEXT') } catch {}
+  try { await run("ALTER TABLE bayi_kuryeler ADD COLUMN paket_limiti INTEGER DEFAULT 5") } catch {}
+  try { await run(`ALTER TABLE bayi_kuryeler ADD COLUMN odeme_tipleri TEXT DEFAULT '["Nakit","Kredi Kartı"]'`) } catch {}
+  try { await run("ALTER TABLE bayi_kuryeler ADD COLUMN calisma_tipi TEXT DEFAULT 'Paket Başı'") } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN paket_basi_ucret REAL DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN km_baslangic REAL DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN km_ucret REAL DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN komisyon_yuzdesi REAL DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN saatlik_ucret REAL DEFAULT 0') } catch {}
+  try { await run("ALTER TABLE bayi_kuryeler ADD COLUMN coklu_paket TEXT DEFAULT '[]'") } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN paket_iptali INTEGER DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN odeme_duzenleme INTEGER DEFAULT 1') } catch {}
 
   await exec(`
     CREATE TABLE IF NOT EXISTS bayi_kuryeler (
@@ -605,8 +618,38 @@ app.post('/api/bayi/kuryeler', bayiAuthMiddleware, wrap(async (req, res) => {
 app.put('/api/bayi/kuryeler/:id', bayiAuthMiddleware, wrap(async (req, res) => {
   const k = await get('SELECT * FROM bayi_kuryeler WHERE id=? AND bayilik_id=?', [req.params.id, req.bayi.bayilikId])
   if (!k) return res.status(404).json({ message: 'Kurye bulunamadı' })
-  const { ad, telefon } = req.body || {}
-  await run('UPDATE bayi_kuryeler SET ad=COALESCE(?,ad),telefon=COALESCE(?,telefon) WHERE id=?', [ad||null, telefon||null, req.params.id])
+  const {
+    ad, telefon, plaka,
+    paket_limiti, odeme_tipleri, calisma_tipi,
+    paket_basi_ucret, km_baslangic, km_ucret,
+    komisyon_yuzdesi, saatlik_ucret, coklu_paket,
+    paket_iptali, odeme_duzenleme, aktif
+  } = req.body || {}
+  await run(
+    `UPDATE bayi_kuryeler SET
+      ad=COALESCE(?,ad), telefon=COALESCE(?,telefon), plaka=COALESCE(?,plaka),
+      paket_limiti=COALESCE(?,paket_limiti), odeme_tipleri=COALESCE(?,odeme_tipleri),
+      calisma_tipi=COALESCE(?,calisma_tipi), paket_basi_ucret=COALESCE(?,paket_basi_ucret),
+      km_baslangic=COALESCE(?,km_baslangic), km_ucret=COALESCE(?,km_ucret),
+      komisyon_yuzdesi=COALESCE(?,komisyon_yuzdesi), saatlik_ucret=COALESCE(?,saatlik_ucret),
+      coklu_paket=COALESCE(?,coklu_paket),
+      paket_iptali=COALESCE(?,paket_iptali), odeme_duzenleme=COALESCE(?,odeme_duzenleme),
+      aktif=COALESCE(?,aktif)
+    WHERE id=?`,
+    [
+      ad||null, telefon||null, plaka||null,
+      paket_limiti!=null?paket_limiti:null,
+      odeme_tipleri!=null ? (Array.isArray(odeme_tipleri) ? JSON.stringify(odeme_tipleri) : odeme_tipleri) : null,
+      calisma_tipi||null,
+      paket_basi_ucret!=null?paket_basi_ucret:null, km_baslangic!=null?km_baslangic:null,
+      km_ucret!=null?km_ucret:null, komisyon_yuzdesi!=null?komisyon_yuzdesi:null,
+      saatlik_ucret!=null?saatlik_ucret:null,
+      coklu_paket!=null ? (Array.isArray(coklu_paket) ? JSON.stringify(coklu_paket) : coklu_paket) : null,
+      paket_iptali!=null?paket_iptali:null, odeme_duzenleme!=null?odeme_duzenleme:null,
+      aktif!=null?aktif:null,
+      req.params.id
+    ]
+  )
   res.json(await get('SELECT * FROM bayi_kuryeler WHERE id=?', [req.params.id]))
 }))
 

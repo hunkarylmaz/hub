@@ -12,10 +12,22 @@ export interface Kurye {
   bayilik_id: number
   ad: string
   telefon: string | null
+  plaka: string | null
   durum: 'Müsait' | 'Dağıtımda' | 'Mola' | 'Çevrimdışı'
   aktif: number
   toplam_teslimat: number
   gunluk_teslimat: number
+  paket_limiti: number
+  odeme_tipleri: string       // JSON string: e.g. '["Nakit","Kredi Kartı"]'
+  calisma_tipi: string
+  paket_basi_ucret: number
+  km_baslangic: number
+  km_ucret: number
+  komisyon_yuzdesi: number
+  saatlik_ucret: number
+  coklu_paket: string         // JSON string: e.g. '[100, 60, 40]'
+  paket_iptali: number
+  odeme_duzenleme: number
   olusturma_tarihi: string
 }
 
@@ -118,7 +130,7 @@ export const api = {
     list: () => request<Kurye[]>('/api/bayi/kuryeler', { headers: authHeaders() }),
     create: (data: { ad: string; telefon?: string }) =>
       request<Kurye>('/api/bayi/kuryeler', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
-    update: (id: number, data: Partial<{ ad: string; telefon: string }>) =>
+    update: (id: number, data: Record<string, unknown>) =>
       request<Kurye>(`/api/bayi/kuryeler/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
     setDurum: (id: number, durum: string) =>
       request<Kurye>(`/api/bayi/kuryeler/${id}/durum`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ durum }) }),
