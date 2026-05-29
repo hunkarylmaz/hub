@@ -449,6 +449,19 @@ async function initBayiDb() {
   try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN paket_iptali INTEGER DEFAULT 0') } catch {}
   try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN odeme_duzenleme INTEGER DEFAULT 1') } catch {}
 
+  // Genel Ayarlar extensions for bayi_ayarlar
+  try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN calisma_acilis TEXT DEFAULT '11:00'") } catch {}
+  try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN calisma_kapanis TEXT DEFAULT '05:00'") } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN lat REAL') } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN lon REAL') } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN ilce TEXT') } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN siparis_tutar_gorunu INTEGER DEFAULT 1') } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN isletmeye_vardim INTEGER DEFAULT 1') } catch {}
+  try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN siparis_onay_modu TEXT DEFAULT 'Manuel'") } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bildirim_gecikmesi INTEGER DEFAULT 6') } catch {}
+  try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN bildirim_mesaji TEXT DEFAULT 'Siparişi henüz görmediniz! Lütfen kontrol edin.'") } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN gecmis_kazanc_duzenleme INTEGER DEFAULT 1') } catch {}
+
   // Bakiye hareketleri
   await exec(`
     CREATE TABLE IF NOT EXISTS bakiye_hareketleri (
@@ -516,7 +529,54 @@ async function initBayiDb() {
       bildirim_email INTEGER DEFAULT 1,
       bildirim_sms INTEGER DEFAULT 0
     );
+
+    CREATE TABLE IF NOT EXISTS bayi_atama_ayarlari (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      bayilik_id INTEGER UNIQUE,
+      oto_atama_aktif INTEGER DEFAULT 1,
+      ilave_paket INTEGER DEFAULT 1,
+      kurye_arama_km REAL DEFAULT 6.0,
+      isletme_yakinlik_m INTEGER DEFAULT 800,
+      teslimat_yakinlik_m INTEGER DEFAULT 500,
+      atama_bekleme_dk INTEGER DEFAULT 0,
+      paket_birlestirme_dk INTEGER DEFAULT 30,
+      atamasiz_tekrar_dk INTEGER DEFAULT 3,
+      max_paket_per_kurye INTEGER DEFAULT 4,
+      kurye_secim_algo TEXT DEFAULT 'En Yakın Kurye',
+      havuz_aktif INTEGER DEFAULT 1,
+      havuz_teslimatci_gizle INTEGER DEFAULT 0,
+      havuz_mesafe_km REAL DEFAULT 7.0,
+      havuz_bekleme_dk INTEGER DEFAULT 3,
+      havuz_siparis_adet INTEGER DEFAULT 20,
+      havuz_paket_limiti INTEGER DEFAULT 15
+    );
+
+    CREATE TABLE IF NOT EXISTS bayi_vardiyalar (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      bayilik_id INTEGER,
+      kurye_id INTEGER,
+      tarih TEXT NOT NULL,
+      baslangic TEXT,
+      bitis TEXT,
+      izin INTEGER DEFAULT 0,
+      not_text TEXT,
+      olusturma_tarihi TEXT DEFAULT (datetime('now','localtime'))
+    );
+
+    CREATE TABLE IF NOT EXISTS banka_hesaplari (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      banka_adi TEXT NOT NULL,
+      ad_soyad TEXT,
+      iban TEXT NOT NULL,
+      aktif INTEGER DEFAULT 1
+    );
   `)
+
+  const bankCount = await get('SELECT COUNT(*) as c FROM banka_hesaplari')
+  if (bankCount.c === 0) {
+    await run("INSERT INTO banka_hesaplari (banka_adi,ad_soyad,iban) VALUES (?,?,?)",
+      ['Yapıkredi', 'Hünkar Yılmaz', 'TR700006701000000079431847'])
+  }
 
   // Seed demo data for TEST JET bayilik
   const tj = await get("SELECT id FROM bayilikler WHERE bayilik_id='0FNA19SWUL88F6E'")
@@ -922,6 +982,132 @@ app.put('/api/bayi/ayarlar', bayiAuthMiddleware, wrap(async (req, res) => {
   res.json(await get('SELECT * FROM bayi_ayarlar WHERE bayilik_id=?', [req.bayi.bayilikId]))
 }))
 
+// ── BAYİ ATAMA AYARLARI ────────────────────────────────────────────────────────
+app.get('/api/bayi/ayarlar/atama', bayiAuthMiddleware, wrap(async (req, res) => {
+  let row = await get('SELECT * FROM bayi_atama_ayarlari WHERE bayilik_id=?', [req.bayi.bayilikId])
+  if (!row) {
+    await run('INSERT OR IGNORE INTO bayi_atama_ayarlari (bayilik_id) VALUES (?)', [req.bayi.bayilikId])
+    row = await get('SELECT * FROM bayi_atama_ayarlari WHERE bayilik_id=?', [req.bayi.bayilikId])
+  }
+  res.json(row)
+}))
+
+app.put('/api/bayi/ayarlar/atama', bayiAuthMiddleware, wrap(async (req, res) => {
+  const {
+    oto_atama_aktif, ilave_paket, kurye_arama_km, isletme_yakinlik_m, teslimat_yakinlik_m,
+    atama_bekleme_dk, paket_birlestirme_dk, atamasiz_tekrar_dk, max_paket_per_kurye,
+    kurye_secim_algo, havuz_aktif, havuz_teslimatci_gizle, havuz_mesafe_km,
+    havuz_bekleme_dk, havuz_siparis_adet, havuz_paket_limiti
+  } = req.body || {}
+  await run('INSERT OR IGNORE INTO bayi_atama_ayarlari (bayilik_id) VALUES (?)', [req.bayi.bayilikId])
+  await run(
+    `UPDATE bayi_atama_ayarlari SET
+      oto_atama_aktif=COALESCE(?,oto_atama_aktif), ilave_paket=COALESCE(?,ilave_paket),
+      kurye_arama_km=COALESCE(?,kurye_arama_km), isletme_yakinlik_m=COALESCE(?,isletme_yakinlik_m),
+      teslimat_yakinlik_m=COALESCE(?,teslimat_yakinlik_m), atama_bekleme_dk=COALESCE(?,atama_bekleme_dk),
+      paket_birlestirme_dk=COALESCE(?,paket_birlestirme_dk), atamasiz_tekrar_dk=COALESCE(?,atamasiz_tekrar_dk),
+      max_paket_per_kurye=COALESCE(?,max_paket_per_kurye), kurye_secim_algo=COALESCE(?,kurye_secim_algo),
+      havuz_aktif=COALESCE(?,havuz_aktif), havuz_teslimatci_gizle=COALESCE(?,havuz_teslimatci_gizle),
+      havuz_mesafe_km=COALESCE(?,havuz_mesafe_km), havuz_bekleme_dk=COALESCE(?,havuz_bekleme_dk),
+      havuz_siparis_adet=COALESCE(?,havuz_siparis_adet), havuz_paket_limiti=COALESCE(?,havuz_paket_limiti)
+    WHERE bayilik_id=?`,
+    [
+      oto_atama_aktif??null, ilave_paket??null, kurye_arama_km??null, isletme_yakinlik_m??null,
+      teslimat_yakinlik_m??null, atama_bekleme_dk??null, paket_birlestirme_dk??null, atamasiz_tekrar_dk??null,
+      max_paket_per_kurye??null, kurye_secim_algo||null, havuz_aktif??null, havuz_teslimatci_gizle??null,
+      havuz_mesafe_km??null, havuz_bekleme_dk??null, havuz_siparis_adet??null, havuz_paket_limiti??null,
+      req.bayi.bayilikId
+    ]
+  )
+  res.json(await get('SELECT * FROM bayi_atama_ayarlari WHERE bayilik_id=?', [req.bayi.bayilikId]))
+}))
+
+// ── BAYİ GENEL AYARLAR (extended) ─────────────────────────────────────────────
+app.put('/api/bayi/ayarlar/genel', bayiAuthMiddleware, wrap(async (req, res) => {
+  const {
+    calisma_acilis, calisma_kapanis, lat, lon, ilce,
+    siparis_tutar_gorunu, isletmeye_vardim, siparis_onay_modu,
+    bildirim_gecikmesi, bildirim_mesaji, gecmis_kazanc_duzenleme
+  } = req.body || {}
+  await run('INSERT OR IGNORE INTO bayi_ayarlar (bayilik_id) VALUES (?)', [req.bayi.bayilikId])
+  await run(
+    `UPDATE bayi_ayarlar SET
+      calisma_acilis=COALESCE(?,calisma_acilis), calisma_kapanis=COALESCE(?,calisma_kapanis),
+      lat=COALESCE(?,lat), lon=COALESCE(?,lon), ilce=COALESCE(?,ilce),
+      siparis_tutar_gorunu=COALESCE(?,siparis_tutar_gorunu), isletmeye_vardim=COALESCE(?,isletmeye_vardim),
+      siparis_onay_modu=COALESCE(?,siparis_onay_modu), bildirim_gecikmesi=COALESCE(?,bildirim_gecikmesi),
+      bildirim_mesaji=COALESCE(?,bildirim_mesaji), gecmis_kazanc_duzenleme=COALESCE(?,gecmis_kazanc_duzenleme)
+    WHERE bayilik_id=?`,
+    [
+      calisma_acilis||null, calisma_kapanis||null, lat??null, lon??null, ilce||null,
+      siparis_tutar_gorunu??null, isletmeye_vardim??null, siparis_onay_modu||null,
+      bildirim_gecikmesi??null, bildirim_mesaji||null, gecmis_kazanc_duzenleme??null,
+      req.bayi.bayilikId
+    ]
+  )
+  const ay = await get('SELECT * FROM bayi_ayarlar WHERE bayilik_id=?', [req.bayi.bayilikId])
+  const b = await get('SELECT id,ad,bayilik_id,sehir,token,durum,bayi_email FROM bayilikler WHERE id=?', [req.bayi.bayilikId])
+  res.json({ ...ay, bayilik: b })
+}))
+
+// ── BAYİ VARDİYALAR ────────────────────────────────────────────────────────────
+app.get('/api/bayi/vardiyalar', bayiAuthMiddleware, wrap(async (req, res) => {
+  const { hafta_baslangic } = req.query
+  let where = 'bayilik_id=?'
+  const params = [req.bayi.bayilikId]
+  if (hafta_baslangic) {
+    const bitis = new Date(hafta_baslangic)
+    bitis.setDate(bitis.getDate() + 7)
+    where += ' AND tarih >= ? AND tarih < ?'
+    params.push(hafta_baslangic, bitis.toISOString().slice(0, 10))
+  }
+  res.json(await all(`SELECT * FROM bayi_vardiyalar WHERE ${where} ORDER BY tarih,kurye_id`, params))
+}))
+
+app.post('/api/bayi/vardiyalar', bayiAuthMiddleware, wrap(async (req, res) => {
+  const { kurye_id, tarih, baslangic, bitis, izin, not_text } = req.body || {}
+  if (!kurye_id || !tarih) return res.status(400).json({ message: 'kurye_id ve tarih zorunlu' })
+  // Upsert: delete existing for same kurye+tarih then insert
+  await run('DELETE FROM bayi_vardiyalar WHERE bayilik_id=? AND kurye_id=? AND tarih=?', [req.bayi.bayilikId, kurye_id, tarih])
+  const { lastID } = await run(
+    'INSERT INTO bayi_vardiyalar (bayilik_id,kurye_id,tarih,baslangic,bitis,izin,not_text) VALUES (?,?,?,?,?,?,?)',
+    [req.bayi.bayilikId, kurye_id, tarih, baslangic||null, bitis||null, izin||0, not_text||null]
+  )
+  res.json(await get('SELECT * FROM bayi_vardiyalar WHERE id=?', [lastID]))
+}))
+
+app.delete('/api/bayi/vardiyalar/:id', bayiAuthMiddleware, wrap(async (req, res) => {
+  await run('DELETE FROM bayi_vardiyalar WHERE id=? AND bayilik_id=?', [req.params.id, req.bayi.bayilikId])
+  res.json({ success: true })
+}))
+
+// ── BANKA HESAPLARI (public for bayi) ─────────────────────────────────────────
+app.get('/api/bayi/banka-hesaplari', bayiAuthMiddleware, wrap(async (req, res) => {
+  res.json(await all('SELECT * FROM banka_hesaplari WHERE aktif=1 ORDER BY id'))
+}))
+
+// ── KONTÖR TALEP (bayi → B2B) ──────────────────────────────────────────────────
+app.post('/api/bayi/kontor-talep', bayiAuthMiddleware, wrap(async (req, res) => {
+  const { miktar, gonderen, banka, not_text } = req.body || {}
+  if (!miktar || miktar < 500) return res.status(400).json({ message: 'Minimum 500 kontör' })
+  const b = await get('SELECT * FROM bayilikler WHERE id=?', [req.bayi.bayilikId])
+  if (!b) return res.status(404).json({ message: 'Bayilik bulunamadı' })
+  const talep_no = 'KT' + Date.now()
+  const { lastID } = await run(
+    'INSERT INTO odeme_talepleri (talep_no,bayilik_id,miktar,banka,gonderen,durum,user_id) VALUES (?,?,?,?,?,?,?)',
+    [talep_no, b.id, miktar, banka||null, gonderen||null, 'Beklemede', b.user_id]
+  )
+  res.json(await get('SELECT ot.*,b.ad as bayilik_ad FROM odeme_talepleri ot JOIN bayilikler b ON b.id=ot.bayilik_id WHERE ot.id=?', [lastID]))
+}))
+
+app.get('/api/bayi/kontor-talepler', bayiAuthMiddleware, wrap(async (req, res) => {
+  const rows = await all(
+    'SELECT * FROM odeme_talepleri WHERE bayilik_id=? ORDER BY id DESC',
+    [req.bayi.bayilikId]
+  )
+  res.json(rows)
+}))
+
 // ── BAYİ PERFORMANS ──────────────────────────────────────────────────────────
 app.get('/api/bayi/performans', bayiAuthMiddleware, wrap(async (req, res) => {
   const bid = req.bayi.bayilikId
@@ -1012,17 +1198,78 @@ app.get('/api/bayi/raporlar/isletme', bayiAuthMiddleware, wrap(async (req, res) 
   const toplam_paket = siparisler.length
   const toplam_gelir = siparisler.reduce((a, s) => a + (s.tutar || 0), 0)
   const ct = restoran.calisma_tipi || 'Paket Başı'
-  let tasima_birim = ct === 'Paket Başı' || ct === 'Paket + Km' ? (restoran.paket_basi_ucret || 0)
-    : ct === 'Saatlik Ücret' ? (restoran.saatlik_ucret || 0) : (restoran.komisyon_yuzdesi || 0)
-  const tasima_toplam = ct === 'Komisyon' ? toplam_gelir * (tasima_birim / 100) : tasima_birim * toplam_paket
+
+  // Calculate transport fee by work type
+  let tasima_toplam = 0
+  let tasima_aciklama = ''
+  if (ct === 'Paket Başı') {
+    const birim = restoran.paket_basi_ucret || 0
+    tasima_toplam = birim * toplam_paket
+    tasima_aciklama = `${toplam_paket} adet × ${birim}₺`
+  } else if (ct === 'Km Aralığı') {
+    const baslangic_km = restoran.km_baslangic || 0
+    const km_birim = restoran.km_ucret || 0
+    tasima_toplam = (baslangic_km + km_birim) * toplam_paket
+    tasima_aciklama = `${toplam_paket} adet × (${baslangic_km}₺ + ${km_birim}₺/km)`
+  } else if (ct === 'Komisyon') {
+    const oran = restoran.komisyon_yuzdesi || 0
+    tasima_toplam = toplam_gelir * (oran / 100)
+    tasima_aciklama = `${toplam_gelir.toFixed(2)}₺ × %${oran}`
+  } else if (ct === 'Paket + Km') {
+    const paket_birim = restoran.paket_basi_ucret || 0
+    const km_birim = restoran.km_ucret || 0
+    const km_bas = restoran.km_baslangic || 0
+    tasima_toplam = (paket_birim + km_bas + km_birim) * toplam_paket
+    tasima_aciklama = `${toplam_paket} adet × (${paket_birim}₺ paket + km)`
+  } else if (ct === 'Saatlik Ücret') {
+    tasima_toplam = restoran.saatlik_ucret || 0
+    tasima_aciklama = `Saatlik ücret: ${tasima_toplam}₺`
+  } else if (ct === 'Çoklu Paket') {
+    let tiers = []
+    try { tiers = JSON.parse(restoran.coklu_paket || '[]') } catch {}
+    if (tiers.length === 0) tiers = [restoran.paket_basi_ucret || 0]
+    // Distribute packages across tiers in groups of tier.length
+    const grup = tiers.length
+    const tam_grup = Math.floor(toplam_paket / grup)
+    const kalan = toplam_paket % grup
+    const grup_toplam = tiers.reduce((a, b) => a + (b || 0), 0)
+    tasima_toplam = tam_grup * grup_toplam + tiers.slice(0, kalan).reduce((a, b) => a + (b || 0), 0)
+    tasima_aciklama = `${toplam_paket} adet çoklu paket (${tiers.join('+')}₺)`
+  }
+
+  // Per-day tasima for günlük bazlı
+  const gunlukWithTasima = Object.entries(gunlukMap).map(([gun, v]) => {
+    let gun_tasima = 0
+    if (ct === 'Komisyon') {
+      gun_tasima = v.gelir * ((restoran.komisyon_yuzdesi || 0) / 100)
+    } else if (ct === 'Saatlik Ücret') {
+      gun_tasima = restoran.saatlik_ucret || 0
+    } else if (ct === 'Çoklu Paket') {
+      let tiers = []
+      try { tiers = JSON.parse(restoran.coklu_paket || '[]') } catch {}
+      if (tiers.length === 0) tiers = [restoran.paket_basi_ucret || 0]
+      const grup = tiers.length
+      const tam = Math.floor(v.sayi / grup)
+      const kal = v.sayi % grup
+      const gTop = tiers.reduce((a, b) => a + (b || 0), 0)
+      gun_tasima = tam * gTop + tiers.slice(0, kal).reduce((a, b) => a + (b || 0), 0)
+    } else {
+      const birim = ct === 'Paket Başı' ? (restoran.paket_basi_ucret || 0)
+        : ct === 'Km Aralığı' ? (restoran.km_baslangic || 0) + (restoran.km_ucret || 0)
+        : (restoran.paket_basi_ucret || 0) + (restoran.km_baslangic || 0)
+      gun_tasima = birim * v.sayi
+    }
+    return { gun, ...v, tasima: gun_tasima }
+  })
 
   res.json({
     restoran,
     toplam_paket,
     toplam_gelir,
     tasima_toplam,
+    tasima_aciklama,
     odeme_gruplari: odemeGruplari,
-    gunluk: Object.entries(gunlukMap).map(([gun, v]) => ({ gun, ...v })),
+    gunluk: gunlukWithTasima,
   })
 }))
 
@@ -1052,9 +1299,35 @@ app.get('/api/bayi/raporlar/kurye', bayiAuthMiddleware, wrap(async (req, res) =>
   const toplam_paket = siparisler.length
   const ct = kurye.calisma_tipi || 'Paket Başı'
   const ciro = siparisler.reduce((a, s) => a + (s.tutar || 0), 0)
+
   let brut_kazanc = 0
-  if (ct === 'Komisyon') brut_kazanc = ciro * ((kurye.komisyon_yuzdesi || 0) / 100)
-  else brut_kazanc = (kurye.paket_basi_ucret || 0) * toplam_paket
+  let kazanc_aciklama = ''
+  if (ct === 'Paket Başı') {
+    brut_kazanc = (kurye.paket_basi_ucret || 0) * toplam_paket
+    kazanc_aciklama = `${toplam_paket} adet × ${kurye.paket_basi_ucret || 0}₺`
+  } else if (ct === 'Km Aralığı') {
+    brut_kazanc = ((kurye.km_baslangic || 0) + (kurye.km_ucret || 0)) * toplam_paket
+    kazanc_aciklama = `${toplam_paket} adet × km ücret`
+  } else if (ct === 'Komisyon') {
+    brut_kazanc = ciro * ((kurye.komisyon_yuzdesi || 0) / 100)
+    kazanc_aciklama = `${ciro.toFixed(2)}₺ × %${kurye.komisyon_yuzdesi || 0}`
+  } else if (ct === 'Paket + Km') {
+    brut_kazanc = ((kurye.paket_basi_ucret || 0) + (kurye.km_baslangic || 0) + (kurye.km_ucret || 0)) * toplam_paket
+    kazanc_aciklama = `${toplam_paket} adet × (paket + km)`
+  } else if (ct === 'Saatlik Ücret') {
+    brut_kazanc = kurye.saatlik_ucret || 0
+    kazanc_aciklama = `Saatlik ücret: ${brut_kazanc}₺`
+  } else if (ct === 'Çoklu Paket') {
+    let tiers = []
+    try { tiers = JSON.parse(kurye.coklu_paket || '[]') } catch {}
+    if (tiers.length === 0) tiers = [kurye.paket_basi_ucret || 0]
+    const grup = tiers.length
+    const tam = Math.floor(toplam_paket / grup)
+    const kal = toplam_paket % grup
+    const gTop = tiers.reduce((a, b) => a + (b || 0), 0)
+    brut_kazanc = tam * gTop + tiers.slice(0, kal).reduce((a, b) => a + (b || 0), 0)
+    kazanc_aciklama = `${toplam_paket} adet çoklu (${tiers.join('+')}₺)`
+  }
 
   let bhWhere = `bayilik_id=? AND entity_type='kurye' AND entity_id=? AND tur='Aldım' AND faturaya_dahil=1`
   const bhParams = [bid, kurye_id]
@@ -1063,12 +1336,38 @@ app.get('/api/bayi/raporlar/kurye', bayiAuthMiddleware, wrap(async (req, res) =>
   const aldim_row = await get(`SELECT COALESCE(SUM(tutar),0) as toplam FROM bakiye_hareketleri WHERE ${bhWhere}`, bhParams)
   const aldim_toplam = aldim_row?.toplam || 0
 
+  // Per-day earnings
+  const gunlukWithKazanc = Object.entries(gunlukMap).map(([gun, v]) => {
+    let gun_kazanc = 0
+    if (ct === 'Komisyon') {
+      gun_kazanc = 0 // ciro per day not tracked separately
+    } else if (ct === 'Çoklu Paket') {
+      let tiers = []
+      try { tiers = JSON.parse(kurye.coklu_paket || '[]') } catch {}
+      if (tiers.length === 0) tiers = [kurye.paket_basi_ucret || 0]
+      const g = tiers.length
+      const t = Math.floor(v.sayi / g)
+      const k = v.sayi % g
+      const gT = tiers.reduce((a, b) => a + (b || 0), 0)
+      gun_kazanc = t * gT + tiers.slice(0, k).reduce((a, b) => a + (b || 0), 0)
+    } else {
+      const birim = ct === 'Paket Başı' ? (kurye.paket_basi_ucret || 0)
+        : ct === 'Km Aralığı' ? (kurye.km_baslangic || 0) + (kurye.km_ucret || 0)
+        : ct === 'Paket + Km' ? (kurye.paket_basi_ucret || 0) + (kurye.km_baslangic || 0)
+        : 0
+      gun_kazanc = birim * v.sayi
+    }
+    return { gun, ...v, kazanc: gun_kazanc }
+  })
+
   res.json({
     kurye,
     toplam_paket,
     brut_kazanc,
+    kazanc_aciklama,
     aldim_toplam,
-    gunluk: Object.entries(gunlukMap).map(([gun, v]) => ({ gun, ...v })),
+    ciro,
+    gunluk: gunlukWithKazanc,
   })
 }))
 

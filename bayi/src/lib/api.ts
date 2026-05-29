@@ -119,7 +119,70 @@ export interface BayiAyarlar {
   bonus_miktar: number
   bildirim_email: number
   bildirim_sms: number
+  // Genel ayarlar extended
+  calisma_acilis?: string
+  calisma_kapanis?: string
+  lat?: number | null
+  lon?: number | null
+  ilce?: string | null
+  siparis_tutar_gorunu?: number
+  isletmeye_vardim?: number
+  siparis_onay_modu?: string
+  bildirim_gecikmesi?: number
+  bildirim_mesaji?: string
+  gecmis_kazanc_duzenleme?: number
   bayilik?: Bayilik
+}
+
+export interface AtamaAyarlari {
+  id: number
+  bayilik_id: number
+  oto_atama_aktif: number
+  ilave_paket: number
+  kurye_arama_km: number
+  isletme_yakinlik_m: number
+  teslimat_yakinlik_m: number
+  atama_bekleme_dk: number
+  paket_birlestirme_dk: number
+  atamasiz_tekrar_dk: number
+  max_paket_per_kurye: number
+  kurye_secim_algo: string
+  havuz_aktif: number
+  havuz_teslimatci_gizle: number
+  havuz_mesafe_km: number
+  havuz_bekleme_dk: number
+  havuz_siparis_adet: number
+  havuz_paket_limiti: number
+}
+
+export interface BankaHesabi {
+  id: number
+  banka_adi: string
+  ad_soyad: string | null
+  iban: string
+  aktif: number
+}
+
+export interface KontorTalep {
+  id: number
+  talep_no: string
+  bayilik_id: number
+  miktar: number
+  banka: string | null
+  gonderen: string | null
+  durum: string
+  olusturma_tarihi: string
+}
+
+export interface Vardiya {
+  id: number
+  bayilik_id: number
+  kurye_id: number
+  tarih: string
+  baslangic: string | null
+  bitis: string | null
+  izin: number
+  not_text: string | null
 }
 
 function getToken(): string {
@@ -221,8 +284,9 @@ export const api = {
         toplam_paket: number
         toplam_gelir: number
         tasima_toplam: number
+        tasima_aciklama: string
         odeme_gruplari: Record<string, { sayi: number; tutar: number }>
-        gunluk: { gun: string; sayi: number; gelir: number }[]
+        gunluk: { gun: string; sayi: number; gelir: number; tasima: number }[]
       }>(`/api/bayi/raporlar/isletme?${q}`, { headers: authHeaders() })
     },
     kurye: (params: { kurye_id: number; baslangic?: string; bitis?: string }) => {
@@ -233,8 +297,10 @@ export const api = {
         kurye: Kurye
         toplam_paket: number
         brut_kazanc: number
+        kazanc_aciklama: string
         aldim_toplam: number
-        gunluk: { gun: string; sayi: number }[]
+        ciro: number
+        gunluk: { gun: string; sayi: number; kazanc: number }[]
       }>(`/api/bayi/raporlar/kurye?${q}`, { headers: authHeaders() })
     },
   },
@@ -260,5 +326,34 @@ export const api = {
     get: () => request<BayiAyarlar>('/api/bayi/ayarlar', { headers: authHeaders() }),
     update: (data: Partial<BayiAyarlar>) =>
       request<BayiAyarlar>('/api/bayi/ayarlar', { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+    updateGenel: (data: Partial<BayiAyarlar>) =>
+      request<BayiAyarlar>('/api/bayi/ayarlar/genel', { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+    getAtama: () => request<AtamaAyarlari>('/api/bayi/ayarlar/atama', { headers: authHeaders() }),
+    updateAtama: (data: Partial<AtamaAyarlari>) =>
+      request<AtamaAyarlari>('/api/bayi/ayarlar/atama', { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+  },
+
+  vardiyalar: {
+    list: (params?: { baslangic?: string; bitis?: string; kurye_id?: number }) => {
+      const q = new URLSearchParams()
+      if (params?.baslangic) q.set('baslangic', params.baslangic)
+      if (params?.bitis) q.set('bitis', params.bitis)
+      if (params?.kurye_id) q.set('kurye_id', String(params.kurye_id))
+      return request<Vardiya[]>(`/api/bayi/vardiyalar?${q}`, { headers: authHeaders() })
+    },
+    save: (data: { kurye_id: number; tarih: string; baslangic?: string; bitis?: string; izin?: number; not_text?: string }) =>
+      request<Vardiya>('/api/bayi/vardiyalar', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    delete: (id: number) =>
+      request<{ success: boolean }>(`/api/bayi/vardiyalar/${id}`, { method: 'DELETE', headers: authHeaders() }),
+  },
+
+  bankaHesaplari: {
+    list: () => request<BankaHesabi[]>('/api/bayi/banka-hesaplari', { headers: authHeaders() }),
+  },
+
+  kontorTalepler: {
+    list: () => request<KontorTalep[]>('/api/bayi/kontor-talepler', { headers: authHeaders() }),
+    create: (data: { miktar: number; gonderen?: string; banka?: string; not_text?: string }) =>
+      request<KontorTalep>('/api/bayi/kontor-talep', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
   },
 }

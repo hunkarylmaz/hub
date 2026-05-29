@@ -8,7 +8,14 @@ import Kuryeler from './pages/Kuryeler'
 import Restoranlar from './pages/Restoranlar'
 import Raporlar from './pages/Raporlar'
 import Performanslar from './pages/Performanslar'
-import Ayarlar from './pages/Ayarlar'
+import AyarlarLayout from './pages/ayarlar/AyarlarLayout'
+import GenelAyarlar from './pages/ayarlar/GenelAyarlar'
+import AtamaAyarlari from './pages/ayarlar/AtamaAyarlari'
+import BonusAyarlari from './pages/ayarlar/BonusAyarlari'
+import MolaYonetim from './pages/ayarlar/MolaYonetim'
+import Bildirimler from './pages/ayarlar/Bildirimler'
+import Vardiyalar from './pages/ayarlar/Vardiyalar'
+import KontorYonetim from './pages/ayarlar/KontorYonetim'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { bayilik, loading } = useAuth()
@@ -56,7 +63,16 @@ function AppRoutes() {
         <Route path="restoranlar" element={<Restoranlar />} />
         <Route path="raporlar" element={<Raporlar />} />
         <Route path="performanslar" element={<Performanslar />} />
-        <Route path="ayarlar" element={<Ayarlar />} />
+        <Route path="ayarlar" element={<AyarlarLayout />}>
+          <Route index element={<Navigate to="genel" replace />} />
+          <Route path="genel" element={<GenelAyarlar />} />
+          <Route path="atama" element={<AtamaAyarlari />} />
+          <Route path="bonus" element={<BonusAyarlari />} />
+          <Route path="mola" element={<MolaYonetim />} />
+          <Route path="bildirimler" element={<Bildirimler />} />
+          <Route path="vardiyalar" element={<Vardiyalar />} />
+          <Route path="kontor" element={<KontorYonetim />} />
+        </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
