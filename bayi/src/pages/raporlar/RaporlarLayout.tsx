@@ -1,13 +1,15 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { List, Users, DollarSign, Store, CreditCard, Building2 } from 'lucide-react'
+import { List, Users, DollarSign, Store, CreditCard, Building2, Scale } from 'lucide-react'
 
 const subNav = [
-  { to: '/raporlar/gecmis',          icon: List,        label: 'Geçmiş Siparişler' },
-  { to: '/raporlar/kurye-hakedis',   icon: Users,       label: 'Kurye Hakediş' },
-  { to: '/raporlar/kurye-odeme',     icon: DollarSign,  label: 'Kurye Ödeme Dağılımı' },
-  { to: '/raporlar/restoran-hakedis',icon: Store,       label: 'Restoran Hakediş' },
-  { to: '/raporlar/odeme-dagilimi',  icon: CreditCard,  label: 'Ödeme Dağılım' },
-  { to: '/raporlar/firma',           icon: Building2,   label: 'Firma Hakediş' },
+  { to: '/raporlar/gecmis',              icon: List,        label: 'Geçmiş Siparişler' },
+  { to: '/raporlar/kurye-hakedis',       icon: Users,       label: 'Kurye Hakediş' },
+  { to: '/raporlar/kurye-odeme',         icon: DollarSign,  label: 'Kurye Ödeme Dağılımı' },
+  { to: '/raporlar/restoran-hakedis',    icon: Store,       label: 'Restoran Hakediş' },
+  { to: '/raporlar/odeme-dagilimi',      icon: CreditCard,  label: 'Ödeme Dağılım' },
+  { to: '/raporlar/firma',               icon: Building2,   label: 'Firma Hakediş' },
+  { to: '/raporlar/kurye-mutabakat',     icon: Scale,       label: 'Kurye Mutabakat' },
+  { to: '/raporlar/restoran-mutabakat',  icon: Scale,       label: 'Restoran Mutabakat' },
 ]
 
 export default function RaporlarLayout() {

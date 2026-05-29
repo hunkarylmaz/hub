@@ -240,6 +240,28 @@ export interface RestoranHakedisRow {
   net_kazanc: number
 }
 
+export interface MolaAyarlari {
+  id: number
+  bayilik_id: number
+  gunluk_mola_hakki: number
+  mola_sureleri: string
+  onay_mekanizmasi: string
+  yasak_saatler: string
+}
+
+export interface MolaTalep {
+  id: number
+  bayilik_id: number
+  kurye_id: number
+  kurye_ad: string | null
+  kurye_tel: string | null
+  sure_dk: number
+  durum: string
+  talep_tarihi: string
+  baslangic: string | null
+  bitis: string | null
+}
+
 export interface BayiKullanici {
   id: number
   ad_soyad: string
@@ -507,5 +529,63 @@ export const api = {
       request<BayiKullanici>(`/api/bayi/kullanicilar/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
     delete: (id: number) =>
       request<{ message: string }>(`/api/bayi/kullanicilar/${id}`, { method: 'DELETE', headers: authHeaders() }),
+  },
+
+  molaAyarlari: {
+    get: () => request<MolaAyarlari>('/api/bayi/mola-ayarlari', { headers: authHeaders() }),
+    update: (data: { gunluk_mola_hakki?: number; mola_sureleri?: number[]; onay_mekanizmasi?: string; yasak_saatler?: { baslangic: string; bitis: string }[] }) =>
+      request<MolaAyarlari>('/api/bayi/mola-ayarlari', { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+  },
+
+  molaTalepleri: {
+    list: (durum?: string) => {
+      const q = new URLSearchParams()
+      if (durum && durum !== 'Tümü') q.set('durum', durum)
+      return request<MolaTalep[]>(`/api/bayi/mola-talepleri?${q}`, { headers: authHeaders() })
+    },
+    create: (data: { kurye_id: number; sure_dk: number }) =>
+      request<MolaTalep>('/api/bayi/mola-talepleri', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    updateDurum: (id: number, durum: string) =>
+      request<MolaTalep>(`/api/bayi/mola-talepleri/${id}/durum`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ durum }) }),
+  },
+
+  molaRaporlar: {
+    get: (params?: { baslangic?: string; bitis?: string }) => {
+      const q = new URLSearchParams()
+      if (params?.baslangic) q.set('baslangic', params.baslangic)
+      if (params?.bitis) q.set('bitis', params.bitis)
+      return request<{
+        kurye_siralaması: { kurye_id: number; kurye_ad: string; kurye_tel: string | null; mola_sayisi: number; toplam_sure_dk: number }[]
+        saatlik: { saat: string; sayi: number }[]
+        gunluk: { gun: string; sayi: number }[]
+      }>(`/api/bayi/mola-raporlar?${q}`, { headers: authHeaders() })
+    },
+  },
+
+  mutabakat: {
+    kuryeler: (params?: { baslangic?: string; bitis?: string }) => {
+      const q = new URLSearchParams()
+      if (params?.baslangic) q.set('baslangic', params.baslangic)
+      if (params?.bitis) q.set('bitis', params.bitis)
+      return request<{
+        kuryeler: {
+          id: number; ad: string; telefon: string | null
+          paket_sayisi: number; nakit: number; kredi_karti: number; yemek_karti: number; online: number
+          toplam_tahsilat: number; odenmesi_gereken: number; alinan: number; verilen: number; net_fark: number; hakedis: number
+        }[]
+      }>(`/api/bayi/mutabakat/kuryeler?${q}`, { headers: authHeaders() })
+    },
+    restoranlar: (params?: { baslangic?: string; bitis?: string }) => {
+      const q = new URLSearchParams()
+      if (params?.baslangic) q.set('baslangic', params.baslangic)
+      if (params?.bitis) q.set('bitis', params.bitis)
+      return request<{
+        restoranlar: {
+          id: number; ad: string; calisma_tipi: string
+          paket_sayisi: number; nakit: number; kredi_karti: number; yemek_karti: number; online: number
+          toplam_satis: number; tasima_ucreti: number; alinan: number; verilen: number; net_fark: number
+        }[]
+      }>(`/api/bayi/mutabakat/restoranlar?${q}`, { headers: authHeaders() })
+    },
   },
 }

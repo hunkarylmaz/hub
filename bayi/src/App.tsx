@@ -23,6 +23,8 @@ import KuryeOdemeDagilimi from './pages/raporlar/KuryeOdemeDagilimi'
 import RestoranHakedis from './pages/raporlar/RestoranHakedis'
 import OdemeDagilimi from './pages/raporlar/OdemeDagilimi'
 import FirmaHakedis from './pages/raporlar/FirmaHakedis'
+import KuryeMutabakat from './pages/raporlar/KuryeMutabakat'
+import RestoranMutabakat from './pages/raporlar/RestoranMutabakat'
 import Kullanicilar from './pages/Kullanicilar'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -54,6 +56,8 @@ function AppRoutes() {
           <Route path="restoran-hakedis" element={<RestoranHakedis />} />
           <Route path="odeme-dagilimi" element={<OdemeDagilimi />} />
           <Route path="firma" element={<FirmaHakedis />} />
+          <Route path="kurye-mutabakat" element={<KuryeMutabakat />} />
+          <Route path="restoran-mutabakat" element={<RestoranMutabakat />} />
         </Route>
         <Route path="performanslar" element={<Performanslar />} />
         <Route path="ayarlar" element={<AyarlarLayout />}>

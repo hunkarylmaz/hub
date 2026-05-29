@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Search, Plus, Loader2, AlertCircle, Bike, CheckCircle2, X, Navigation, PauseCircle } from 'lucide-react'
+import { Search, Plus, Loader2, AlertCircle, Bike, CheckCircle2, X, Navigation, PauseCircle, RefreshCw, Ban } from 'lucide-react'
 import { api, Siparis, Kurye, Restoran } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -322,32 +322,41 @@ export default function Siparisler() {
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${durumBadge(s.durum)}`}>{s.durum}</span>
                   </td>
                   <td className="px-5 py-3 text-xs text-gray-500">{formatTarih(s.olusturma_tarihi)}</td>
-                  <td className="px-5 py-3">
+                  <td className="px-4 py-3">
                     <div className="flex gap-1 flex-wrap">
-                      {s.durum === 'Beklemede' && (
+                      {/* Ata veya Kurye Değiştir */}
+                      {s.durum !== 'Teslim Edildi' && s.durum !== 'İptal' && (
                         <button onClick={() => setAtaModal(s)} className="text-xs px-2 py-1 bg-primary-50 text-primary-600 hover:bg-primary-100 rounded-md flex items-center gap-1">
-                          <Bike size={11} /> Ata
+                          {s.kurye_id ? <><RefreshCw size={11} /> Kurye Değiştir</> : <><Bike size={11} /> Ata</>}
                         </button>
                       )}
+                      {/* Yola Çıkar: sadece Atandı */}
                       {s.durum === 'Atandı' && (
-                        <>
-                          <button onClick={() => handleDurumGuncelle(s, 'Yolda')} disabled={updatingDurum === s.id} className="text-xs px-2 py-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-md flex items-center gap-1 disabled:opacity-50">
-                            <Navigation size={11} /> Yola Çıkar
-                          </button>
-                          <button onClick={() => handleDurumGuncelle(s, 'Beklemede')} disabled={updatingDurum === s.id} className="text-xs px-2 py-1 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-md flex items-center gap-1 disabled:opacity-50">
-                            <PauseCircle size={11} /> Beklet
-                          </button>
-                        </>
+                        <button onClick={() => handleDurumGuncelle(s, 'Yolda')} disabled={updatingDurum === s.id}
+                          className="text-xs px-2 py-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-md flex items-center gap-1 disabled:opacity-50">
+                          <Navigation size={11} /> Yola Çıkar
+                        </button>
                       )}
+                      {/* Beklet: Atandı veya Yolda */}
+                      {(s.durum === 'Atandı' || s.durum === 'Yolda') && (
+                        <button onClick={() => handleDurumGuncelle(s, 'Beklemede')} disabled={updatingDurum === s.id}
+                          className="text-xs px-2 py-1 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-md flex items-center gap-1 disabled:opacity-50">
+                          <PauseCircle size={11} /> Beklet
+                        </button>
+                      )}
+                      {/* Teslim Et: Yolda */}
                       {s.durum === 'Yolda' && (
-                        <>
-                          <button onClick={() => handleTeslim(s)} disabled={delivering === s.id} className="text-xs px-2 py-1 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-md flex items-center gap-1 disabled:opacity-50">
-                            <CheckCircle2 size={11} /> {delivering === s.id ? '...' : 'Teslim'}
-                          </button>
-                          <button onClick={() => handleDurumGuncelle(s, 'Beklemede')} disabled={updatingDurum === s.id} className="text-xs px-2 py-1 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-md flex items-center gap-1 disabled:opacity-50">
-                            <PauseCircle size={11} /> Beklet
-                          </button>
-                        </>
+                        <button onClick={() => handleTeslim(s)} disabled={delivering === s.id}
+                          className="text-xs px-2 py-1 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-md flex items-center gap-1 disabled:opacity-50">
+                          <CheckCircle2 size={11} /> {delivering === s.id ? '...' : 'Teslim'}
+                        </button>
+                      )}
+                      {/* İptal: herhangi aktif durum */}
+                      {s.durum !== 'Teslim Edildi' && s.durum !== 'İptal' && (
+                        <button onClick={() => { if (confirm('Sipariş iptal edilsin mi?')) handleDurumGuncelle(s, 'İptal') }} disabled={updatingDurum === s.id}
+                          className="text-xs px-2 py-1 bg-red-50 text-red-500 hover:bg-red-100 rounded-md flex items-center gap-1 disabled:opacity-50">
+                          <Ban size={11} /> İptal
+                        </button>
                       )}
                     </div>
                   </td>

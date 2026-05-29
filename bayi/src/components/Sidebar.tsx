@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Bike, UtensilsCrossed, Package, BarChart3, TrendingUp,
   Settings, LogOut, ChevronDown, Settings2, Sliders, Gift, Clock, Bell,
   CalendarDays, Coins, List, Users, DollarSign, Store, CreditCard, Building2,
-  FileText, UserCog
+  FileText, UserCog, Scale
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
@@ -18,12 +18,14 @@ const mainNavItems = [
 ]
 
 const raporlarSubItems = [
-  { to: '/raporlar/gecmis',           icon: List,       label: 'Geçmiş Siparişler' },
-  { to: '/raporlar/kurye-hakedis',    icon: Users,      label: 'Kurye Hakediş' },
-  { to: '/raporlar/kurye-odeme',      icon: DollarSign, label: 'Kurye Ödeme Dağılımı' },
-  { to: '/raporlar/restoran-hakedis', icon: Store,      label: 'Restoran Hakediş' },
-  { to: '/raporlar/odeme-dagilimi',   icon: CreditCard, label: 'Ödeme Dağılım' },
-  { to: '/raporlar/firma',            icon: Building2,  label: 'Firma Hakediş' },
+  { to: '/raporlar/gecmis',              icon: List,       label: 'Geçmiş Siparişler' },
+  { to: '/raporlar/kurye-hakedis',       icon: Users,      label: 'Kurye Hakediş' },
+  { to: '/raporlar/kurye-odeme',         icon: DollarSign, label: 'Kurye Ödeme Dağılımı' },
+  { to: '/raporlar/restoran-hakedis',    icon: Store,      label: 'Restoran Hakediş' },
+  { to: '/raporlar/odeme-dagilimi',      icon: CreditCard, label: 'Ödeme Dağılım' },
+  { to: '/raporlar/firma',               icon: Building2,  label: 'Firma Hakediş' },
+  { to: '/raporlar/kurye-mutabakat',     icon: Scale,      label: 'Kurye Mutabakat' },
+  { to: '/raporlar/restoran-mutabakat',  icon: Scale,      label: 'Restoran Mutabakat' },
 ]
 
 const ayarlarSubItems = [
