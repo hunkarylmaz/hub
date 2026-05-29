@@ -39,6 +39,26 @@ export interface Restoran {
   telefon: string | null
   aktif: number
   gunluk_siparis: number
+  ilce: string | null
+  email: string | null
+  iban: string | null
+  iban_sahibi: string | null
+  calisma_tipi: string
+  paket_basi_ucret: number
+  km_baslangic: number
+  km_ucret: number
+  komisyon_yuzdesi: number
+  saatlik_ucret: number
+  coklu_paket: string
+  hazirlanma_suresi: number
+  otomatik_yazdir: number
+  kurye_konum_takip: number
+  kurye_numara_goruntu: number
+  restoran_teslimat: number
+  siparis_hazir: number
+  pos_kullanim: number
+  odeme_duzenleme: number
+  harita_konum: number
   olusturma_tarihi: string
 }
 
@@ -142,7 +162,7 @@ export const api = {
     list: () => request<Restoran[]>('/api/bayi/restoranlar', { headers: authHeaders() }),
     create: (data: { ad: string; adres?: string; telefon?: string }) =>
       request<Restoran>('/api/bayi/restoranlar', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
-    update: (id: number, data: Partial<{ ad: string; adres: string; telefon: string; aktif: number }>) =>
+    update: (id: number, data: Record<string, unknown>) =>
       request<Restoran>(`/api/bayi/restoranlar/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
     delete: (id: number) =>
       request<{ success: boolean }>(`/api/bayi/restoranlar/${id}`, { method: 'DELETE', headers: authHeaders() }),

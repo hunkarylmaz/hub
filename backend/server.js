@@ -401,7 +401,27 @@ async function initBayiDb() {
   // Migrations: add columns if not exist
   try { await run('ALTER TABLE bayilikler ADD COLUMN bayi_email TEXT') } catch {}
   try { await run('ALTER TABLE bayilikler ADD COLUMN bayi_sifre TEXT') } catch {}
-  // Kurye extended fields
+  // Restoran extended fields
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN ilce TEXT') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN email TEXT') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN iban TEXT') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN iban_sahibi TEXT') } catch {}
+  try { await run("ALTER TABLE bayi_restoranlar ADD COLUMN calisma_tipi TEXT DEFAULT 'Paket Başı'") } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN paket_basi_ucret REAL DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN km_baslangic REAL DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN km_ucret REAL DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN komisyon_yuzdesi REAL DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN saatlik_ucret REAL DEFAULT 0') } catch {}
+  try { await run("ALTER TABLE bayi_restoranlar ADD COLUMN coklu_paket TEXT DEFAULT '[]'") } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN hazirlanma_suresi INTEGER DEFAULT 30') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN otomatik_yazdir INTEGER DEFAULT 1') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN kurye_konum_takip INTEGER DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN kurye_numara_goruntu INTEGER DEFAULT 1') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN restoran_teslimat INTEGER DEFAULT 1') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN siparis_hazir INTEGER DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN pos_kullanim INTEGER DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN odeme_duzenleme INTEGER DEFAULT 1') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN harita_konum INTEGER DEFAULT 1') } catch {}
   try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN plaka TEXT') } catch {}
   try { await run("ALTER TABLE bayi_kuryeler ADD COLUMN paket_limiti INTEGER DEFAULT 5") } catch {}
   try { await run(`ALTER TABLE bayi_kuryeler ADD COLUMN odeme_tipleri TEXT DEFAULT '["Nakit","Kredi Kartı"]'`) } catch {}
@@ -683,9 +703,34 @@ app.post('/api/bayi/restoranlar', bayiAuthMiddleware, wrap(async (req, res) => {
 app.put('/api/bayi/restoranlar/:id', bayiAuthMiddleware, wrap(async (req, res) => {
   const r = await get('SELECT * FROM bayi_restoranlar WHERE id=? AND bayilik_id=?', [req.params.id, req.bayi.bayilikId])
   if (!r) return res.status(404).json({ message: 'Restoran bulunamadı' })
-  const { ad, adres, telefon, aktif } = req.body || {}
-  await run('UPDATE bayi_restoranlar SET ad=COALESCE(?,ad),adres=COALESCE(?,adres),telefon=COALESCE(?,telefon),aktif=COALESCE(?,aktif) WHERE id=?',
-    [ad||null, adres||null, telefon||null, aktif!=null?aktif:null, req.params.id])
+  const {
+    ad, adres, telefon, aktif, ilce, email, iban, iban_sahibi,
+    calisma_tipi, paket_basi_ucret, km_baslangic, km_ucret,
+    komisyon_yuzdesi, saatlik_ucret, coklu_paket, hazirlanma_suresi,
+    otomatik_yazdir, kurye_konum_takip, kurye_numara_goruntu,
+    restoran_teslimat, siparis_hazir, pos_kullanim, odeme_duzenleme, harita_konum
+  } = req.body || {}
+  const n = (v) => v != null ? v : null
+  const j = (v) => v != null ? (Array.isArray(v) ? JSON.stringify(v) : v) : null
+  await run(`UPDATE bayi_restoranlar SET
+    ad=COALESCE(?,ad), adres=COALESCE(?,adres), telefon=COALESCE(?,telefon), aktif=COALESCE(?,aktif),
+    ilce=COALESCE(?,ilce), email=COALESCE(?,email), iban=COALESCE(?,iban), iban_sahibi=COALESCE(?,iban_sahibi),
+    calisma_tipi=COALESCE(?,calisma_tipi), paket_basi_ucret=COALESCE(?,paket_basi_ucret),
+    km_baslangic=COALESCE(?,km_baslangic), km_ucret=COALESCE(?,km_ucret),
+    komisyon_yuzdesi=COALESCE(?,komisyon_yuzdesi), saatlik_ucret=COALESCE(?,saatlik_ucret),
+    coklu_paket=COALESCE(?,coklu_paket), hazirlanma_suresi=COALESCE(?,hazirlanma_suresi),
+    otomatik_yazdir=COALESCE(?,otomatik_yazdir), kurye_konum_takip=COALESCE(?,kurye_konum_takip),
+    kurye_numara_goruntu=COALESCE(?,kurye_numara_goruntu), restoran_teslimat=COALESCE(?,restoran_teslimat),
+    siparis_hazir=COALESCE(?,siparis_hazir), pos_kullanim=COALESCE(?,pos_kullanim),
+    odeme_duzenleme=COALESCE(?,odeme_duzenleme), harita_konum=COALESCE(?,harita_konum)
+    WHERE id=?`,
+    [ad||null, adres||null, telefon||null, n(aktif),
+     ilce||null, email||null, iban||null, iban_sahibi||null,
+     calisma_tipi||null, n(paket_basi_ucret), n(km_baslangic), n(km_ucret),
+     n(komisyon_yuzdesi), n(saatlik_ucret), j(coklu_paket), n(hazirlanma_suresi),
+     n(otomatik_yazdir), n(kurye_konum_takip), n(kurye_numara_goruntu), n(restoran_teslimat),
+     n(siparis_hazir), n(pos_kullanim), n(odeme_duzenleme), n(harita_konum),
+     req.params.id])
   res.json(await get('SELECT * FROM bayi_restoranlar WHERE id=?', [req.params.id]))
 }))
 
