@@ -112,6 +112,80 @@ function KontorModal({ bayilik, mode, onClose, onSuccess }: KontorModalProps) {
   )
 }
 
+// ── Bayi Erişim Modal ─────────────────────────────────────────────────────────
+interface BayiErisimModalProps {
+  bayilik: Bayilik
+  onClose: () => void
+  onSuccess: () => void
+}
+
+function BayiErisimModal({ bayilik, onClose, onSuccess }: BayiErisimModalProps) {
+  const [email, setEmail] = useState(bayilik.bayi_email || '')
+  const [sifre, setSifre] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!email) { setError('Email zorunlu'); return }
+    setLoading(true); setError('')
+    try {
+      await api.bayilikler.setBayiErisim(bayilik.id, email, sifre || undefined)
+      setSuccess(true)
+      onSuccess()
+      setTimeout(onClose, 1200)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'İşlem başarısız')
+    } finally { setLoading(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-base font-semibold text-gray-800">Bayi Panel Erişimi</h2>
+            <p className="text-xs text-gray-500 mt-0.5">{bayilik.ad}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100"><X size={18} /></button>
+        </div>
+        {success ? (
+          <div className="text-center py-4 text-emerald-600 font-medium text-sm">Kaydedildi ✓</div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">E-posta (giriş için)</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="bayi@sirket.com"
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Şifre {bayilik.bayi_email && <span className="text-gray-400">(boş bırakılırsa değişmez)</span>}
+              </label>
+              <input type="password" value={sifre} onChange={e => setSifre(e.target.value)} placeholder={bayilik.bayi_email ? '••••••••' : 'Yeni şifre belirle'}
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600" />
+            </div>
+            <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-700">
+              Bu bilgilerle <span className="font-semibold">bayi.paketci.app</span> adresine giriş yapılabilir.
+            </div>
+            {error && <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-3 py-2"><AlertCircle size={14} />{error}</div>}
+            <div className="flex items-center justify-end gap-3 pt-1">
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">İptal</button>
+              <button type="submit" disabled={loading}
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-60 flex items-center gap-2">
+                {loading && <Loader2 size={14} className="animate-spin" />}
+                Kaydet
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Dropdown Menu ─────────────────────────────────────────────────────────────
 interface DropdownMenuProps {
   bayilik: Bayilik
@@ -119,9 +193,10 @@ interface DropdownMenuProps {
   onToggleDurum: (id: number) => void
   onKontorEkle: (b: Bayilik) => void
   onKontorGeriAl: (b: Bayilik) => void
+  onBayiErisim: (b: Bayilik) => void
 }
 
-function DropdownMenu({ bayilik, onClose, onToggleDurum, onKontorEkle, onKontorGeriAl }: DropdownMenuProps) {
+function DropdownMenu({ bayilik, onClose, onToggleDurum, onKontorEkle, onKontorGeriAl, onBayiErisim }: DropdownMenuProps) {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -135,11 +210,12 @@ function DropdownMenu({ bayilik, onClose, onToggleDurum, onKontorEkle, onKontorG
   return (
     <div
       ref={ref}
-      className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-100 rounded-xl shadow-lg py-1 min-w-[180px]"
+      className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-100 rounded-xl shadow-lg py-1 min-w-[200px]"
     >
       {[
         { label: 'Kontör Ekle', action: () => { onKontorEkle(bayilik); onClose() } },
         { label: 'Kontör Geri Al', action: () => { onKontorGeriAl(bayilik); onClose() } },
+        { label: 'Bayi Panel Erişimi', action: () => { onBayiErisim(bayilik); onClose() } },
       ].map((item) => (
         <button
           key={item.label}
@@ -333,6 +409,7 @@ export default function Bayiliklerim() {
   const [openDropdown, setOpenDropdown] = useState<number | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [kontorModal, setKontorModal] = useState<{ bayilik: Bayilik; mode: 'ekle' | 'geri-al' } | null>(null)
+  const [bayiErisimModal, setBayiErisimModal] = useState<Bayilik | null>(null)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -488,6 +565,7 @@ export default function Bayiliklerim() {
                         onToggleDurum={toggleDurum}
                         onKontorEkle={(bay) => setKontorModal({ bayilik: bay, mode: 'ekle' })}
                         onKontorGeriAl={(bay) => setKontorModal({ bayilik: bay, mode: 'geri-al' })}
+                        onBayiErisim={(bay) => setBayiErisimModal(bay)}
                       />
                     )}
                   </td>
@@ -521,6 +599,14 @@ export default function Bayiliklerim() {
           bayilik={kontorModal.bayilik}
           mode={kontorModal.mode}
           onClose={() => setKontorModal(null)}
+          onSuccess={fetchData}
+        />
+      )}
+
+      {bayiErisimModal && (
+        <BayiErisimModal
+          bayilik={bayiErisimModal}
+          onClose={() => setBayiErisimModal(null)}
           onSuccess={fetchData}
         />
       )}

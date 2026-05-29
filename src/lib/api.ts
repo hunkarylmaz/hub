@@ -24,6 +24,7 @@ export interface Bayilik {
   user_id: number
   olusturma_tarihi: string
   odeme_sayisi?: number
+  bayi_email?: string | null
 }
 
 export interface OdemeTalep {
@@ -166,6 +167,11 @@ export const api = {
           headers: authHeaders(),
           body: JSON.stringify({ miktar }),
         }
+      ),
+    setBayiErisim: (id: number, bayi_email: string, bayi_sifre?: string) =>
+      request<{ success: boolean; bayi_email: string }>(
+        `/api/bayilikler/${id}/bayi-erisim`,
+        { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ bayi_email, bayi_sifre }) }
       ),
   },
 

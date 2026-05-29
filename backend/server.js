@@ -262,6 +262,20 @@ app.post('/api/bayilikler/:id/kontor-geri-al', authMiddleware, wrap(async (req, 
   res.json({ yeni_bakiye: yeni })
 }))
 
+// ── BAYİ ERİŞİM BİLGİLERİ (B2B → Bayi panel credentials) ────────────────────
+app.put('/api/bayilikler/:id/bayi-erisim', authMiddleware, wrap(async (req, res) => {
+  const b = await get('SELECT * FROM bayilikler WHERE id=? AND user_id=?', [req.params.id, req.user.id])
+  if (!b) return res.status(404).json({ message: 'Bulunamadı' })
+  const { bayi_email, bayi_sifre } = req.body || {}
+  if (!bayi_email) return res.status(400).json({ message: 'Email zorunlu' })
+  let hashPass = b.bayi_sifre
+  if (bayi_sifre) {
+    hashPass = await bcrypt.hash(bayi_sifre, 10)
+  }
+  await run('UPDATE bayilikler SET bayi_email=?,bayi_sifre=? WHERE id=?', [bayi_email, hashPass, req.params.id])
+  res.json({ success: true, bayi_email })
+}))
+
 // ── ÖDEME TALEPLERİ ──────────────────────────────────────────────────────────
 app.get('/api/odeme-talepleri', authMiddleware, wrap(async (req, res) => {
   const rows = await all(
@@ -434,6 +448,22 @@ async function initBayiDb() {
   try { await run("ALTER TABLE bayi_kuryeler ADD COLUMN coklu_paket TEXT DEFAULT '[]'") } catch {}
   try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN paket_iptali INTEGER DEFAULT 0') } catch {}
   try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN odeme_duzenleme INTEGER DEFAULT 1') } catch {}
+
+  // Bakiye hareketleri
+  await exec(`
+    CREATE TABLE IF NOT EXISTS bakiye_hareketleri (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      bayilik_id INTEGER REFERENCES bayilikler(id),
+      entity_type TEXT NOT NULL,
+      entity_id INTEGER NOT NULL,
+      tur TEXT NOT NULL,
+      tutar REAL DEFAULT 0,
+      tarih TEXT,
+      aciklama TEXT,
+      faturaya_dahil INTEGER DEFAULT 1,
+      olusturma_tarihi TEXT DEFAULT (datetime('now','localtime'))
+    );
+  `)
 
   await exec(`
     CREATE TABLE IF NOT EXISTS bayi_kuryeler (
@@ -920,6 +950,126 @@ app.get('/api/bayi/performans', bayiAuthMiddleware, wrap(async (req, res) => {
   )
 
   res.json({ kurye_perf, isletme_perf })
+}))
+
+// ── BAYİ BAKİYE HAREKETLERİ ───────────────────────────────────────────────────
+app.get('/api/bayi/bakiye-hareketleri', bayiAuthMiddleware, wrap(async (req, res) => {
+  const { entity_type, entity_id } = req.query
+  const rows = await all(
+    'SELECT * FROM bakiye_hareketleri WHERE bayilik_id=? AND entity_type=? AND entity_id=? ORDER BY tarih DESC',
+    [req.bayi.bayilikId, entity_type, entity_id]
+  )
+  res.json(rows)
+}))
+
+app.post('/api/bayi/bakiye-hareketleri', bayiAuthMiddleware, wrap(async (req, res) => {
+  const { entity_type, entity_id, tur, tutar, tarih, aciklama, faturaya_dahil } = req.body || {}
+  if (!entity_type || !entity_id || !tur || !tutar) return res.status(400).json({ message: 'Eksik alan' })
+  const { lastID } = await run(
+    'INSERT INTO bakiye_hareketleri (bayilik_id,entity_type,entity_id,tur,tutar,tarih,aciklama,faturaya_dahil) VALUES (?,?,?,?,?,?,?,?)',
+    [req.bayi.bayilikId, entity_type, entity_id, tur, tutar, tarih || new Date().toISOString(), aciklama || null, faturaya_dahil != null ? faturaya_dahil : 1]
+  )
+  res.json(await get('SELECT * FROM bakiye_hareketleri WHERE id=?', [lastID]))
+}))
+
+app.delete('/api/bayi/bakiye-hareketleri/:id', bayiAuthMiddleware, wrap(async (req, res) => {
+  await run('DELETE FROM bakiye_hareketleri WHERE id=? AND bayilik_id=?', [req.params.id, req.bayi.bayilikId])
+  res.json({ success: true })
+}))
+
+// ── BAYİ PERİYODİK RAPOR – İŞLETME ──────────────────────────────────────────
+app.get('/api/bayi/raporlar/isletme', bayiAuthMiddleware, wrap(async (req, res) => {
+  const bid = req.bayi.bayilikId
+  const { isletme_id, baslangic, bitis } = req.query
+  if (!isletme_id) return res.status(400).json({ message: 'isletme_id zorunlu' })
+
+  const restoran = await get('SELECT * FROM bayi_restoranlar WHERE id=? AND bayilik_id=?', [isletme_id, bid])
+  if (!restoran) return res.status(404).json({ message: 'İşletme bulunamadı' })
+
+  let where = `bayilik_id=? AND restoran_id=? AND durum='Teslim Edildi'`
+  const params = [bid, isletme_id]
+  if (baslangic) { where += ' AND olusturma_tarihi >= ?'; params.push(baslangic) }
+  if (bitis)     { where += ' AND olusturma_tarihi <= ?'; params.push(bitis) }
+
+  const siparisler = await all(`SELECT * FROM bayi_siparisler WHERE ${where} ORDER BY olusturma_tarihi ASC`, params)
+
+  const odemeGruplari = {}
+  for (const s of siparisler) {
+    const key = s.odeme_yontemi || 'Diğer'
+    if (!odemeGruplari[key]) odemeGruplari[key] = { sayi: 0, tutar: 0 }
+    odemeGruplari[key].sayi++
+    odemeGruplari[key].tutar += s.tutar || 0
+  }
+
+  const gunlukMap = {}
+  for (const s of siparisler) {
+    const gun = s.olusturma_tarihi ? s.olusturma_tarihi.slice(0, 10) : 'Bilinmiyor'
+    if (!gunlukMap[gun]) gunlukMap[gun] = { sayi: 0, gelir: 0 }
+    gunlukMap[gun].sayi++
+    gunlukMap[gun].gelir += s.tutar || 0
+  }
+
+  const toplam_paket = siparisler.length
+  const toplam_gelir = siparisler.reduce((a, s) => a + (s.tutar || 0), 0)
+  const ct = restoran.calisma_tipi || 'Paket Başı'
+  let tasima_birim = ct === 'Paket Başı' || ct === 'Paket + Km' ? (restoran.paket_basi_ucret || 0)
+    : ct === 'Saatlik Ücret' ? (restoran.saatlik_ucret || 0) : (restoran.komisyon_yuzdesi || 0)
+  const tasima_toplam = ct === 'Komisyon' ? toplam_gelir * (tasima_birim / 100) : tasima_birim * toplam_paket
+
+  res.json({
+    restoran,
+    toplam_paket,
+    toplam_gelir,
+    tasima_toplam,
+    odeme_gruplari: odemeGruplari,
+    gunluk: Object.entries(gunlukMap).map(([gun, v]) => ({ gun, ...v })),
+  })
+}))
+
+// ── BAYİ PERİYODİK RAPOR – KURYE ─────────────────────────────────────────────
+app.get('/api/bayi/raporlar/kurye', bayiAuthMiddleware, wrap(async (req, res) => {
+  const bid = req.bayi.bayilikId
+  const { kurye_id, baslangic, bitis } = req.query
+  if (!kurye_id) return res.status(400).json({ message: 'kurye_id zorunlu' })
+
+  const kurye = await get('SELECT * FROM bayi_kuryeler WHERE id=? AND bayilik_id=?', [kurye_id, bid])
+  if (!kurye) return res.status(404).json({ message: 'Kurye bulunamadı' })
+
+  let where = `bayilik_id=? AND kurye_id=? AND durum='Teslim Edildi'`
+  const params = [bid, kurye_id]
+  if (baslangic) { where += ' AND olusturma_tarihi >= ?'; params.push(baslangic) }
+  if (bitis)     { where += ' AND olusturma_tarihi <= ?'; params.push(bitis) }
+
+  const siparisler = await all(`SELECT * FROM bayi_siparisler WHERE ${where} ORDER BY olusturma_tarihi ASC`, params)
+
+  const gunlukMap = {}
+  for (const s of siparisler) {
+    const gun = s.olusturma_tarihi ? s.olusturma_tarihi.slice(0, 10) : 'Bilinmiyor'
+    if (!gunlukMap[gun]) gunlukMap[gun] = { sayi: 0 }
+    gunlukMap[gun].sayi++
+  }
+
+  const toplam_paket = siparisler.length
+  const ct = kurye.calisma_tipi || 'Paket Başı'
+  const ciro = siparisler.reduce((a, s) => a + (s.tutar || 0), 0)
+  let brut_kazanc = 0
+  if (ct === 'Komisyon') brut_kazanc = ciro * ((kurye.komisyon_yuzdesi || 0) / 100)
+  else brut_kazanc = (kurye.paket_basi_ucret || 0) * toplam_paket
+
+  let bhWhere = `bayilik_id=? AND entity_type='kurye' AND entity_id=? AND tur='Aldım' AND faturaya_dahil=1`
+  const bhParams = [bid, kurye_id]
+  if (baslangic) { bhWhere += ' AND tarih >= ?'; bhParams.push(baslangic) }
+  if (bitis)     { bhWhere += ' AND tarih <= ?'; bhParams.push(bitis) }
+  const aldim_row = await get(`SELECT COALESCE(SUM(tutar),0) as toplam FROM bakiye_hareketleri WHERE ${bhWhere}`, bhParams)
+  const aldim_toplam = aldim_row?.toplam || 0
+
+  res.json({
+    kurye,
+    toplam_paket,
+    brut_kazanc,
+    aldim_toplam,
+    gunluk: Object.entries(gunlukMap).map(([gun, v]) => ({ gun, ...v })),
+  })
 }))
 
 // ── Error handler ─────────────────────────────────────────────────────────────

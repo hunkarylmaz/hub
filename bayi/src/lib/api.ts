@@ -62,6 +62,19 @@ export interface Restoran {
   olusturma_tarihi: string
 }
 
+export interface BakiyeHareketi {
+  id: number
+  bayilik_id: number
+  entity_type: string
+  entity_id: number
+  tur: 'Aldım' | 'Verdim'
+  tutar: number
+  tarih: string
+  aciklama: string | null
+  faturaya_dahil: number
+  olusturma_tarihi: string
+}
+
 export interface Siparis {
   id: number
   bayilik_id: number
@@ -199,6 +212,40 @@ export const api = {
         gunluk_trend: { gun: string; siparis: number; ciro: number }[]
       }>(`/api/bayi/raporlar?${q}`, { headers: authHeaders() })
     },
+    isletme: (params: { isletme_id: number; baslangic?: string; bitis?: string }) => {
+      const q = new URLSearchParams({ isletme_id: String(params.isletme_id) })
+      if (params.baslangic) q.set('baslangic', params.baslangic)
+      if (params.bitis) q.set('bitis', params.bitis)
+      return request<{
+        restoran: Restoran
+        toplam_paket: number
+        toplam_gelir: number
+        tasima_toplam: number
+        odeme_gruplari: Record<string, { sayi: number; tutar: number }>
+        gunluk: { gun: string; sayi: number; gelir: number }[]
+      }>(`/api/bayi/raporlar/isletme?${q}`, { headers: authHeaders() })
+    },
+    kurye: (params: { kurye_id: number; baslangic?: string; bitis?: string }) => {
+      const q = new URLSearchParams({ kurye_id: String(params.kurye_id) })
+      if (params.baslangic) q.set('baslangic', params.baslangic)
+      if (params.bitis) q.set('bitis', params.bitis)
+      return request<{
+        kurye: Kurye
+        toplam_paket: number
+        brut_kazanc: number
+        aldim_toplam: number
+        gunluk: { gun: string; sayi: number }[]
+      }>(`/api/bayi/raporlar/kurye?${q}`, { headers: authHeaders() })
+    },
+  },
+
+  bakiyeHareketleri: {
+    list: (entity_type: string, entity_id: number) =>
+      request<BakiyeHareketi[]>(`/api/bayi/bakiye-hareketleri?entity_type=${entity_type}&entity_id=${entity_id}`, { headers: authHeaders() }),
+    create: (data: { entity_type: string; entity_id: number; tur: string; tutar: number; tarih?: string; aciklama?: string; faturaya_dahil?: number }) =>
+      request<BakiyeHareketi>('/api/bayi/bakiye-hareketleri', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    delete: (id: number) =>
+      request<{ success: boolean }>(`/api/bayi/bakiye-hareketleri/${id}`, { method: 'DELETE', headers: authHeaders() }),
   },
 
   performans: {

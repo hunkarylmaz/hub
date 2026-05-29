@@ -1,228 +1,879 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Loader2, AlertCircle, Download } from 'lucide-react'
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { api, Siparis } from '../lib/api'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Loader2, AlertCircle, Printer, Filter, ChevronDown, X, Clock, Trash2 } from 'lucide-react'
+import { api, Kurye, Restoran, BakiyeHareketi } from '../lib/api'
+import { useAuth } from '../contexts/AuthContext'
 
-type Tab = 'gecmis' | 'kurye' | 'restoran' | 'trend'
+type RaporTipi = 'isletme' | 'kurye'
 
-function durumBadge(durum: Siparis['durum']) {
-  const map: Record<string, string> = { 'Beklemede': 'bg-amber-100 text-amber-700', 'Atandı': 'bg-blue-100 text-blue-700', 'Yolda': 'bg-indigo-100 text-indigo-700', 'Teslim Edildi': 'bg-emerald-100 text-emerald-700', 'İptal': 'bg-red-100 text-red-600' }
-  return map[durum] || 'bg-gray-100 text-gray-600'
-}
-
-function formatTarih(dt: string) {
-  const d = new Date(dt)
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function fmtTarih(iso: string) {
+  const d = new Date(iso)
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`
 }
 
-export default function Raporlar() {
-  const [tab, setTab] = useState<Tab>('gecmis')
-  const [data, setData] = useState<{
-    siparisler: Siparis[]
-    kurye_hakedis: { ad: string; teslim_sayisi: number; toplam_tutar: number }[]
-    restoran_hakedis: { ad: string; siparis_sayisi: number; toplam_tutar: number }[]
-    gunluk_trend: { gun: string; siparis: number; ciro: number }[]
-  } | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [baslangic, setBaslangic] = useState('')
-  const [bitis, setBitis] = useState('')
+function fmtDateTimeLocal(iso?: string) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
 
-  const fetchData = useCallback(async () => {
+function fmtDisplay(iso: string) {
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const months = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara']
+  return `${pad(d.getDate())} ${months[d.getMonth()]} ${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function fmt(n: number) {
+  return n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+// ─── Toggle ───────────────────────────────────────────────────────────────────
+function Tog({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${checked ? 'bg-primary-600' : 'bg-gray-200'}`}
+    >
+      <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-4' : 'translate-x-0.5'}`} />
+    </button>
+  )
+}
+
+// ─── Bakiye Hareketi Modal ────────────────────────────────────────────────────
+interface BHModalProps {
+  entity_type: 'kurye' | 'restoran'
+  entity_id: number
+  entity_ad: string
+  onClose: () => void
+}
+
+function BakiyeHareketiModal({ entity_type, entity_id, entity_ad, onClose }: BHModalProps) {
+  const [tur, setTur] = useState<'Aldım' | 'Verdim'>('Aldım')
+  const [tutar, setTutar] = useState('')
+  const [tarih, setTarih] = useState(fmtDateTimeLocal(new Date().toISOString()))
+  const [aciklama, setAciklama] = useState('')
+  const [faturayaDahil, setFaturayaDahil] = useState(true)
+  const [showGecmis, setShowGecmis] = useState(false)
+  const [gecmis, setGecmis] = useState<BakiyeHareketi[]>([])
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  async function loadGecmis() {
     setLoading(true)
     try {
-      setData(await api.raporlar.get({ baslangic: baslangic || undefined, bitis: bitis || undefined }))
+      setGecmis(await api.bakiyeHareketleri.list(entity_type, entity_id))
+    } catch { /* ignore */ }
+    setLoading(false)
+  }
+
+  function toggleGecmis() {
+    if (!showGecmis) loadGecmis()
+    setShowGecmis(v => !v)
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    const amount = parseFloat(tutar)
+    if (!amount || amount <= 0) { setError('Geçerli tutar girin'); return }
+    setSaving(true); setError('')
+    try {
+      await api.bakiyeHareketleri.create({
+        entity_type,
+        entity_id,
+        tur,
+        tutar: amount,
+        tarih: tarih ? new Date(tarih).toISOString() : undefined,
+        aciklama: aciklama || undefined,
+        faturaya_dahil: faturayaDahil ? 1 : 0,
+      })
+      setTutar(''); setAciklama(''); setTarih(fmtDateTimeLocal(new Date().toISOString()))
+      if (showGecmis) loadGecmis()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Veri yüklenemedi')
-    } finally { setLoading(false) }
-  }, [baslangic, bitis])
+      setError(err instanceof Error ? err.message : 'Kaydedilemedi')
+    }
+    setSaving(false)
+  }
 
-  useEffect(() => { fetchData() }, [fetchData])
+  async function handleDelete(id: number) {
+    await api.bakiyeHareketleri.delete(id)
+    loadGecmis()
+  }
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: 'gecmis', label: 'Geçmiş Siparişler' },
-    { key: 'kurye', label: 'Kurye Hakediş' },
-    { key: 'restoran', label: 'Restoran Hakediş' },
-    { key: 'trend', label: 'Günlük Trend' },
-  ]
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <p className="text-xs text-gray-500 font-medium">Bakiye Hareketi</p>
+            <p className="text-sm font-semibold text-gray-800">{entity_type === 'kurye' ? 'Kurye' : 'İşletme'}: {entity_ad}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100"><X size={18} /></button>
+        </div>
 
-  if (loading) return <div className="flex items-center justify-center py-20"><Loader2 size={32} className="animate-spin text-primary-600" /></div>
-  if (error) return <div className="flex flex-col items-center justify-center py-20 gap-4"><AlertCircle size={32} className="text-red-500" /><p className="text-gray-600">{error}</p><button onClick={fetchData} className="px-4 py-2 bg-primary-600 text-white text-sm rounded-lg">Tekrar Dene</button></div>
+        <form onSubmit={handleSave} className="p-5 space-y-4">
+          {/* Aldım / Verdim */}
+          <div className="grid grid-cols-2 gap-2">
+            {(['Aldım', 'Verdim'] as const).map(t => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTur(t)}
+                className={`py-2.5 rounded-xl text-sm font-medium border-2 transition-colors ${
+                  tur === t
+                    ? t === 'Aldım' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-orange-400 bg-orange-50 text-orange-700'
+                    : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                }`}
+              >
+                {t === 'Aldım' ? '↓ Aldım' : '↑ Verdim'}
+              </button>
+            ))}
+          </div>
+
+          {/* Tutar */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">TUTAR (₺)</label>
+            <input
+              type="number" min="0.01" step="0.01"
+              value={tutar} onChange={e => setTutar(e.target.value)}
+              placeholder="0.00"
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600"
+            />
+          </div>
+
+          {/* İşlem tarihi */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">İŞLEM TARİHİ</label>
+            <div className="relative">
+              <input
+                type="datetime-local"
+                value={tarih} onChange={e => setTarih(e.target.value)}
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600 text-center"
+              />
+            </div>
+          </div>
+
+          {/* Açıklama */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">AÇIKLAMA (OPSİYONEL)</label>
+            <input
+              type="text"
+              value={aciklama} onChange={e => setAciklama(e.target.value)}
+              placeholder="Örnek: Avans, kısmi ödeme..."
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600"
+            />
+          </div>
+
+          {/* Faturaya dahil et */}
+          <div className="flex items-center justify-between py-1">
+            <div>
+              <span className="text-sm text-gray-700">Faturaya Dahil Et</span>
+              <span className="text-xs text-gray-400 ml-2">(seçili tarih aralığındaki rapora yansır)</span>
+            </div>
+            <Tog checked={faturayaDahil} onChange={setFaturayaDahil} />
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-3 py-2">
+              <AlertCircle size={14} />{error}
+            </div>
+          )}
+
+          {/* Geçmiş */}
+          <button
+            type="button"
+            onClick={toggleGecmis}
+            className="w-full flex items-center justify-center gap-2 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50"
+          >
+            <Clock size={15} /> Geçmiş
+          </button>
+
+          {showGecmis && (
+            <div className="border border-gray-100 rounded-xl overflow-hidden max-h-48 overflow-y-auto">
+              {loading ? (
+                <div className="flex items-center justify-center py-6"><Loader2 size={20} className="animate-spin text-primary-600" /></div>
+              ) : gecmis.length === 0 ? (
+                <div className="py-6 text-center text-sm text-gray-400">Kayıt yok</div>
+              ) : (
+                gecmis.map(h => (
+                  <div key={h.id} className="flex items-center justify-between px-3 py-2.5 border-b border-gray-50 last:border-0 hover:bg-gray-50">
+                    <div>
+                      <span className={`text-xs font-semibold mr-2 ${h.tur === 'Aldım' ? 'text-emerald-600' : 'text-orange-500'}`}>{h.tur}</span>
+                      <span className="text-sm font-medium text-gray-800">{fmt(h.tutar)} ₺</span>
+                      {h.aciklama && <span className="text-xs text-gray-400 ml-2">{h.aciklama}</span>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-400">{fmtTarih(h.tarih)}</span>
+                      <button type="button" onClick={() => handleDelete(h.id)} className="p-1 text-gray-300 hover:text-red-400">
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* Buttons */}
+          <div className="flex items-center justify-end gap-3 pt-1">
+            <button type="button" onClick={onClose}
+              className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">İptal</button>
+            <button type="submit" disabled={saving}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-60">
+              {saving && <Loader2 size={14} className="animate-spin" />}
+              Kaydet
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ─── İşletme Raporu ───────────────────────────────────────────────────────────
+function IsletmeRaporu() {
+  const { bayilik } = useAuth()
+  const [restoranlar, setRestoranlar] = useState<Restoran[]>([])
+  const [isletmeId, setIsletmeId] = useState<number | ''>('')
+  const defaultStart = () => { const d = new Date(); d.setHours(11,0,0,0); d.setDate(d.getDate()-1); return fmtDateTimeLocal(d.toISOString()) }
+  const defaultEnd = () => { const d = new Date(); d.setHours(5,0,0,0); return fmtDateTimeLocal(d.toISOString()) }
+  const [baslangic, setBaslangic] = useState(defaultStart)
+  const [bitis, setBitis] = useState(defaultEnd)
+
+  // Payment method toggles
+  const odemeTipleri = ['Kapıda Nakit','Kapıda Kart','Yemek Kartı','Online Ödeme','Online Yemek Kartı']
+  const [hesaplananOdeme, setHesaplananOdeme] = useState<Record<string,boolean>>({})
+  const [gunlukBazli, setGunlukBazli] = useState(true)
+  const [posKomisyon, setPosKomisyon] = useState(false)
+  const [kdvAktif, setKdvAktif] = useState(true)
+  const [kdvOran] = useState(20)
+  const [kdvIslem, setKdvIslem] = useState<'Ekle (+)' | 'Düş (-)'>('Ekle (+)')
+  const [tevkifat, setTevkifat] = useState(false)
+
+  const [rapor, setRapor] = useState<Awaited<ReturnType<typeof api.raporlar.isletme>> | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [bhModal, setBhModal] = useState(false)
+  const printRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    api.restoranlar.list().then(setRestoranlar).catch(() => {})
+  }, [])
+
+  async function goruntule() {
+    if (!isletmeId) return
+    setLoading(true); setError(''); setRapor(null)
+    try {
+      const data = await api.raporlar.isletme({
+        isletme_id: Number(isletmeId),
+        baslangic: baslangic ? new Date(baslangic).toISOString() : undefined,
+        bitis: bitis ? new Date(bitis).toISOString() : undefined,
+      })
+      setRapor(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Rapor alınamadı')
+    }
+    setLoading(false)
+  }
+
+  function handlePrint() { window.print() }
+
+  // Financial calculations
+  const tasimaToplam = rapor?.tasima_toplam || 0
+  const posKomisyonTutar = posKomisyon ? tasimaToplam * 0.02 : 0
+  const araToplamTasima = -(tasimaToplam - posKomisyonTutar)
+  const kdvTutar = kdvAktif ? tasimaToplam * (kdvOran / 100) : 0
+  const kdvEtkisi = kdvAktif ? (kdvIslem === 'Ekle (+)' ? -kdvTutar : kdvTutar) : 0
+  const tevkifatTutar = tevkifat ? tasimaToplam * 0.02 : 0
+  const toplamBorc = Math.abs(araToplamTasima) + (kdvIslem === 'Ekle (+)' ? kdvTutar : 0) + tevkifatTutar
+
+  // Hesaplanan ödeme yöntemleri
+  const hesaplananKeys = Object.entries(hesaplananOdeme).filter(([,v]) => v).map(([k]) => k)
+  const hesaplananToplam = hesaplananKeys.reduce((acc, key) => {
+    const match = Object.entries(rapor?.odeme_gruplari || {}).find(([k]) =>
+      k.toLowerCase().includes(key.toLowerCase().replace('kapıda ','').replace('online ',''))
+    )
+    return acc + (match ? match[1].tutar : 0)
+  }, 0)
+
+  const secilenRestoran = restoranlar.find(r => r.id === isletmeId)
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-5">
+        {/* Filter Panel */}
+        <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-4 h-fit">
+          <div className="flex items-center gap-2 text-primary-600 font-semibold text-sm">
+            <Filter size={15} /> Filtreler
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">İŞLETME SEÇİNİZ</label>
+            <div className="relative">
+              <select value={isletmeId} onChange={e => setIsletmeId(Number(e.target.value) || '')}
+                className="w-full appearance-none px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-600/20">
+                <option value="">Seçiniz...</option>
+                {restoranlar.map(r => <option key={r.id} value={r.id}>{r.ad}</option>)}
+              </select>
+              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">BAŞLANGIÇ TARİHİ</label>
+            <input type="datetime-local" value={baslangic} onChange={e => setBaslangic(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">BİTİŞ TARİHİ</label>
+            <input type="datetime-local" value={bitis} onChange={e => setBitis(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
+          </div>
+
+          <div className="border-t border-gray-100 pt-3 space-y-3">
+            {odemeTipleri.map(tip => (
+              <div key={tip} className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">{tip}</span>
+                <Tog checked={!!hesaplananOdeme[tip]} onChange={v => setHesaplananOdeme(prev => ({ ...prev, [tip]: v }))} />
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t border-gray-100 pt-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700">Günlük Bazlı Gösterim</span>
+              <Tog checked={gunlukBazli} onChange={setGunlukBazli} />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700">POS Komisyon Düş</span>
+              <Tog checked={posKomisyon} onChange={setPosKomisyon} />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700">KDV (%{kdvOran})</span>
+              <Tog checked={kdvAktif} onChange={setKdvAktif} />
+            </div>
+            {kdvAktif && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">KDV İŞLEMİ</label>
+                <div className="relative">
+                  <select value={kdvIslem} onChange={e => setKdvIslem(e.target.value as typeof kdvIslem)}
+                    className="w-full appearance-none px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
+                    <option>Ekle (+)</option>
+                    <option>Düş (-)</option>
+                  </select>
+                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700">Tevkifat</span>
+              <Tog checked={tevkifat} onChange={setTevkifat} />
+            </div>
+          </div>
+
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center gap-2">
+              <button onClick={goruntule} disabled={!isletmeId || loading}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 disabled:opacity-50 transition-colors">
+                {loading ? <Loader2 size={15} className="animate-spin" /> : null}
+                Rapor Görüntüle
+              </button>
+              <button onClick={handlePrint} disabled={!rapor}
+                className="p-2.5 border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-50 disabled:opacity-40" title="Yazdır / PDF">
+                <Printer size={16} />
+              </button>
+            </div>
+            {secilenRestoran && (
+              <button onClick={() => setBhModal(true)}
+                className="w-full py-2.5 border border-primary-200 text-primary-600 text-sm font-medium rounded-xl hover:bg-primary-50 transition-colors">
+                Bakiye Hareketi
+              </button>
+            )}
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-3 py-2">
+              <AlertCircle size={14} />{error}
+            </div>
+          )}
+        </div>
+
+        {/* Report Output */}
+        {rapor && (
+          <div ref={printRef} className="print-area bg-white rounded-xl border border-gray-100 overflow-hidden">
+            {/* Report Header */}
+            <div className="bg-primary-600 h-1.5" />
+            <div className="p-6 border-b border-gray-100">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-lg">
+                    {(bayilik?.ad || 'B').charAt(0)}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-800">{bayilik?.ad}</p>
+                    <p className="text-xs text-gray-500">Kurye Taşıma Hizmeti</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <h2 className="text-xl font-bold text-primary-600">Periyodik Paket Raporu</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {baslangic ? fmtDisplay(new Date(baslangic).toISOString()) : '—'} – {bitis ? fmtDisplay(new Date(bitis).toISOString()) : '—'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Summary Row */}
+            <div className="px-6 py-4 border-b border-gray-100">
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">Firma Adı</p>
+                  <p className="font-semibold text-primary-600">{rapor.restoran.ad}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">Çalışma Şekli</p>
+                  <p className="font-semibold text-primary-600">{rapor.restoran.calisma_tipi || 'Paket Başı'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">Toplam Paket</p>
+                  <p className="font-semibold text-primary-600">{rapor.toplam_paket} Adet</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* İşletme Kazanç Kanalları */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">İşletme Kazanç Kanalları</h3>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-2 text-gray-500 font-medium">Ödeme Yöntemi</th>
+                      <th className="text-right py-2 text-gray-500 font-medium">Paket Sayısı</th>
+                      <th className="text-right py-2 text-gray-500 font-medium">Toplam Tutar</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(rapor.odeme_gruplari).map(([yontem, data]) => (
+                      <tr key={yontem} className="border-b border-gray-100">
+                        <td className="py-2 text-gray-700">{yontem}</td>
+                        <td className="py-2 text-right text-primary-600 font-medium">{data.sayi} Adet</td>
+                        <td className="py-2 text-right text-primary-600 font-medium">₺{fmt(data.tutar)}</td>
+                      </tr>
+                    ))}
+                    {Object.keys(rapor.odeme_gruplari).length === 0 && (
+                      <tr><td colSpan={3} className="py-4 text-center text-gray-400 text-xs">Teslim edilen sipariş yok</td></tr>
+                    )}
+                    <tr className="border-t-2 border-gray-300">
+                      <td className="py-2.5 font-bold text-gray-800">Toplam Gelir</td>
+                      <td className="py-2.5 text-right font-bold text-gray-800">{rapor.toplam_paket} Adet</td>
+                      <td className="py-2.5 text-right font-bold text-gray-800">₺{fmt(rapor.toplam_gelir)}</td>
+                    </tr>
+                    <tr className="border-b border-gray-100">
+                      <td className="py-2 text-gray-700">Paket Taşıma Ücreti</td>
+                      <td className="py-2 text-right text-gray-400">—</td>
+                      <td className="py-2 text-right text-primary-600 font-medium">₺{fmt(rapor.tasima_toplam)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Günlük Bazlı Rapor */}
+              {gunlukBazli && rapor.gunluk.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Günlük Bazlı Rapor</h3>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-2 text-gray-500 font-medium">Tarih</th>
+                        <th className="text-right py-2 text-gray-500 font-medium">Toplam Gelir</th>
+                        <th className="text-right py-2 text-gray-500 font-medium">Paket Taşıma</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rapor.gunluk.map(g => {
+                        const gunTasima = (rapor.restoran.paket_basi_ucret || 0) * g.sayi
+                        return (
+                          <tr key={g.gun} className="border-b border-gray-50">
+                            <td className="py-2 text-gray-700">{fmtTarih(g.gun)}</td>
+                            <td className="py-2 text-right text-primary-600">₺{fmt(g.gelir)}</td>
+                            <td className="py-2 text-right text-primary-600">₺{fmt(gunTasima)}</td>
+                          </tr>
+                        )
+                      })}
+                      <tr className="border-t-2 border-gray-300">
+                        <td className="py-2 font-bold text-gray-800">Toplam</td>
+                        <td className="py-2 text-right font-bold text-gray-800">₺{fmt(rapor.toplam_gelir)}</td>
+                        <td className="py-2 text-right font-bold text-gray-800">₺{fmt(rapor.tasima_toplam)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Hesaplanan Ödeme Yöntemleri */}
+              <div className="text-sm text-gray-600">
+                <span className="font-medium">Hesaplanan Ödeme Yöntemleri: </span>
+                {hesaplananKeys.length === 0
+                  ? 'Hiçbir ödeme yöntemi hesaplanmaktadır.'
+                  : hesaplananKeys.join(', ')}
+              </div>
+
+              {/* Hesaplama */}
+              <div className="border-t border-gray-200 pt-4 space-y-1.5">
+                {hesaplananToplam > 0 && (
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>Hesaplanan Ödeme Toplamı</span>
+                    <span className="text-emerald-600">₺-{fmt(hesaplananToplam)}</span>
+                  </div>
+                )}
+                {posKomisyon && (
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>POS Komisyon (%2)</span>
+                    <span>₺-{fmt(posKomisyonTutar)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>Ara Toplam (Taşıma)</span>
+                  <span>₺{fmt(araToplamTasima)}</span>
+                </div>
+                {kdvAktif && (
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>KDV (%{kdvOran})({kdvIslem === 'Ekle (+)' ? '+' : '-'})</span>
+                    <span>₺{kdvEtkisi < 0 ? '' : '+'}{fmt(kdvEtkisi)}</span>
+                  </div>
+                )}
+                {tevkifat && (
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>Tevkifat (%2)</span>
+                    <span>₺-{fmt(tevkifatTutar)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-3 border-t-2 border-gray-300">
+                  <span className="font-bold text-gray-800 text-base">Bize Ödemeniz Gereken Tutar</span>
+                  <span className="font-bold text-orange-500 text-xl">₺{fmt(toplamBorc)}</span>
+                </div>
+              </div>
+
+              {/* Note */}
+              <div className="bg-primary-600 text-white text-xs rounded-xl p-4 leading-relaxed">
+                Not: Nakit, Kart ve Online Ödeme Yöntemi ile ödemesi yapılmış siparişlerde, sipariş karşılığı düzenlenmesi
+                gereken fişler/faturalar, sizin tarafınızdan düzenlenir. İptal paketler hesaplamaya dahil değildir.
+              </div>
+
+              <div className="flex justify-end">
+                <button onClick={handlePrint}
+                  className="flex items-center gap-2 px-5 py-2.5 border border-primary-600 text-primary-600 text-sm font-medium rounded-xl hover:bg-primary-50">
+                  <Printer size={15} /> PDF İndir
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!rapor && !loading && (
+          <div className="hidden lg:flex items-center justify-center bg-gray-50 rounded-xl border border-dashed border-gray-200 min-h-[300px]">
+            <p className="text-sm text-gray-400">Filtrelerinizi seçip "Rapor Görüntüle" butonuna basın</p>
+          </div>
+        )}
+      </div>
+
+      {bhModal && secilenRestoran && (
+        <BakiyeHareketiModal
+          entity_type="restoran"
+          entity_id={secilenRestoran.id}
+          entity_ad={secilenRestoran.ad}
+          onClose={() => setBhModal(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── Kurye Raporu ─────────────────────────────────────────────────────────────
+function KuryeRaporu() {
+  const { bayilik } = useAuth()
+  const [kuryeler, setKuryeler] = useState<Kurye[]>([])
+  const [kuryeId, setKuryeId] = useState<number | ''>('')
+  const defaultStart = () => { const d = new Date(); d.setHours(11,0,0,0); d.setDate(d.getDate()-1); return fmtDateTimeLocal(d.toISOString()) }
+  const defaultEnd = () => { const d = new Date(); d.setHours(5,0,0,0); return fmtDateTimeLocal(d.toISOString()) }
+  const [baslangic, setBaslangic] = useState(defaultStart)
+  const [bitis, setBitis] = useState(defaultEnd)
+  const [kdvAktif, setKdvAktif] = useState(false)
+  const [kdvOran] = useState(20)
+  const [tevkifat, setTevkifat] = useState(false)
+  const [gunlukBazli, setGunlukBazli] = useState(false)
+  const [bonusDahil, setBonusDahil] = useState(false)
+
+  const [rapor, setRapor] = useState<Awaited<ReturnType<typeof api.raporlar.kurye>> | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [bhModal, setBhModal] = useState(false)
+
+  useEffect(() => {
+    api.kuryeler.list().then(setKuryeler).catch(() => {})
+  }, [])
+
+  const goruntule = useCallback(async () => {
+    if (!kuryeId) return
+    setLoading(true); setError(''); setRapor(null)
+    try {
+      const data = await api.raporlar.kurye({
+        kurye_id: Number(kuryeId),
+        baslangic: baslangic ? new Date(baslangic).toISOString() : undefined,
+        bitis: bitis ? new Date(bitis).toISOString() : undefined,
+      })
+      setRapor(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Rapor alınamadı')
+    }
+    setLoading(false)
+  }, [kuryeId, baslangic, bitis])
+
+  function handlePrint() { window.print() }
+
+  // Calculations
+  const brutKazanc = rapor?.brut_kazanc || 0
+  const aldimToplam = rapor?.aldim_toplam || 0
+  const kdvTutar = kdvAktif ? brutKazanc * (kdvOran / 100) : 0
+  const tevkifatTutar = tevkifat ? brutKazanc * 0.02 : 0
+  const netOdeme = brutKazanc - aldimToplam - (kdvAktif ? kdvTutar : 0) - tevkifatTutar
+
+  const secilenKurye = kuryeler.find(k => k.id === kuryeId)
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-5">
+        {/* Filter Panel */}
+        <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-4 h-fit">
+          <div className="flex items-center gap-2 text-primary-600 font-semibold text-sm">
+            <Filter size={15} /> Kurye Raporu Filtreleri
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">KURYE SEÇİNİZ</label>
+            <div className="relative">
+              <select value={kuryeId} onChange={e => setKuryeId(Number(e.target.value) || '')}
+                className="w-full appearance-none px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-600/20">
+                <option value="">Seçiniz...</option>
+                {kuryeler.map(k => <option key={k.id} value={k.id}>{k.ad}</option>)}
+              </select>
+              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">BAŞLANGIÇ TARİHİ</label>
+            <input type="datetime-local" value={baslangic} onChange={e => setBaslangic(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">BİTİŞ TARİHİ</label>
+            <input type="datetime-local" value={bitis} onChange={e => setBitis(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
+          </div>
+
+          <div className="border-t border-gray-100 pt-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700">KDV</span>
+              <Tog checked={kdvAktif} onChange={setKdvAktif} />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700">Tevkifat</span>
+              <Tog checked={tevkifat} onChange={setTevkifat} />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700">Gün Bazlı Rapor</span>
+              <Tog checked={gunlukBazli} onChange={setGunlukBazli} />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700">Bonus Dahil Et</span>
+              <Tog checked={bonusDahil} onChange={setBonusDahil} />
+            </div>
+          </div>
+
+          <div className="space-y-2 pt-1">
+            <button onClick={goruntule} disabled={!kuryeId || loading}
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 disabled:opacity-50 transition-colors">
+              {loading ? <Loader2 size={15} className="animate-spin" /> : null}
+              Rapor Görüntüle
+            </button>
+            {secilenKurye && (
+              <button onClick={() => setBhModal(true)}
+                className="w-full py-2.5 border border-primary-200 text-primary-600 text-sm font-medium rounded-xl hover:bg-primary-50 transition-colors">
+                Bakiye Hareketi
+              </button>
+            )}
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-3 py-2">
+              <AlertCircle size={14} />{error}
+            </div>
+          )}
+        </div>
+
+        {/* Report Output */}
+        {rapor && (
+          <div className="print-area bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <div className="bg-primary-600 h-1.5" />
+            <div className="p-6 border-b border-gray-100">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-lg">
+                    {(bayilik?.ad || 'B').charAt(0)}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-800">{bayilik?.ad}</p>
+                    <p className="text-xs text-gray-500">paket servisi</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <h2 className="text-xl font-bold text-primary-600">Kurye Raporu</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {baslangic ? fmtDisplay(new Date(baslangic).toISOString()) : '—'} – {bitis ? fmtDisplay(new Date(bitis).toISOString()) : '—'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs text-gray-500 mb-0.5">Kurye Adı</p>
+                  <p className="font-semibold text-primary-600">{rapor.kurye.ad}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-0.5">Çalışma Şekli</p>
+                  <p className="font-semibold text-primary-600">{rapor.kurye.calisma_tipi || 'Paket Başı'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-0.5">Toplam Paket</p>
+                  <p className="font-semibold text-primary-600">{rapor.toplam_paket} Adet</p>
+                </div>
+              </div>
+
+              {/* Günlük bazlı */}
+              {gunlukBazli && rapor.gunluk.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Günlük Dağılım</h3>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-2 text-gray-500 font-medium">Tarih</th>
+                        <th className="text-right py-2 text-gray-500 font-medium">Paket</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rapor.gunluk.map(g => (
+                        <tr key={g.gun} className="border-b border-gray-50">
+                          <td className="py-2 text-gray-700">{fmtTarih(g.gun)}</td>
+                          <td className="py-2 text-right text-primary-600">{g.sayi} Adet</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Calculation */}
+              <div className="border-t border-gray-200 pt-4 space-y-1.5">
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>Brüt Kazanç</span>
+                  <span>₺{fmt(brutKazanc)}</span>
+                </div>
+                {aldimToplam > 0 && (
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>Avans / Ödenen (Aldım)</span>
+                    <span className="text-orange-500">₺-{fmt(aldimToplam)}</span>
+                  </div>
+                )}
+                {kdvAktif && (
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>KDV (%{kdvOran})</span>
+                    <span>₺-{fmt(kdvTutar)}</span>
+                  </div>
+                )}
+                {tevkifat && (
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>Tevkifat (%2)</span>
+                    <span>₺-{fmt(tevkifatTutar)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-3 border-t-2 border-gray-300">
+                  <span className="font-bold text-gray-800 text-base">Size Ödeyeceğimiz Tutar</span>
+                  <span className="font-bold text-primary-600 text-xl">₺{fmt(Math.max(0, netOdeme))}</span>
+                </div>
+              </div>
+
+              {/* Note */}
+              <div className="bg-primary-600 text-white text-xs rounded-xl p-4 leading-relaxed">
+                Not: Bu rapor {baslangic ? fmtDisplay(new Date(baslangic).toISOString()) : '—'} - {bitis ? fmtDisplay(new Date(bitis).toISOString()) : '—'} tarihleri arasında
+                teslim edilen siparişleri kapsamaktadır. İptal edilen paketler hesaplamaya dahil değildir.
+              </div>
+
+              <div className="flex justify-end">
+                <button onClick={handlePrint}
+                  className="flex items-center gap-2 px-5 py-2.5 border border-primary-600 text-primary-600 text-sm font-medium rounded-xl hover:bg-primary-50">
+                  <Printer size={15} /> PDF İndir
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!rapor && !loading && (
+          <div className="hidden lg:flex items-center justify-center bg-gray-50 rounded-xl border border-dashed border-gray-200 min-h-[300px]">
+            <p className="text-sm text-gray-400">Kurye seçip "Rapor Görüntüle" butonuna basın</p>
+          </div>
+        )}
+      </div>
+
+      {bhModal && secilenKurye && (
+        <BakiyeHareketiModal
+          entity_type="kurye"
+          entity_id={secilenKurye.id}
+          entity_ad={secilenKurye.ad}
+          onClose={() => setBhModal(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+export default function Raporlar() {
+  const [tab, setTab] = useState<RaporTipi>('isletme')
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-800">Raporlar</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Detaylı sipariş ve hakediş raporları</p>
-        </div>
-        <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-sm text-gray-600 rounded-lg hover:bg-gray-50 transition-colors">
-          <Download size={15} /> Rapor Al
-        </button>
-      </div>
-
-      {/* Date filter */}
-      <div className="flex items-center gap-3 mb-5">
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-gray-500">Başlangıç:</label>
-          <input type="date" value={baslangic} onChange={e => setBaslangic(e.target.value)} className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-gray-500">Bitiş:</label>
-          <input type="date" value={bitis} onChange={e => setBitis(e.target.value)} className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
-        </div>
-        {(baslangic || bitis) && (
-          <button onClick={() => { setBaslangic(''); setBitis('') }} className="text-xs text-gray-500 hover:text-gray-700">Temizle</button>
-        )}
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-gray-800">Raporlar</h1>
+        <p className="text-sm text-gray-500 mt-0.5">Periyodik işletme ve kurye hakedişleri</p>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-1 mb-5 border-b border-gray-200">
-        {tabs.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === t.key ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-            {t.label}
+        {([['isletme', 'İşletme Raporu'], ['kurye', 'Kurye Raporu']] as [RaporTipi, string][]).map(([key, label]) => (
+          <button key={key} onClick={() => setTab(key)}
+            className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              tab === key ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}>
+            {label}
           </button>
         ))}
       </div>
 
-      {tab === 'gecmis' && (
-        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-100">
-                {['Sipariş No','Restoran','Müşteri','Kurye','Tutar','Ödeme','Durum','Tarih'].map(h => (
-                  <th key={h} className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data?.siparisler.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-12 text-gray-400 text-sm">Sipariş bulunamadı</td></tr>
-              ) : (
-                data?.siparisler.map(s => (
-                  <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                    <td className="px-5 py-3 text-xs font-mono text-gray-700">{s.siparis_no}</td>
-                    <td className="px-5 py-3 text-sm text-gray-700">{s.restoran_ad || '—'}</td>
-                    <td className="px-5 py-3 text-sm text-gray-700">{s.musteri_ad || '—'}</td>
-                    <td className="px-5 py-3 text-sm text-gray-700">{s.kurye_ad || '—'}</td>
-                    <td className="px-5 py-3 text-sm font-semibold text-gray-800">{s.tutar.toFixed(2)} ₺</td>
-                    <td className="px-5 py-3 text-sm text-gray-600">{s.odeme_yontemi}</td>
-                    <td className="px-5 py-3"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${durumBadge(s.durum)}`}>{s.durum}</span></td>
-                    <td className="px-5 py-3 text-xs text-gray-500">{formatTarih(s.olusturma_tarihi)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-          {data && data.siparisler.length > 0 && (
-            <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between">
-              <span className="text-sm text-gray-500">{data.siparisler.length} kayıt</span>
-              <span className="text-sm font-semibold text-gray-800">
-                Toplam: {data.siparisler.reduce((a, s) => a + s.tutar, 0).toFixed(2)} ₺
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {tab === 'kurye' && (
-        <div className="grid grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  {['Kurye','Teslim Sayısı','Toplam Ciro'].map(h => (
-                    <th key={h} className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {data?.kurye_hakedis.map((k, i) => (
-                  <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="px-5 py-3 text-sm font-medium text-gray-800">{k.ad}</td>
-                    <td className="px-5 py-3 text-sm text-gray-700">{k.teslim_sayisi || 0}</td>
-                    <td className="px-5 py-3 text-sm font-semibold text-emerald-600">{(k.toplam_tutar || 0).toFixed(2)} ₺</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="bg-white rounded-xl border border-gray-100 p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">Kurye Teslim Dağılımı</h3>
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data?.kurye_hakedis.map(k => ({ name: k.ad.split(' ')[0], value: k.teslim_sayisi || 0 }))} margin={{ top: 5, right: 10, left: 0, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: 12 }} />
-                  <Bar dataKey="value" fill="#2563EB" radius={[4,4,0,0]} name="Teslimat" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {tab === 'restoran' && (
-        <div className="grid grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  {['Restoran','Sipariş Sayısı','Toplam Ciro'].map(h => (
-                    <th key={h} className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {data?.restoran_hakedis.map((r, i) => (
-                  <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="px-5 py-3 text-sm font-medium text-gray-800">{r.ad}</td>
-                    <td className="px-5 py-3 text-sm text-gray-700">{r.siparis_sayisi || 0}</td>
-                    <td className="px-5 py-3 text-sm font-semibold text-emerald-600">{(r.toplam_tutar || 0).toFixed(2)} ₺</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="bg-white rounded-xl border border-gray-100 p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">Restoran Ciro Dağılımı</h3>
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data?.restoran_hakedis.map(r => ({ name: r.ad.split(' ')[0], value: r.toplam_tutar || 0 }))} margin={{ top: 5, right: 10, left: 0, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: 12 }} formatter={(v: number) => [`${v.toFixed(2)} ₺`, 'Ciro']} />
-                  <Bar dataKey="value" fill="#10B981" radius={[4,4,0,0]} name="Ciro" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {tab === 'trend' && (
-        <div className="bg-white rounded-xl border border-gray-100 p-6">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Günlük Sipariş & Ciro Trendi</h3>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data?.gunluk_trend.map(g => ({ ...g, gun: g.gun.slice(5) }))} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                <XAxis dataKey="gun" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-                <YAxis yAxisId="left" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: 12 }} />
-                <Line yAxisId="left" type="monotone" dataKey="siparis" stroke="#2563EB" strokeWidth={2} dot={{ fill: '#2563EB', r: 3 }} name="Sipariş" />
-                <Line yAxisId="right" type="monotone" dataKey="ciro" stroke="#10B981" strokeWidth={2} dot={{ fill: '#10B981', r: 3 }} name="Ciro (₺)" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
+      {tab === 'isletme' && <IsletmeRaporu />}
+      {tab === 'kurye' && <KuryeRaporu />}
     </div>
   )
 }
