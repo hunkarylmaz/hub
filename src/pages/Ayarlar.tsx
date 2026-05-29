@@ -1,5 +1,6 @@
-import { useState, useRef } from 'react'
-import { Image, Star, Building2, Upload, Plus } from 'lucide-react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { Image, Star, Building2, Upload, Plus, AlertCircle, Loader2, CheckCircle } from 'lucide-react'
+import { api, Ayarlar as AyarlarType } from '../lib/api'
 
 interface BankaHesabi {
   id: string
@@ -9,6 +10,12 @@ interface BankaHesabi {
 }
 
 export default function Ayarlar() {
+  const [ayarlar, setAyarlar] = useState<AyarlarType | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [faviconPreview, setFaviconPreview] = useState<string | null>(null)
   const [bankalar, setBankalar] = useState<BankaHesabi[]>([])
@@ -18,19 +25,65 @@ export default function Ayarlar() {
   const logoRef = useRef<HTMLInputElement>(null)
   const faviconRef = useRef<HTMLInputElement>(null)
 
-  function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  const fetchAyarlar = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const data = await api.ayarlar.get()
+      setAyarlar(data)
+      if (data.logo_url) setLogoPreview(data.logo_url)
+      if (data.favicon_url) setFaviconPreview(data.favicon_url)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ayarlar yüklenemedi')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchAyarlar()
+  }, [fetchAyarlar])
+
+  function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
+  async function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (file) {
-      const url = URL.createObjectURL(file)
-      setLogoPreview(url)
+      const base64 = await fileToBase64(file)
+      setLogoPreview(base64)
     }
   }
 
-  function handleFaviconChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFaviconChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (file) {
-      const url = URL.createObjectURL(file)
-      setFaviconPreview(url)
+      const base64 = await fileToBase64(file)
+      setFaviconPreview(base64)
+    }
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    setSaved(false)
+    try {
+      const updated = await api.ayarlar.update({
+        logo_url: logoPreview,
+        favicon_url: faviconPreview,
+      })
+      setAyarlar(updated)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Kaydedilemedi')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -41,12 +94,44 @@ export default function Ayarlar() {
     setShowBankaForm(false)
   }
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 size={32} className="animate-spin text-primary-600" />
+      </div>
+    )
+  }
+
+  if (error && !ayarlar) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <AlertCircle size={32} className="text-red-500" />
+        <p className="text-gray-600">{error}</p>
+        <button
+          onClick={fetchAyarlar}
+          className="px-4 py-2 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors"
+        >
+          Tekrar Dene
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-gray-800">Ayarlar</h1>
         <p className="text-sm text-gray-500 mt-0.5">Logo, favicon ve banka hesapları yönetimi</p>
       </div>
+
+      {ayarlar && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-lg flex items-center gap-2 text-sm text-blue-700 max-w-3xl">
+          <span className="font-medium">Kontör Bakiyesi:</span>
+          <span className="font-bold">{ayarlar.kontor_bakiye.toLocaleString('tr-TR')}</span>
+          <span className="ml-4 text-blue-500">Toplam Dağıtılan:</span>
+          <span className="font-bold text-blue-700">{ayarlar.toplam_dagitilan.toLocaleString('tr-TR')}</span>
+        </div>
+      )}
 
       <div className="space-y-4 max-w-3xl">
         {/* Logo */}
@@ -64,13 +149,23 @@ export default function Ayarlar() {
             )}
           </div>
           <input ref={logoRef} type="file" accept=".png,.webp,.jpg,.jpeg,.svg" className="hidden" onChange={handleLogoChange} />
-          <button
-            onClick={() => logoRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2 border border-primary-600 text-primary-600 text-sm font-medium rounded-lg hover:bg-primary-50 transition-colors"
-          >
-            <Upload size={15} />
-            Logo Seç
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => logoRef.current?.click()}
+              className="flex items-center gap-2 px-4 py-2 border border-primary-600 text-primary-600 text-sm font-medium rounded-lg hover:bg-primary-50 transition-colors"
+            >
+              <Upload size={15} />
+              Logo Seç
+            </button>
+            {logoPreview && (
+              <button
+                onClick={() => setLogoPreview(null)}
+                className="text-sm text-red-500 hover:text-red-600"
+              >
+                Kaldır
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Favicon */}
@@ -88,13 +183,53 @@ export default function Ayarlar() {
             )}
           </div>
           <input ref={faviconRef} type="file" accept=".png,.webp,.jpg,.jpeg,.svg" className="hidden" onChange={handleFaviconChange} />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => faviconRef.current?.click()}
+              className="flex items-center gap-2 px-4 py-2 border border-primary-600 text-primary-600 text-sm font-medium rounded-lg hover:bg-primary-50 transition-colors"
+            >
+              <Upload size={15} />
+              Favicon Seç
+            </button>
+            {faviconPreview && (
+              <button
+                onClick={() => setFaviconPreview(null)}
+                className="text-sm text-red-500 hover:text-red-600"
+              >
+                Kaldır
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Save Button */}
+        <div className="flex items-center gap-3">
           <button
-            onClick={() => faviconRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2 border border-primary-600 text-primary-600 text-sm font-medium rounded-lg hover:bg-primary-50 transition-colors"
+            onClick={handleSave}
+            disabled={saving}
+            className="px-6 py-2.5 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-60 flex items-center gap-2"
           >
-            <Upload size={15} />
-            Favicon Seç
+            {saving ? (
+              <>
+                <Loader2 size={15} className="animate-spin" />
+                Kaydediliyor...
+              </>
+            ) : (
+              'Değişiklikleri Kaydet'
+            )}
           </button>
+          {saved && (
+            <div className="flex items-center gap-1.5 text-emerald-600 text-sm">
+              <CheckCircle size={16} />
+              Kaydedildi
+            </div>
+          )}
+          {error && ayarlar && (
+            <div className="flex items-center gap-1.5 text-red-500 text-sm">
+              <AlertCircle size={16} />
+              {error}
+            </div>
+          )}
         </div>
 
         {/* Banka Hesapları */}

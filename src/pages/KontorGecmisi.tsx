@@ -1,33 +1,74 @@
-import { useState } from 'react'
-import { Wallet, Upload, Search, RefreshCw } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Wallet, Upload, Search, RefreshCw, AlertCircle, Loader2 } from 'lucide-react'
+import { api, KontorIslem, KontorBakiye } from '../lib/api'
 
-interface KontorIslem {
-  id: string
-  tarih: string
-  islemTuru: 'Bayiliğe Dağıtım' | 'Geri Alma'
-  bayilikAd: string
-  bayilikId: string
-  miktar: number
-  kalanBakiye: number
-  not: string
+function formatTarih(tarih: string): string {
+  const d = new Date(tarih)
+  if (isNaN(d.getTime())) return tarih
+  const gun = String(d.getDate()).padStart(2, '0')
+  const ay = String(d.getMonth() + 1).padStart(2, '0')
+  const yil = d.getFullYear()
+  const saat = String(d.getHours()).padStart(2, '0')
+  const dakika = String(d.getMinutes()).padStart(2, '0')
+  return `${gun}.${ay}.${yil} ${saat}:${dakika}`
 }
 
-const data: KontorIslem[] = [
-  { id: '1', tarih: '27.05.2026 23:38', islemTuru: 'Bayiliğe Dağıtım', bayilikAd: 'Paketçiniz Afyon', bayilikId: 'Afyonkarahisar002', miktar: -87, kalanBakiye: 0, not: '-' },
-  { id: '2', tarih: '27.05.2026 23:38', islemTuru: 'Bayiliğe Dağıtım', bayilikAd: 'Paketçiniz Afyon', bayilikId: 'Afyonkarahisar002', miktar: -100, kalanBakiye: 87, not: '-' },
-  { id: '3', tarih: '27.05.2026 23:37', islemTuru: 'Bayiliğe Dağıtım', bayilikAd: 'Paketçiniz Bodrum', bayilikId: 'MUGLA002', miktar: -500, kalanBakiye: 187, not: '-' },
-  { id: '4', tarih: '27.05.2026 23:37', islemTuru: 'Geri Alma', bayilikAd: 'Moon Courie', bayilikId: 'Bursa009', miktar: 489, kalanBakiye: 687, not: '-' },
-  { id: '5', tarih: '26.05.2026 00:24', islemTuru: 'Bayiliğe Dağıtım', bayilikAd: 'Paketçiniz Bodrum', bayilikId: 'MUGLA002', miktar: -202, kalanBakiye: 198, not: '-' },
-]
-
 export default function KontorGecmisi() {
+  const [gecmis, setGecmis] = useState<KontorIslem[]>([])
+  const [bakiye, setBakiye] = useState<KontorBakiye>({ mevcut_bakiye: 0, toplam_dagitilan: 0 })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [search, setSearch] = useState('')
 
-  const filtered = data.filter(
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const [gecmisData, bakiyeData] = await Promise.all([
+        api.kontorGecmisi.list(),
+        api.kontorBakiye.get(),
+      ])
+      setGecmis(gecmisData)
+      setBakiye(bakiyeData)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Veri yüklenemedi')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  const filtered = gecmis.filter(
     (k) =>
-      k.bayilikAd.toLowerCase().includes(search.toLowerCase()) ||
-      k.islemTuru.toLowerCase().includes(search.toLowerCase()),
+      (k.bayilik_ad || '').toLowerCase().includes(search.toLowerCase()) ||
+      k.islem_turu.toLowerCase().includes(search.toLowerCase()),
   )
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 size={32} className="animate-spin text-primary-600" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <AlertCircle size={32} className="text-red-500" />
+        <p className="text-gray-600">{error}</p>
+        <button
+          onClick={fetchData}
+          className="px-4 py-2 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors"
+        >
+          Tekrar Dene
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -39,7 +80,7 @@ export default function KontorGecmisi() {
           </div>
           <div>
             <p className="text-sm text-blue-200 font-medium">Mevcut Bakiye</p>
-            <p className="text-3xl font-bold text-white mt-0.5">500</p>
+            <p className="text-3xl font-bold text-white mt-0.5">{bakiye.mevcut_bakiye.toLocaleString('tr-TR')}</p>
           </div>
         </div>
 
@@ -49,7 +90,7 @@ export default function KontorGecmisi() {
           </div>
           <div>
             <p className="text-sm text-emerald-100 font-medium">Toplam Dağıtılan</p>
-            <p className="text-3xl font-bold text-white mt-0.5">8.820</p>
+            <p className="text-3xl font-bold text-white mt-0.5">{bakiye.toplam_dagitilan.toLocaleString('tr-TR')}</p>
           </div>
         </div>
       </div>
@@ -57,7 +98,7 @@ export default function KontorGecmisi() {
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-gray-800">Kontör Geçmişi</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Toplam 41 kayıt</p>
+          <p className="text-sm text-gray-500 mt-0.5">Toplam {gecmis.length} kayıt</p>
         </div>
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -84,36 +125,44 @@ export default function KontorGecmisi() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((k) => (
-              <tr key={k.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 text-sm text-gray-600">{k.tarih}</td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
-                    {k.islemTuru === 'Bayiliğe Dağıtım' ? (
-                      <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
-                        <Upload size={13} className="text-primary-600" />
-                      </div>
-                    ) : (
-                      <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center">
-                        <RefreshCw size={13} className="text-amber-500" />
-                      </div>
-                    )}
-                    <span className="text-sm text-gray-700">{k.islemTuru}</span>
-                  </div>
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-6 py-12 text-center text-gray-400 text-sm">
+                  İşlem bulunamadı
                 </td>
-                <td className="px-6 py-4">
-                  <div className="text-sm font-medium text-gray-700">{k.bayilikAd}</div>
-                  <div className="text-xs text-gray-400">{k.bayilikId}</div>
-                </td>
-                <td className="px-6 py-4 text-sm font-semibold">
-                  <span className={k.miktar < 0 ? 'text-red-500' : 'text-emerald-600'}>
-                    {k.miktar > 0 ? `+${k.miktar}` : k.miktar}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-sm font-medium text-primary-600">{k.kalanBakiye}</td>
-                <td className="px-6 py-4 text-sm text-gray-400">{k.not}</td>
               </tr>
-            ))}
+            ) : (
+              filtered.map((k) => (
+                <tr key={k.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4 text-sm text-gray-600">{formatTarih(k.tarih)}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      {k.islem_turu === 'Bayiliğe Dağıtım' ? (
+                        <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
+                          <Upload size={13} className="text-primary-600" />
+                        </div>
+                      ) : (
+                        <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center">
+                          <RefreshCw size={13} className="text-amber-500" />
+                        </div>
+                      )}
+                      <span className="text-sm text-gray-700">{k.islem_turu}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm font-medium text-gray-700">{k.bayilik_ad || '—'}</div>
+                    <div className="text-xs text-gray-400">{k.bayilik_kod || '—'}</div>
+                  </td>
+                  <td className="px-6 py-4 text-sm font-semibold">
+                    <span className={k.miktar < 0 ? 'text-red-500' : 'text-emerald-600'}>
+                      {k.miktar > 0 ? `+${k.miktar}` : k.miktar}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm font-medium text-primary-600">{k.kalan_bakiye}</td>
+                  <td className="px-6 py-4 text-sm text-gray-400">{k.not_text || '—'}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
 

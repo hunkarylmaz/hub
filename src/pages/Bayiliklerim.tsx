@@ -1,15 +1,6 @@
-import { useState, useRef, useEffect } from 'react'
-import { Search, Plus, ChevronDown, X, Wallet } from 'lucide-react'
-
-interface Bayilik {
-  id: string
-  ad: string
-  bayilikId: string
-  durum: 'Aktif' | 'Pasif'
-  sehir: string
-  token: number
-  ozelFiyat: number
-}
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { Search, Plus, ChevronDown, X, Wallet, AlertCircle, Loader2 } from 'lucide-react'
+import { api, Bayilik } from '../lib/api'
 
 const illerTR = [
   'Adana','Adıyaman','Afyonkarahisar','Ağrı','Amasya','Ankara','Antalya','Artvin','Aydın','Balıkesir',
@@ -24,22 +15,113 @@ const illerTR = [
 
 const siparisSeçenekleri = ['1-50', '51-100', '101-200', '201-500', '500+']
 
-const initialData: Bayilik[] = [
-  { id: '1', ad: 'TEST JET', bayilikId: '0FNA19SWUL88F6E', durum: 'Aktif', sehir: 'İzmir', token: 0, ozelFiyat: 2.80 },
-  { id: '2', ad: 'Paketçiniz Afyon', bayilikId: 'Afyonkarahisar002', durum: 'Aktif', sehir: 'Afyonkarahisar', token: 216, ozelFiyat: 2.80 },
-  { id: '3', ad: 'Moon Courie', bayilikId: 'Bursa009', durum: 'Pasif', sehir: 'Bursa', token: 0, ozelFiyat: 3.00 },
-  { id: '4', ad: 'Paketçiniz Kütahya', bayilikId: 'KUTAHYA003', durum: 'Pasif', sehir: 'KÜTAHYA', token: 0, ozelFiyat: 3.00 },
-  { id: '5', ad: 'Osmaniye Paketçiniz', bayilikId: 'OSMANİYE005', durum: 'Aktif', sehir: 'Osmaniye', token: 3130, ozelFiyat: 2.80 },
-  { id: '6', ad: 'Paketçiniz Bodrum', bayilikId: 'MUGLA002', durum: 'Aktif', sehir: 'Muğla', token: 414, ozelFiyat: 2.80 },
-]
+// ── Kontör Modal ─────────────────────────────────────────────────────────────
+interface KontorModalProps {
+  bayilik: Bayilik
+  mode: 'ekle' | 'geri-al'
+  onClose: () => void
+  onSuccess: () => void
+}
 
+function KontorModal({ bayilik, mode, onClose, onSuccess }: KontorModalProps) {
+  const [miktar, setMiktar] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const amount = parseInt(miktar, 10)
+    if (!amount || amount <= 0) {
+      setError('Geçerli bir miktar girin')
+      return
+    }
+    setLoading(true)
+    setError('')
+    try {
+      if (mode === 'ekle') {
+        await api.bayilikler.ekleKontor(bayilik.id, amount)
+      } else {
+        await api.bayilikler.geriAlKontor(bayilik.id, amount)
+      }
+      onSuccess()
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'İşlem başarısız')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-base font-semibold text-gray-800">
+            {mode === 'ekle' ? 'Kontör Ekle' : 'Kontör Geri Al'} — {bayilik.ad}
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Miktar {mode === 'geri-al' && <span className="text-gray-400">(Mevcut: {bayilik.token})</span>}
+            </label>
+            <input
+              type="number"
+              min={1}
+              value={miktar}
+              onChange={(e) => setMiktar(e.target.value)}
+              placeholder="Kontör miktarı"
+              required
+              autoFocus
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600"
+            />
+          </div>
+          {error && (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-3 py-2.5">
+              <AlertCircle size={14} className="shrink-0" />
+              {error}
+            </div>
+          )}
+          <div className="flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              İptal
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-60 flex items-center gap-2"
+            >
+              {loading && <Loader2 size={14} className="animate-spin" />}
+              {mode === 'ekle' ? 'Ekle' : 'Geri Al'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ── Dropdown Menu ─────────────────────────────────────────────────────────────
 interface DropdownMenuProps {
   bayilik: Bayilik
   onClose: () => void
-  onPasifChange: (id: string) => void
+  onToggleDurum: (id: number) => void
+  onKontorEkle: (b: Bayilik) => void
+  onKontorGeriAl: (b: Bayilik) => void
 }
 
-function DropdownMenu({ bayilik, onClose, onPasifChange }: DropdownMenuProps) {
+function DropdownMenu({ bayilik, onClose, onToggleDurum, onKontorEkle, onKontorGeriAl }: DropdownMenuProps) {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -56,11 +138,8 @@ function DropdownMenu({ bayilik, onClose, onPasifChange }: DropdownMenuProps) {
       className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-100 rounded-xl shadow-lg py-1 min-w-[180px]"
     >
       {[
-        { label: 'Düzenle', action: () => onClose() },
-        { label: 'Bayilik Kullanıcıları', action: () => onClose() },
-        { label: 'Özel Fiyat', action: () => onClose() },
-        { label: 'Kontör Ekle', action: () => onClose() },
-        { label: 'Kontör Geri Al', action: () => onClose() },
+        { label: 'Kontör Ekle', action: () => { onKontorEkle(bayilik); onClose() } },
+        { label: 'Kontör Geri Al', action: () => { onKontorGeriAl(bayilik); onClose() } },
       ].map((item) => (
         <button
           key={item.label}
@@ -72,7 +151,7 @@ function DropdownMenu({ bayilik, onClose, onPasifChange }: DropdownMenuProps) {
       ))}
       <div className="border-t border-gray-100 mt-1 pt-1">
         <button
-          onClick={() => { onPasifChange(bayilik.id); onClose() }}
+          onClick={() => { onToggleDurum(bayilik.id); onClose() }}
           className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors flex items-center gap-2"
         >
           <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
@@ -83,12 +162,13 @@ function DropdownMenu({ bayilik, onClose, onPasifChange }: DropdownMenuProps) {
   )
 }
 
+// ── Yeni Bayilik Modal ────────────────────────────────────────────────────────
 interface YeniBayilikModalProps {
   onClose: () => void
-  onSubmit: (b: Omit<Bayilik, 'id' | 'token' | 'ozelFiyat'>) => void
+  onSuccess: () => void
 }
 
-function YeniBayilikModal({ onClose, onSubmit }: YeniBayilikModalProps) {
+function YeniBayilikModal({ onClose, onSuccess }: YeniBayilikModalProps) {
   const [form, setForm] = useState({
     firmaIsmi: '',
     il: '',
@@ -96,20 +176,36 @@ function YeniBayilikModal({ onClose, onSubmit }: YeniBayilikModalProps) {
     gunlukSiparis: '',
     yetkiliAd: '',
     telefon: '',
-    eposta: '',
-    sifre: '',
   })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   function set(key: keyof typeof form) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm((v) => ({ ...v, [key]: e.target.value }))
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.firmaIsmi || !form.il) return
-    onSubmit({ ad: form.firmaIsmi, bayilikId: form.il.toUpperCase().slice(0, 8) + '00' + Math.floor(Math.random() * 9 + 1), durum: 'Aktif', sehir: form.il })
-    onClose()
+    setLoading(true)
+    setError('')
+    try {
+      await api.bayilikler.create({
+        ad: form.firmaIsmi,
+        il: form.il,
+        ilce: form.ilce || undefined,
+        gunluk_siparis: form.gunlukSiparis || undefined,
+        yetkili_ad: form.yetkiliAd || undefined,
+        telefon: form.telefon || undefined,
+      })
+      onSuccess()
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bayilik oluşturulamadı')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -148,16 +244,13 @@ function YeniBayilikModal({ onClose, onSubmit }: YeniBayilikModalProps) {
                   </select>
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                 </div>
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="İlçe*"
-                    value={form.ilce}
-                    onChange={set('ilce')}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600"
-                  />
-                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                </div>
+                <input
+                  type="text"
+                  placeholder="İlçe"
+                  value={form.ilce}
+                  onChange={set('ilce')}
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600"
+                />
               </div>
               <div className="relative">
                 <select
@@ -165,7 +258,7 @@ function YeniBayilikModal({ onClose, onSubmit }: YeniBayilikModalProps) {
                   onChange={set('gunlukSiparis')}
                   className="w-full appearance-none px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600 text-gray-700 bg-white"
                 >
-                  <option value="">Günlük Sipariş Sayısı*</option>
+                  <option value="">Günlük Sipariş Sayısı</option>
                   {siparisSeçenekleri.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
                 <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -197,27 +290,15 @@ function YeniBayilikModal({ onClose, onSubmit }: YeniBayilikModalProps) {
                   className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <input
-                  type="email"
-                  placeholder="E-posta*"
-                  value={form.eposta}
-                  onChange={set('eposta')}
-                  required
-                  className="px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600"
-                />
-                <input
-                  type="password"
-                  placeholder="Şifre*"
-                  value={form.sifre}
-                  onChange={set('sifre')}
-                  required
-                  className="px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600"
-                />
-              </div>
-              <p className="text-xs text-gray-400">E-posta adresi giriş kullanıcı adı olarak kullanılacaktır</p>
             </div>
           </div>
+
+          {error && (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-3 py-2.5">
+              <AlertCircle size={14} className="shrink-0" />
+              {error}
+            </div>
+          )}
 
           <div className="flex items-center justify-end gap-3 pt-2">
             <button
@@ -229,8 +310,10 @@ function YeniBayilikModal({ onClose, onSubmit }: YeniBayilikModalProps) {
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors"
+              disabled={loading}
+              className="px-5 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-60 flex items-center gap-2"
             >
+              {loading && <Loader2 size={14} className="animate-spin" />}
               Bayilik Oluştur
             </button>
           </div>
@@ -240,30 +323,75 @@ function YeniBayilikModal({ onClose, onSubmit }: YeniBayilikModalProps) {
   )
 }
 
+// ── Main Component ────────────────────────────────────────────────────────────
 export default function Bayiliklerim() {
-  const [bayilikler, setBayilikler] = useState<Bayilik[]>(initialData)
+  const [bayilikler, setBayilikler] = useState<Bayilik[]>([])
+  const [kontorBakiye, setKontorBakiye] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [search, setSearch] = useState('')
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const [openDropdown, setOpenDropdown] = useState<number | null>(null)
   const [showModal, setShowModal] = useState(false)
+  const [kontorModal, setKontorModal] = useState<{ bayilik: Bayilik; mode: 'ekle' | 'geri-al' } | null>(null)
+
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const [bayilikData, bakiyeData] = await Promise.all([
+        api.bayilikler.list(),
+        api.kontorBakiye.get(),
+      ])
+      setBayilikler(bayilikData)
+      setKontorBakiye(bakiyeData.mevcut_bakiye)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Veri yüklenemedi')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   const filtered = bayilikler.filter(
     (b) =>
       b.ad.toLowerCase().includes(search.toLowerCase()) ||
-      b.bayilikId.toLowerCase().includes(search.toLowerCase()) ||
+      b.bayilik_id.toLowerCase().includes(search.toLowerCase()) ||
       b.sehir.toLowerCase().includes(search.toLowerCase()),
   )
 
-  function togglePasif(id: string) {
-    setBayilikler((prev) =>
-      prev.map((b) => b.id === id ? { ...b, durum: b.durum === 'Aktif' ? 'Pasif' : 'Aktif' } : b)
+  async function toggleDurum(id: number) {
+    try {
+      const updated = await api.bayilikler.toggleDurum(id)
+      setBayilikler((prev) => prev.map((b) => (b.id === updated.id ? updated : b)))
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'İşlem başarısız')
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 size={32} className="animate-spin text-primary-600" />
+      </div>
     )
   }
 
-  function addBayilik(b: Omit<Bayilik, 'id' | 'token' | 'ozelFiyat'>) {
-    setBayilikler((prev) => [
-      ...prev,
-      { ...b, id: Date.now().toString(), token: 0, ozelFiyat: 2.80 },
-    ])
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <AlertCircle size={32} className="text-red-500" />
+        <p className="text-gray-600">{error}</p>
+        <button
+          onClick={fetchData}
+          className="px-4 py-2 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors"
+        >
+          Tekrar Dene
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -279,7 +407,7 @@ export default function Bayiliklerim() {
           </div>
           <div>
             <p className="text-sm text-blue-200 font-medium">Kontör Bakiyeniz</p>
-            <p className="text-3xl font-bold text-white mt-0.5">500</p>
+            <p className="text-3xl font-bold text-white mt-0.5">{kontorBakiye.toLocaleString('tr-TR')}</p>
           </div>
         </div>
         <p className="text-sm text-blue-200 text-right max-w-[200px] leading-snug">
@@ -327,35 +455,45 @@ export default function Bayiliklerim() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((b) => (
-              <tr key={b.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 text-sm text-gray-700">{b.ad}</td>
-                <td className="px-6 py-4 text-sm text-primary-600 font-medium cursor-pointer hover:underline">{b.bayilikId}</td>
-                <td className="px-6 py-4">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${b.durum === 'Aktif' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
-                    {b.durum}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-700">{b.sehir}</td>
-                <td className="px-6 py-4 text-sm text-gray-700">{b.token}</td>
-                <td className="px-6 py-4 text-sm text-emerald-600 font-medium">{b.ozelFiyat.toFixed(2)} ₺</td>
-                <td className="px-6 py-4 relative">
-                  <button
-                    onClick={() => setOpenDropdown(openDropdown === b.id ? null : b.id)}
-                    className="flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700 font-medium"
-                  >
-                    Düzenle <ChevronDown size={14} />
-                  </button>
-                  {openDropdown === b.id && (
-                    <DropdownMenu
-                      bayilik={b}
-                      onClose={() => setOpenDropdown(null)}
-                      onPasifChange={togglePasif}
-                    />
-                  )}
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-sm">
+                  Bayilik bulunamadı
                 </td>
               </tr>
-            ))}
+            ) : (
+              filtered.map((b) => (
+                <tr key={b.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4 text-sm text-gray-700">{b.ad}</td>
+                  <td className="px-6 py-4 text-sm text-primary-600 font-medium cursor-pointer hover:underline">{b.bayilik_id}</td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${b.durum === 'Aktif' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
+                      {b.durum}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700">{b.sehir}</td>
+                  <td className="px-6 py-4 text-sm text-gray-700">{b.token}</td>
+                  <td className="px-6 py-4 text-sm text-emerald-600 font-medium">{b.ozel_fiyat.toFixed(2)} ₺</td>
+                  <td className="px-6 py-4 relative">
+                    <button
+                      onClick={() => setOpenDropdown(openDropdown === b.id ? null : b.id)}
+                      className="flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700 font-medium"
+                    >
+                      Düzenle <ChevronDown size={14} />
+                    </button>
+                    {openDropdown === b.id && (
+                      <DropdownMenu
+                        bayilik={b}
+                        onClose={() => setOpenDropdown(null)}
+                        onToggleDurum={toggleDurum}
+                        onKontorEkle={(bay) => setKontorModal({ bayilik: bay, mode: 'ekle' })}
+                        onKontorGeriAl={(bay) => setKontorModal({ bayilik: bay, mode: 'geri-al' })}
+                      />
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
 
@@ -372,7 +510,19 @@ export default function Bayiliklerim() {
       </div>
 
       {showModal && (
-        <YeniBayilikModal onClose={() => setShowModal(false)} onSubmit={addBayilik} />
+        <YeniBayilikModal
+          onClose={() => setShowModal(false)}
+          onSuccess={fetchData}
+        />
+      )}
+
+      {kontorModal && (
+        <KontorModal
+          bayilik={kontorModal.bayilik}
+          mode={kontorModal.mode}
+          onClose={() => setKontorModal(null)}
+          onSuccess={fetchData}
+        />
       )}
     </div>
   )

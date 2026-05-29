@@ -2,3 +2,7 @@ node_modules/
 dist/
 .env
 .env.local
+*.db
+*.db-shm
+*.db-wal
+backend/node_modules/
