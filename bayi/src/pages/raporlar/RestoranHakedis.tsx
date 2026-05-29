@@ -109,7 +109,8 @@ export default function RestoranHakedis() {
                     <th className="text-right px-4 py-3 text-xs font-medium text-gray-500">Kredi Kartı</th>
                     <th className="text-right px-4 py-3 text-xs font-medium text-gray-500">Yemek Kartı</th>
                     <th className="text-right px-4 py-3 text-xs font-medium text-gray-500">Online</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-gray-500">Toplam</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-gray-500">Toplam Gelir</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-gray-500">Taşıma Ücreti</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -120,7 +121,10 @@ export default function RestoranHakedis() {
                           <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
                             <Store size={12} className="text-primary-600" />
                           </div>
-                          <span className="font-medium text-gray-800">{r.ad}</span>
+                          <div>
+                            <span className="font-medium text-gray-800">{r.ad}</span>
+                            <p className="text-xs text-gray-400">{r.calisma_tipi}</p>
+                          </div>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right font-semibold text-primary-600">{r.paket_sayisi}</td>
@@ -129,6 +133,7 @@ export default function RestoranHakedis() {
                       <td className="px-4 py-3 text-right text-gray-700">{r.yemek_karti > 0 ? '₺' + fmt(r.yemek_karti) : '₺0,00'}</td>
                       <td className="px-4 py-3 text-right text-gray-700">{r.online > 0 ? '₺' + fmt(r.online) : '₺0,00'}</td>
                       <td className="px-4 py-3 text-right font-bold text-emerald-600">₺{fmt(r.toplam_gelir)}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-primary-600">₺{fmt(r.tasima)}</td>
                     </tr>
                   ))}
                 </tbody>

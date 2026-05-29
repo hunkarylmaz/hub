@@ -228,6 +228,7 @@ export interface KuryeHakedisRow {
 export interface RestoranHakedisRow {
   id: number
   ad: string
+  calisma_tipi: string
   paket_sayisi: number
   nakit: number
   kredi_karti: number
@@ -237,6 +238,17 @@ export interface RestoranHakedisRow {
   toplam_gelir: number
   tasima: number
   net_kazanc: number
+}
+
+export interface BayiKullanici {
+  id: number
+  ad_soyad: string
+  email: string
+  telefon: string | null
+  rol: string
+  sayfa_izinleri: string
+  aktif: number
+  olusturma_tarihi: string
 }
 
 function getToken(): string {
@@ -484,5 +496,16 @@ export const api = {
     list: () => request<BayiBildirim[]>('/api/bayi/bildirimler', { headers: authHeaders() }),
     send: (data: { baslik: string; mesaj: string; kurye_id?: number | null }) =>
       request<BayiBildirim>('/api/bayi/bildirimler', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+  },
+
+  kullanicilar: {
+    list: (silinmis?: boolean) =>
+      request<BayiKullanici[]>(`/api/bayi/kullanicilar${silinmis ? '?silinmis=1' : ''}`, { headers: authHeaders() }),
+    create: (data: { ad_soyad: string; email: string; telefon?: string; sifre: string; rol?: string; sayfa_izinleri?: string[] }) =>
+      request<BayiKullanici>('/api/bayi/kullanicilar', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    update: (id: number, data: { ad_soyad?: string; email?: string; telefon?: string; sifre?: string; rol?: string; sayfa_izinleri?: string[]; aktif?: number }) =>
+      request<BayiKullanici>(`/api/bayi/kullanicilar/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+    delete: (id: number) =>
+      request<{ message: string }>(`/api/bayi/kullanicilar/${id}`, { method: 'DELETE', headers: authHeaders() }),
   },
 }

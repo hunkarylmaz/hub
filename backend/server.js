@@ -598,6 +598,22 @@ async function initBayiDb() {
     );
   `)
 
+  await exec(`
+    CREATE TABLE IF NOT EXISTS bayi_kullanicilar (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      bayilik_id INTEGER REFERENCES bayilikler(id),
+      ad_soyad TEXT NOT NULL,
+      email TEXT NOT NULL,
+      telefon TEXT,
+      sifre_hash TEXT NOT NULL,
+      rol TEXT DEFAULT 'Operasyon',
+      sayfa_izinleri TEXT DEFAULT '[]',
+      aktif INTEGER DEFAULT 1,
+      silinmis INTEGER DEFAULT 0,
+      olusturma_tarihi TEXT DEFAULT (datetime('now','localtime'))
+    );
+  `)
+
   const bankCount = await get('SELECT COUNT(*) as c FROM banka_hesaplari')
   if (bankCount.c === 0) {
     await run("INSERT INTO banka_hesaplari (banka_adi,ad_soyad,iban) VALUES (?,?,?)",
@@ -1652,6 +1668,7 @@ app.get('/api/bayi/raporlar/restoranlar-hakedis', bayiAuthMiddleware, wrap(async
     return {
       id: restoran.id,
       ad: restoran.ad,
+      calisma_tipi: restoran.calisma_tipi || 'Paket Başı',
       paket_sayisi,
       nakit: odemeMap['Nakit'],
       kredi_karti: odemeMap['Kredi Kartı'],
@@ -1831,6 +1848,69 @@ app.get('/api/bayi/raporlar/firma', bayiAuthMiddleware, wrap(async (req, res) =>
     ort_kurye_hakedis,
     gunluk,
   })
+}))
+
+// ── BAYİ KULLANICI YÖNETİMİ ──────────────────────────────────────────────────
+
+app.get('/api/bayi/kullanicilar', bayiAuthMiddleware, wrap(async (req, res) => {
+  const bid = req.bayi.bayilikId
+  const { silinmis = '0' } = req.query
+  const rows = await all(
+    `SELECT id, ad_soyad, email, telefon, rol, sayfa_izinleri, aktif, olusturma_tarihi
+     FROM bayi_kullanicilar WHERE bayilik_id=? AND silinmis=? ORDER BY olusturma_tarihi DESC`,
+    [bid, silinmis === '1' ? 1 : 0]
+  )
+  res.json(rows)
+}))
+
+app.post('/api/bayi/kullanicilar', bayiAuthMiddleware, wrap(async (req, res) => {
+  const bid = req.bayi.bayilikId
+  const { ad_soyad, email, telefon, sifre, rol = 'Operasyon', sayfa_izinleri = [] } = req.body || {}
+  if (!ad_soyad || !email || !sifre) return res.status(400).json({ message: 'Ad soyad, e-posta ve şifre zorunlu' })
+  const existing = await get('SELECT id FROM bayi_kullanicilar WHERE bayilik_id=? AND email=? AND silinmis=0', [bid, email])
+  if (existing) return res.status(409).json({ message: 'Bu e-posta zaten kullanılıyor' })
+  const sifre_hash = bcrypt.hashSync(sifre, 10)
+  const { lastID } = await run(
+    'INSERT INTO bayi_kullanicilar (bayilik_id,ad_soyad,email,telefon,sifre_hash,rol,sayfa_izinleri) VALUES (?,?,?,?,?,?,?)',
+    [bid, ad_soyad, email, telefon||null, sifre_hash, rol, JSON.stringify(sayfa_izinleri)]
+  )
+  const row = await get('SELECT id,ad_soyad,email,telefon,rol,sayfa_izinleri,aktif,olusturma_tarihi FROM bayi_kullanicilar WHERE id=?', [lastID])
+  res.status(201).json(row)
+}))
+
+app.put('/api/bayi/kullanicilar/:id', bayiAuthMiddleware, wrap(async (req, res) => {
+  const bid = req.bayi.bayilikId
+  const u = await get('SELECT * FROM bayi_kullanicilar WHERE id=? AND bayilik_id=?', [req.params.id, bid])
+  if (!u) return res.status(404).json({ message: 'Kullanıcı bulunamadı' })
+  const { ad_soyad, email, telefon, sifre, rol, sayfa_izinleri, aktif } = req.body || {}
+  if (sifre) {
+    const sifre_hash = bcrypt.hashSync(sifre, 10)
+    await run(
+      `UPDATE bayi_kullanicilar SET ad_soyad=COALESCE(?,ad_soyad), email=COALESCE(?,email),
+       telefon=COALESCE(?,telefon), sifre_hash=?, rol=COALESCE(?,rol),
+       sayfa_izinleri=COALESCE(?,sayfa_izinleri), aktif=COALESCE(?,aktif) WHERE id=?`,
+      [ad_soyad||null, email||null, telefon||null, sifre_hash, rol||null,
+       sayfa_izinleri ? JSON.stringify(sayfa_izinleri) : null, aktif!=null?aktif:null, req.params.id]
+    )
+  } else {
+    await run(
+      `UPDATE bayi_kullanicilar SET ad_soyad=COALESCE(?,ad_soyad), email=COALESCE(?,email),
+       telefon=COALESCE(?,telefon), rol=COALESCE(?,rol),
+       sayfa_izinleri=COALESCE(?,sayfa_izinleri), aktif=COALESCE(?,aktif) WHERE id=?`,
+      [ad_soyad||null, email||null, telefon||null, rol||null,
+       sayfa_izinleri ? JSON.stringify(sayfa_izinleri) : null, aktif!=null?aktif:null, req.params.id]
+    )
+  }
+  const row = await get('SELECT id,ad_soyad,email,telefon,rol,sayfa_izinleri,aktif,olusturma_tarihi FROM bayi_kullanicilar WHERE id=?', [req.params.id])
+  res.json(row)
+}))
+
+app.delete('/api/bayi/kullanicilar/:id', bayiAuthMiddleware, wrap(async (req, res) => {
+  const bid = req.bayi.bayilikId
+  const u = await get('SELECT id FROM bayi_kullanicilar WHERE id=? AND bayilik_id=?', [req.params.id, bid])
+  if (!u) return res.status(404).json({ message: 'Kullanıcı bulunamadı' })
+  await run('UPDATE bayi_kullanicilar SET silinmis=1, aktif=0 WHERE id=?', [req.params.id])
+  res.json({ message: 'Silindi' })
 }))
 
 // ── Error handler ─────────────────────────────────────────────────────────────

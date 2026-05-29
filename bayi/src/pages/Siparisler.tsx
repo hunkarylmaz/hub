@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Search, Plus, Loader2, AlertCircle, Bike, CheckCircle2, X } from 'lucide-react'
+import { Search, Plus, Loader2, AlertCircle, Bike, CheckCircle2, X, Navigation, PauseCircle } from 'lucide-react'
 import { api, Siparis, Kurye, Restoran } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -186,6 +186,7 @@ export default function Siparisler() {
   const [showYeni, setShowYeni] = useState(false)
   const [ataModal, setAtaModal] = useState<Siparis | null>(null)
   const [delivering, setDelivering] = useState<number | null>(null)
+  const [updatingDurum, setUpdatingDurum] = useState<number | null>(null)
 
   const fetchData = useCallback(async () => {
     try {
@@ -213,6 +214,18 @@ export default function Siparisler() {
       alert(err instanceof Error ? err.message : 'Hata')
     } finally {
       setDelivering(null)
+    }
+  }
+
+  async function handleDurumGuncelle(s: Siparis, durum: string) {
+    setUpdatingDurum(s.id)
+    try {
+      await api.siparisler.setDurum(s.id, durum)
+      await fetchData()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Hata')
+    } finally {
+      setUpdatingDurum(null)
     }
   }
 
@@ -310,16 +323,31 @@ export default function Siparisler() {
                   </td>
                   <td className="px-5 py-3 text-xs text-gray-500">{formatTarih(s.olusturma_tarihi)}</td>
                   <td className="px-5 py-3">
-                    <div className="flex gap-1">
-                      {!s.kurye_id && s.durum !== 'İptal' && (
+                    <div className="flex gap-1 flex-wrap">
+                      {s.durum === 'Beklemede' && (
                         <button onClick={() => setAtaModal(s)} className="text-xs px-2 py-1 bg-primary-50 text-primary-600 hover:bg-primary-100 rounded-md flex items-center gap-1">
                           <Bike size={11} /> Ata
                         </button>
                       )}
-                      {s.kurye_id && s.durum !== 'Teslim Edildi' && s.durum !== 'İptal' && (
-                        <button onClick={() => handleTeslim(s)} disabled={delivering === s.id} className="text-xs px-2 py-1 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-md flex items-center gap-1 disabled:opacity-50">
-                          <CheckCircle2 size={11} /> {delivering === s.id ? '...' : 'Teslim'}
-                        </button>
+                      {s.durum === 'Atandı' && (
+                        <>
+                          <button onClick={() => handleDurumGuncelle(s, 'Yolda')} disabled={updatingDurum === s.id} className="text-xs px-2 py-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-md flex items-center gap-1 disabled:opacity-50">
+                            <Navigation size={11} /> Yola Çıkar
+                          </button>
+                          <button onClick={() => handleDurumGuncelle(s, 'Beklemede')} disabled={updatingDurum === s.id} className="text-xs px-2 py-1 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-md flex items-center gap-1 disabled:opacity-50">
+                            <PauseCircle size={11} /> Beklet
+                          </button>
+                        </>
+                      )}
+                      {s.durum === 'Yolda' && (
+                        <>
+                          <button onClick={() => handleTeslim(s)} disabled={delivering === s.id} className="text-xs px-2 py-1 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-md flex items-center gap-1 disabled:opacity-50">
+                            <CheckCircle2 size={11} /> {delivering === s.id ? '...' : 'Teslim'}
+                          </button>
+                          <button onClick={() => handleDurumGuncelle(s, 'Beklemede')} disabled={updatingDurum === s.id} className="text-xs px-2 py-1 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-md flex items-center gap-1 disabled:opacity-50">
+                            <PauseCircle size={11} /> Beklet
+                          </button>
+                        </>
                       )}
                     </div>
                   </td>
