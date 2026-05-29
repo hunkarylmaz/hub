@@ -119,6 +119,19 @@ export interface BayiAyarlar {
   bonus_miktar: number
   bildirim_email: number
   bildirim_sms: number
+  // Bonus periyotlar
+  bonus_gunluk_aktif?: number
+  bonus_gunluk_min?: number
+  bonus_gunluk_tutar?: number
+  bonus_gunluk_tip?: string
+  bonus_haftalik_aktif?: number
+  bonus_haftalik_min?: number
+  bonus_haftalik_tutar?: number
+  bonus_haftalik_tip?: string
+  bonus_aylik_aktif?: number
+  bonus_aylik_min?: number
+  bonus_aylik_tutar?: number
+  bonus_aylik_tip?: string
   // Genel ayarlar extended
   calisma_acilis?: string
   calisma_kapanis?: string
@@ -171,6 +184,16 @@ export interface KontorTalep {
   banka: string | null
   gonderen: string | null
   durum: string
+  olusturma_tarihi: string
+}
+
+export interface BayiBildirim {
+  id: number
+  bayilik_id: number
+  kurye_id: number | null
+  kurye_ad: string | null
+  baslik: string
+  mesaj: string
   olusturma_tarihi: string
 }
 
@@ -355,5 +378,11 @@ export const api = {
     list: () => request<KontorTalep[]>('/api/bayi/kontor-talepler', { headers: authHeaders() }),
     create: (data: { miktar: number; gonderen?: string; banka?: string; not_text?: string }) =>
       request<KontorTalep>('/api/bayi/kontor-talep', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+  },
+
+  bildirimler: {
+    list: () => request<BayiBildirim[]>('/api/bayi/bildirimler', { headers: authHeaders() }),
+    send: (data: { baslik: string; mesaj: string; kurye_id?: number | null }) =>
+      request<BayiBildirim>('/api/bayi/bildirimler', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
   },
 }

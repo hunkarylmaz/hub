@@ -462,6 +462,32 @@ async function initBayiDb() {
   try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN bildirim_mesaji TEXT DEFAULT 'Siparişi henüz görmediniz! Lütfen kontrol edin.'") } catch {}
   try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN gecmis_kazanc_duzenleme INTEGER DEFAULT 1') } catch {}
 
+  // Bonus periyot columns
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_gunluk_aktif INTEGER DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_gunluk_min INTEGER DEFAULT 10') } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_gunluk_tutar REAL DEFAULT 50') } catch {}
+  try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN bonus_gunluk_tip TEXT DEFAULT 'Tutar'") } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_haftalik_aktif INTEGER DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_haftalik_min INTEGER DEFAULT 50') } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_haftalik_tutar REAL DEFAULT 200') } catch {}
+  try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN bonus_haftalik_tip TEXT DEFAULT 'Tutar'") } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_aylik_aktif INTEGER DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_aylik_min INTEGER DEFAULT 200') } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_aylik_tutar REAL DEFAULT 5') } catch {}
+  try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN bonus_aylik_tip TEXT DEFAULT 'Yüzde'") } catch {}
+
+  // Bildirimler (bayi → kuryeler)
+  await exec(`
+    CREATE TABLE IF NOT EXISTS bayi_bildirimler (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      bayilik_id INTEGER,
+      kurye_id INTEGER,
+      baslik TEXT NOT NULL,
+      mesaj TEXT NOT NULL,
+      olusturma_tarihi TEXT DEFAULT (datetime('now','localtime'))
+    );
+  `)
+
   // Bakiye hareketleri
   await exec(`
     CREATE TABLE IF NOT EXISTS bakiye_hareketleri (
@@ -973,11 +999,33 @@ app.get('/api/bayi/ayarlar', bayiAuthMiddleware, wrap(async (req, res) => {
 }))
 
 app.put('/api/bayi/ayarlar', bayiAuthMiddleware, wrap(async (req, res) => {
-  const { atama_modu, max_siparis_per_kurye, bonus_aktif, bonus_miktar, bildirim_email, bildirim_sms } = req.body || {}
+  const {
+    atama_modu, max_siparis_per_kurye, bonus_aktif, bonus_miktar, bildirim_email, bildirim_sms,
+    bonus_gunluk_aktif, bonus_gunluk_min, bonus_gunluk_tutar, bonus_gunluk_tip,
+    bonus_haftalik_aktif, bonus_haftalik_min, bonus_haftalik_tutar, bonus_haftalik_tip,
+    bonus_aylik_aktif, bonus_aylik_min, bonus_aylik_tutar, bonus_aylik_tip
+  } = req.body || {}
   await run('INSERT OR IGNORE INTO bayi_ayarlar (bayilik_id) VALUES (?)', [req.bayi.bayilikId])
   await run(
-    'UPDATE bayi_ayarlar SET atama_modu=COALESCE(?,atama_modu),max_siparis_per_kurye=COALESCE(?,max_siparis_per_kurye),bonus_aktif=COALESCE(?,bonus_aktif),bonus_miktar=COALESCE(?,bonus_miktar),bildirim_email=COALESCE(?,bildirim_email),bildirim_sms=COALESCE(?,bildirim_sms) WHERE bayilik_id=?',
-    [atama_modu||null, max_siparis_per_kurye||null, bonus_aktif!=null?bonus_aktif:null, bonus_miktar||null, bildirim_email!=null?bildirim_email:null, bildirim_sms!=null?bildirim_sms:null, req.bayi.bayilikId]
+    `UPDATE bayi_ayarlar SET
+      atama_modu=COALESCE(?,atama_modu), max_siparis_per_kurye=COALESCE(?,max_siparis_per_kurye),
+      bonus_aktif=COALESCE(?,bonus_aktif), bonus_miktar=COALESCE(?,bonus_miktar),
+      bildirim_email=COALESCE(?,bildirim_email), bildirim_sms=COALESCE(?,bildirim_sms),
+      bonus_gunluk_aktif=COALESCE(?,bonus_gunluk_aktif), bonus_gunluk_min=COALESCE(?,bonus_gunluk_min),
+      bonus_gunluk_tutar=COALESCE(?,bonus_gunluk_tutar), bonus_gunluk_tip=COALESCE(?,bonus_gunluk_tip),
+      bonus_haftalik_aktif=COALESCE(?,bonus_haftalik_aktif), bonus_haftalik_min=COALESCE(?,bonus_haftalik_min),
+      bonus_haftalik_tutar=COALESCE(?,bonus_haftalik_tutar), bonus_haftalik_tip=COALESCE(?,bonus_haftalik_tip),
+      bonus_aylik_aktif=COALESCE(?,bonus_aylik_aktif), bonus_aylik_min=COALESCE(?,bonus_aylik_min),
+      bonus_aylik_tutar=COALESCE(?,bonus_aylik_tutar), bonus_aylik_tip=COALESCE(?,bonus_aylik_tip)
+    WHERE bayilik_id=?`,
+    [
+      atama_modu||null, max_siparis_per_kurye||null, bonus_aktif!=null?bonus_aktif:null, bonus_miktar||null,
+      bildirim_email!=null?bildirim_email:null, bildirim_sms!=null?bildirim_sms:null,
+      bonus_gunluk_aktif??null, bonus_gunluk_min??null, bonus_gunluk_tutar??null, bonus_gunluk_tip||null,
+      bonus_haftalik_aktif??null, bonus_haftalik_min??null, bonus_haftalik_tutar??null, bonus_haftalik_tip||null,
+      bonus_aylik_aktif??null, bonus_aylik_min??null, bonus_aylik_tutar??null, bonus_aylik_tip||null,
+      req.bayi.bayilikId
+    ]
   )
   res.json(await get('SELECT * FROM bayi_ayarlar WHERE bayilik_id=?', [req.bayi.bayilikId]))
 }))
@@ -1103,6 +1151,27 @@ app.post('/api/bayi/kontor-talep', bayiAuthMiddleware, wrap(async (req, res) => 
 app.get('/api/bayi/kontor-talepler', bayiAuthMiddleware, wrap(async (req, res) => {
   const rows = await all(
     'SELECT * FROM odeme_talepleri WHERE bayilik_id=? ORDER BY id DESC',
+    [req.bayi.bayilikId]
+  )
+  res.json(rows)
+}))
+
+// ── BAYİ BİLDİRİMLER (bayi → kuryeler) ───────────────────────────────────────
+app.post('/api/bayi/bildirimler', bayiAuthMiddleware, wrap(async (req, res) => {
+  const { kurye_id, baslik, mesaj } = req.body || {}
+  if (!baslik || !mesaj) return res.status(400).json({ message: 'Başlık ve mesaj zorunlu' })
+  const { lastID } = await run(
+    'INSERT INTO bayi_bildirimler (bayilik_id,kurye_id,baslik,mesaj) VALUES (?,?,?,?)',
+    [req.bayi.bayilikId, kurye_id||null, baslik, mesaj]
+  )
+  res.json(await get('SELECT * FROM bayi_bildirimler WHERE id=?', [lastID]))
+}))
+
+app.get('/api/bayi/bildirimler', bayiAuthMiddleware, wrap(async (req, res) => {
+  const rows = await all(
+    `SELECT bb.*, bk.ad as kurye_ad FROM bayi_bildirimler bb
+     LEFT JOIN bayi_kuryeler bk ON bk.id=bb.kurye_id
+     WHERE bb.bayilik_id=? ORDER BY bb.id DESC LIMIT 100`,
     [req.bayi.bayilikId]
   )
   res.json(rows)

@@ -239,29 +239,6 @@ export default function KontorYonetim() {
             </div>
           </form>
 
-          {/* Bank Accounts */}
-          {bankalar.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-100 p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <Building2 size={15} className="text-primary-600" />
-                <h3 className="font-semibold text-gray-800">Banka Hesapları</h3>
-              </div>
-              <div className="space-y-3">
-                {bankalar.map(b => (
-                  <div key={b.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-semibold text-gray-800">{b.banka_adi}</span>
-                    </div>
-                    <p className="text-xs text-gray-500 mb-2">{b.ad_soyad}</p>
-                    <div className="flex items-center gap-2">
-                      <code className="text-xs font-mono text-gray-700 bg-white border border-gray-200 rounded px-2 py-1 flex-1">{b.iban}</code>
-                      <CopyButton text={b.iban} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -334,6 +311,37 @@ export default function KontorYonetim() {
               </tbody>
             </table>
           )}
+        </div>
+      )}
+      {/* Banka Hesapları — her zaman görünür */}
+      {bankalar.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-100 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
+              <Building2 size={14} className="text-primary-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-800">Ödeme Yapılacak Banka Hesapları</h3>
+              <p className="text-xs text-gray-400">Kontör yüklemek için aşağıdaki hesaplara havale/EFT yapabilirsiniz</p>
+            </div>
+          </div>
+          <div className="space-y-3">
+            {bankalar.map(b => (
+              <div key={b.id} className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-bold text-gray-800">{b.banka_adi}</span>
+                  <CopyButton text={b.iban} />
+                </div>
+                <p className="text-xs text-gray-500 mb-2 font-medium">{b.ad_soyad}</p>
+                <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
+                  <code className="text-sm font-mono text-gray-800 flex-1 tracking-wide">{b.iban}</code>
+                </div>
+                <p className="text-xs text-gray-400 mt-1.5">
+                  Transfer açıklamasına bayilik kodunuzu yazın: <span className="font-mono font-medium text-gray-600">{bayilik?.bayilik_id}</span>
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
