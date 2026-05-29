@@ -1,0 +1,42 @@
+import { Menu, ChevronDown } from 'lucide-react'
+
+interface TopbarProps {
+  onMenuToggle: () => void
+}
+
+export default function Topbar({ onMenuToggle }: TopbarProps) {
+  return (
+    <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 sticky top-0 z-10">
+      <div className="flex items-center gap-4">
+        <button
+          onClick={onMenuToggle}
+          className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+        >
+          <Menu size={20} />
+        </button>
+
+        <div className="flex items-center gap-2">
+          {/* Logo: yellow circle with R */}
+          <div className="w-9 h-9 rounded-full bg-yellow-400 flex items-center justify-center font-bold text-white text-lg">
+            R
+          </div>
+          <div className="flex flex-col leading-tight">
+            <span className="font-bold text-gray-800 text-base leading-none">ropaket</span>
+            <span className="text-xs text-gray-400 leading-none">ahtapot</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 cursor-pointer group">
+        <div className="w-9 h-9 rounded-full bg-primary-600 flex items-center justify-center text-white font-semibold text-sm">
+          HY
+        </div>
+        <div className="flex flex-col leading-tight">
+          <span className="font-semibold text-gray-800 text-sm leading-none">Hünkar Yılmaz</span>
+          <span className="text-xs text-gray-400 leading-none mt-0.5">B2B Partner</span>
+        </div>
+        <ChevronDown size={16} className="text-gray-400 group-hover:text-gray-600" />
+      </div>
+    </header>
+  )
+}
