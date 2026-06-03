@@ -2236,6 +2236,251 @@ app.put('/api/bayi/kuryeler/:id/konum', bayiAuthMiddleware, wrap(async (req, res
   res.json({ id: Number(req.params.id), lat, lon })
 }))
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PAKETÇİNİZ PLUS — Partner & Taşıyıcı sistemi
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function initPlusDb() {
+  await run(`CREATE TABLE IF NOT EXISTS plus_partnerler (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    firma_adi TEXT NOT NULL,
+    yetkili_ad TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    sifre_hash TEXT NOT NULL,
+    telefon TEXT,
+    aktif INTEGER DEFAULT 1,
+    olusturma TEXT DEFAULT (datetime('now','localtime'))
+  )`)
+  await run(`CREATE TABLE IF NOT EXISTS plus_tasiyicilar (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ad TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    sifre_hash TEXT NOT NULL,
+    telefon TEXT,
+    arac_tipi TEXT DEFAULT 'Motosiklet',
+    aktif INTEGER DEFAULT 1,
+    olusturma TEXT DEFAULT (datetime('now','localtime'))
+  )`)
+  await run(`CREATE TABLE IF NOT EXISTS plus_isler (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    partner_id INTEGER NOT NULL,
+    tasiyici_id INTEGER,
+    qr_kodu TEXT UNIQUE NOT NULL,
+    durum TEXT DEFAULT 'Havuzda',
+    alis_il TEXT NOT NULL,
+    alis_ilce TEXT NOT NULL,
+    alis_mahalle TEXT,
+    alis_adres TEXT NOT NULL,
+    birakilis_il TEXT NOT NULL,
+    birakilis_ilce TEXT NOT NULL,
+    birakilis_mahalle TEXT,
+    birakilis_adres TEXT NOT NULL,
+    gonderici_ad TEXT NOT NULL,
+    gonderici_telefon TEXT NOT NULL,
+    alici_ad TEXT NOT NULL,
+    alici_telefon TEXT NOT NULL,
+    paket_boyutu TEXT NOT NULL,
+    aciklama TEXT,
+    alinma_saati TEXT NOT NULL,
+    olusturma TEXT DEFAULT (datetime('now','localtime')),
+    guncelleme TEXT DEFAULT (datetime('now','localtime')),
+    FOREIGN KEY(partner_id) REFERENCES plus_partnerler(id),
+    FOREIGN KEY(tasiyici_id) REFERENCES plus_tasiyicilar(id)
+  )`)
+  await run(`CREATE TABLE IF NOT EXISTS plus_hareketler (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    is_id INTEGER NOT NULL,
+    durum TEXT NOT NULL,
+    notlar TEXT,
+    tarih TEXT DEFAULT (datetime('now','localtime')),
+    FOREIGN KEY(is_id) REFERENCES plus_isler(id)
+  )`)
+
+  // Seed demo partner
+  const ep = await get('SELECT COUNT(*) as c FROM plus_partnerler')
+  if (ep.c === 0) {
+    const ph = bcrypt.hashSync('partner123', 10)
+    await run(`INSERT INTO plus_partnerler (firma_adi,yetkili_ad,email,sifre_hash,telefon)
+               VALUES (?,?,?,?,?)`, ['ABC Lojistik','Ahmet Kaya','partner@plus.com',ph,'05321000000'])
+  }
+  // Seed demo carrier
+  const et = await get('SELECT COUNT(*) as c FROM plus_tasiyicilar')
+  if (et.c === 0) {
+    const th = bcrypt.hashSync('tasiyici123', 10)
+    await run(`INSERT INTO plus_tasiyicilar (ad,email,sifre_hash,telefon,arac_tipi)
+               VALUES (?,?,?,?,?)`, ['Mehmet Şahin','tasiyici@plus.com',th,'05331000000','Motosiklet'])
+  }
+}
+
+// ── Plus Auth Middleware ──────────────────────────────────────────────────────
+function plusPartnerAuth(req, res, next) {
+  const h = req.headers.authorization
+  if (!h?.startsWith('Bearer ')) return res.status(401).json({ message: 'Yetkisiz' })
+  try {
+    req.partner = jwt.verify(h.slice(7), JWT_SECRET)
+    if (req.partner.type !== 'plus_partner') return res.status(401).json({ message: 'Yetkisiz' })
+    next()
+  } catch { res.status(401).json({ message: 'Geçersiz token' }) }
+}
+
+function plusTasiyiciAuth(req, res, next) {
+  const h = req.headers.authorization
+  if (!h?.startsWith('Bearer ')) return res.status(401).json({ message: 'Yetkisiz' })
+  try {
+    req.tasiyici = jwt.verify(h.slice(7), JWT_SECRET)
+    if (req.tasiyici.type !== 'plus_tasiyici') return res.status(401).json({ message: 'Yetkisiz' })
+    next()
+  } catch { res.status(401).json({ message: 'Geçersiz token' }) }
+}
+
+// ── Partner Auth ──────────────────────────────────────────────────────────────
+app.post('/api/plus/partner/login', wrap(async (req, res) => {
+  const { email, sifre } = req.body || {}
+  if (!email || !sifre) return res.status(400).json({ message: 'Email ve şifre gerekli' })
+  const p = await get('SELECT * FROM plus_partnerler WHERE email=? AND aktif=1', [email])
+  if (!p || !bcrypt.compareSync(sifre, p.sifre_hash))
+    return res.status(401).json({ message: 'Geçersiz email veya şifre' })
+  const token = jwt.sign({ id: p.id, email: p.email, firma_adi: p.firma_adi, type: 'plus_partner' }, JWT_SECRET, { expiresIn: '7d' })
+  res.json({ token })
+}))
+
+app.get('/api/plus/partner/me', plusPartnerAuth, wrap(async (req, res) => {
+  const p = await get('SELECT id,firma_adi,yetkili_ad,email,telefon,aktif FROM plus_partnerler WHERE id=?', [req.partner.id])
+  if (!p) return res.status(404).json({ message: 'Bulunamadı' })
+  res.json(p)
+}))
+
+// ── Taşıyıcı Auth ─────────────────────────────────────────────────────────────
+app.post('/api/plus/tasiyici/login', wrap(async (req, res) => {
+  const { email, sifre } = req.body || {}
+  if (!email || !sifre) return res.status(400).json({ message: 'Email ve şifre gerekli' })
+  const t = await get('SELECT * FROM plus_tasiyicilar WHERE email=? AND aktif=1', [email])
+  if (!t || !bcrypt.compareSync(sifre, t.sifre_hash))
+    return res.status(401).json({ message: 'Geçersiz email veya şifre' })
+  const token = jwt.sign({ id: t.id, email: t.email, ad: t.ad, type: 'plus_tasiyici' }, JWT_SECRET, { expiresIn: '7d' })
+  res.json({ token })
+}))
+
+app.get('/api/plus/tasiyici/me', plusTasiyiciAuth, wrap(async (req, res) => {
+  const t = await get('SELECT id,ad,email,telefon,arac_tipi,aktif FROM plus_tasiyicilar WHERE id=?', [req.tasiyici.id])
+  if (!t) return res.status(404).json({ message: 'Bulunamadı' })
+  res.json(t)
+}))
+
+// ── İş CRUD (Partner) ─────────────────────────────────────────────────────────
+app.post('/api/plus/is', plusPartnerAuth, wrap(async (req, res) => {
+  const {
+    alis_il, alis_ilce, alis_mahalle, alis_adres,
+    birakilis_il, birakilis_ilce, birakilis_mahalle, birakilis_adres,
+    gonderici_ad, gonderici_telefon, alici_ad, alici_telefon,
+    paket_boyutu, aciklama, alinma_saati
+  } = req.body
+  if (!alis_il || !alis_ilce || !alis_adres || !birakilis_il || !birakilis_ilce || !birakilis_adres)
+    return res.status(400).json({ message: 'Adres bilgileri eksik' })
+  if (!gonderici_ad || !gonderici_telefon || !alici_ad || !alici_telefon)
+    return res.status(400).json({ message: 'Kişi bilgileri eksik' })
+  if (!paket_boyutu || !alinma_saati)
+    return res.status(400).json({ message: 'Paket ve zaman bilgisi gerekli' })
+
+  const qr = `PLU-${Date.now()}-${Math.random().toString(36).slice(2,8).toUpperCase()}`
+  const { lastID } = await run(`
+    INSERT INTO plus_isler
+    (partner_id,qr_kodu,alis_il,alis_ilce,alis_mahalle,alis_adres,
+     birakilis_il,birakilis_ilce,birakilis_mahalle,birakilis_adres,
+     gonderici_ad,gonderici_telefon,alici_ad,alici_telefon,
+     paket_boyutu,aciklama,alinma_saati)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [req.partner.id,qr,alis_il,alis_ilce,alis_mahalle||null,alis_adres,
+     birakilis_il,birakilis_ilce,birakilis_mahalle||null,birakilis_adres,
+     gonderici_ad,gonderici_telefon,alici_ad,alici_telefon,
+     paket_boyutu,aciklama||null,alinma_saati])
+  await run('INSERT INTO plus_hareketler (is_id,durum) VALUES (?,?)', [lastID,'Havuzda'])
+  res.json({ id: lastID, qr_kodu: qr })
+}))
+
+app.get('/api/plus/is', plusPartnerAuth, wrap(async (req, res) => {
+  const { durum } = req.query
+  let q = `SELECT i.*, p.firma_adi as partner_firma, t.ad as tasiyici_ad
+           FROM plus_isler i
+           LEFT JOIN plus_partnerler p ON p.id=i.partner_id
+           LEFT JOIN plus_tasiyicilar t ON t.id=i.tasiyici_id
+           WHERE i.partner_id=?`
+  const params = [req.partner.id]
+  if (durum) { q += ' AND i.durum=?'; params.push(durum) }
+  q += ' ORDER BY i.olusturma DESC'
+  res.json(await all(q, params))
+}))
+
+app.get('/api/plus/is/:id', wrap(async (req, res) => {
+  const is = await get(`SELECT i.*, p.firma_adi as partner_firma, t.ad as tasiyici_ad
+    FROM plus_isler i
+    LEFT JOIN plus_partnerler p ON p.id=i.partner_id
+    LEFT JOIN plus_tasiyicilar t ON t.id=i.tasiyici_id
+    WHERE i.id=?`, [req.params.id])
+  if (!is) return res.status(404).json({ message: 'İş bulunamadı' })
+  res.json(is)
+}))
+
+app.put('/api/plus/is/:id/iptal', plusPartnerAuth, wrap(async (req, res) => {
+  const is = await get('SELECT * FROM plus_isler WHERE id=? AND partner_id=?', [req.params.id, req.partner.id])
+  if (!is) return res.status(404).json({ message: 'İş bulunamadı' })
+  if (is.durum !== 'Havuzda') return res.status(400).json({ message: 'Sadece havuzdaki işler iptal edilebilir' })
+  await run(`UPDATE plus_isler SET durum='İptal', guncelleme=datetime('now','localtime') WHERE id=?`, [req.params.id])
+  await run('INSERT INTO plus_hareketler (is_id,durum) VALUES (?,?)', [req.params.id,'İptal'])
+  res.json({ success: true })
+}))
+
+// ── Havuz (Taşıyıcı) ──────────────────────────────────────────────────────────
+app.get('/api/plus/havuz', plusTasiyiciAuth, wrap(async (req, res) => {
+  const { il, ilce } = req.query
+  let q = `SELECT i.*, p.firma_adi as partner_firma
+           FROM plus_isler i
+           LEFT JOIN plus_partnerler p ON p.id=i.partner_id
+           WHERE i.durum='Havuzda'`
+  const params = []
+  if (il)   { q += ' AND i.alis_il=?';   params.push(il) }
+  if (ilce) { q += ' AND i.alis_ilce=?'; params.push(ilce) }
+  q += ' ORDER BY i.alinma_saati ASC'
+  res.json(await all(q, params))
+}))
+
+app.put('/api/plus/havuz/:id/al', plusTasiyiciAuth, wrap(async (req, res) => {
+  const is = await get('SELECT * FROM plus_isler WHERE id=? AND durum=?', [req.params.id,'Havuzda'])
+  if (!is) return res.status(400).json({ message: 'Bu iş artık mevcut değil' })
+  await run(`UPDATE plus_isler SET durum='Alındı', tasiyici_id=?, guncelleme=datetime('now','localtime') WHERE id=?`,
+    [req.tasiyici.id, req.params.id])
+  await run('INSERT INTO plus_hareketler (is_id,durum) VALUES (?,?)', [req.params.id,'Alındı'])
+  res.json({ success: true })
+}))
+
+// ── Taşıyıcı durum güncellemeleri ─────────────────────────────────────────────
+app.put('/api/plus/is/:id/yolda', plusTasiyiciAuth, wrap(async (req, res) => {
+  const is = await get('SELECT * FROM plus_isler WHERE id=? AND tasiyici_id=? AND durum=?',
+    [req.params.id, req.tasiyici.id, 'Alındı'])
+  if (!is) return res.status(400).json({ message: 'Geçersiz işlem' })
+  await run(`UPDATE plus_isler SET durum='Yolda', guncelleme=datetime('now','localtime') WHERE id=?`, [req.params.id])
+  await run('INSERT INTO plus_hareketler (is_id,durum) VALUES (?,?)', [req.params.id,'Yolda'])
+  res.json({ success: true })
+}))
+
+app.put('/api/plus/is/:id/teslim', plusTasiyiciAuth, wrap(async (req, res) => {
+  const is = await get('SELECT * FROM plus_isler WHERE id=? AND tasiyici_id=? AND durum=?',
+    [req.params.id, req.tasiyici.id, 'Yolda'])
+  if (!is) return res.status(400).json({ message: 'Geçersiz işlem' })
+  await run(`UPDATE plus_isler SET durum='Teslim Edildi', guncelleme=datetime('now','localtime') WHERE id=?`, [req.params.id])
+  await run('INSERT INTO plus_hareketler (is_id,durum) VALUES (?,?)', [req.params.id,'Teslim Edildi'])
+  res.json({ success: true })
+}))
+
+app.get('/api/plus/tasiyici/islerim', plusTasiyiciAuth, wrap(async (req, res) => {
+  const data = await all(`SELECT i.*, p.firma_adi as partner_firma
+    FROM plus_isler i
+    LEFT JOIN plus_partnerler p ON p.id=i.partner_id
+    WHERE i.tasiyici_id=? AND i.durum IN ('Alındı','Yolda')
+    ORDER BY i.guncelleme DESC`, [req.tasiyici.id])
+  res.json(data)
+}))
+
 // ── Error handler ─────────────────────────────────────────────────────────────
 app.use((err, req, res, _next) => {
   console.error(err.message)
@@ -2245,5 +2490,6 @@ app.use((err, req, res, _next) => {
 // ── Start ─────────────────────────────────────────────────────────────────────
 initDb()
   .then(() => initBayiDb())
+  .then(() => initPlusDb())
   .then(() => app.listen(PORT, () => console.log(`Paketçi B2B Backend → http://localhost:${PORT}`)))
   .catch((err) => { console.error('DB init hatası:', err); process.exit(1) })
