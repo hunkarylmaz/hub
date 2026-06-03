@@ -563,15 +563,18 @@ app.post('/api/plus/alt/is', altAuth, wrap(async (req, res) => {
      paket_boyutu, aciklama||null, effectiveAlinmaSaati,
      priceInfo.toplam, JSON.stringify(priceInfo), priceInfo.kdv_orani, priceInfo.kdv_tutari])
   await run('INSERT INTO plus_hareketler (is_id,durum) VALUES (?,?)', [lastID, 'Havuzda'])
-  res.json({ id: lastID, qr_kodu: qr, fiyat: priceInfo.toplam, fiyat_detay: priceInfo })
+  // Do NOT expose price or real destination to alt users
+  res.json({ id: lastID, qr_kodu: qr })
 }))
 
 app.get('/api/plus/alt/islerim', altAuth, wrap(async (req, res) => {
   const data = await all(`
-    SELECT i.*, p.firma_adi as partner_firma, t.ad as tasiyici_ad
+    SELECT i.id, i.alt_kullanici_id, i.partner_id, i.qr_kodu, i.durum,
+           i.paket_boyutu, i.aciklama, i.olusturma, i.guncelleme,
+           i.alis_il, i.alis_ilce, i.alis_mahalle, i.alis_adres,
+           p.firma_adi as partner_firma
     FROM plus_isler i
     LEFT JOIN plus_partnerler p ON p.id = i.partner_id
-    LEFT JOIN plus_tasiyicilar t ON t.id = i.tasiyici_id
     WHERE i.alt_kullanici_id=?
     ORDER BY i.olusturma DESC`, [req.alt.id])
   res.json(data)
