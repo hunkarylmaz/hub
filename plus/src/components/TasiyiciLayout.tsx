@@ -1,7 +1,8 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Inbox, ClipboardList, LogOut, Package, ChevronRight, Menu, X } from 'lucide-react'
+import { Inbox, ClipboardList, LogOut, ChevronRight, Menu, X } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import Logo from './Logo'
 
 const nav = [
   { to: '/tasiyici/havuz',   icon: Inbox,         label: 'İş Havuzu' },
@@ -18,15 +19,7 @@ export default function TasiyiciLayout() {
   const Sidebar = () => (
     <aside className="flex flex-col h-full bg-white border-r border-gray-100">
       <div className="px-6 py-5 border-b border-gray-100">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-sm">
-            <Package size={18} className="text-white" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-gray-900 leading-tight">Paketçiniz</p>
-            <p className="text-xs font-semibold text-emerald-600 leading-tight">Taşıyıcı Paneli</p>
-          </div>
-        </div>
+        <Logo />
         {tasiyici && (
           <div className="mt-3 px-3 py-2.5 bg-emerald-50 rounded-xl">
             <p className="text-xs font-bold text-emerald-700 truncate">{tasiyici.ad}</p>

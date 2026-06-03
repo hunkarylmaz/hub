@@ -1,9 +1,8 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import {
-  LayoutDashboard, Plus, List, LogOut, Package, ChevronRight, Menu, X
-} from 'lucide-react'
+import { LayoutDashboard, Plus, List, LogOut, ChevronRight, Menu, X, Package } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import Logo from './Logo'
 
 const nav = [
   { to: '/partner/dashboard', icon: LayoutDashboard, label: 'Genel Bakış' },
@@ -22,15 +21,7 @@ export default function PartnerLayout() {
     <aside className="flex flex-col h-full bg-white border-r border-gray-100">
       {/* Logo */}
       <div className="px-6 py-5 border-b border-gray-100">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-600 to-primary-700 flex items-center justify-center shadow-sm">
-            <Package size={18} className="text-white" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-gray-900 leading-tight">Paketçiniz</p>
-            <p className="text-xs font-semibold text-primary-600 leading-tight">Plus</p>
-          </div>
-        </div>
+        <Logo />
         {partner && (
           <div className="mt-3 px-3 py-2.5 bg-primary-50 rounded-xl">
             <p className="text-xs font-bold text-primary-700 truncate">{partner.firma_adi}</p>

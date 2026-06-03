@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import PartnerLayout from './components/PartnerLayout'
 import TasiyiciLayout from './components/TasiyiciLayout'
+import AdminLayout from './components/AdminLayout'
 import PartnerLogin from './pages/partner/Login'
 import Dashboard from './pages/partner/Dashboard'
 import IsOlustur from './pages/partner/IsOlustur'
@@ -10,6 +11,13 @@ import IsDetay from './pages/partner/IsDetay'
 import TasiyiciLogin from './pages/tasiyici/Login'
 import Havuz from './pages/tasiyici/Havuz'
 import TasiyiciIslerim from './pages/tasiyici/Islerim'
+import AdminLogin from './pages/admin/Login'
+import AdminDashboard from './pages/admin/Dashboard'
+import AdminPartnerler from './pages/admin/Partnerler'
+import AdminTasiyicilar from './pages/admin/Tasiyicilar'
+import AdminIsler from './pages/admin/Isler'
+import AdminFiyatlar from './pages/admin/Fiyatlar'
+import AdminBorclar from './pages/admin/Borclar'
 
 function RequirePartner({ children }: { children: React.ReactNode }) {
   const { partner, loading } = useAuth()
@@ -25,6 +33,13 @@ function RequireTasiyici({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function RequireAdmin({ children }: { children: React.ReactNode }) {
+  const { admin, loading } = useAuth()
+  if (loading) return <Spinner />
+  if (!admin) return <Navigate to="/admin/login" replace />
+  return <>{children}</>
+}
+
 function Spinner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -34,13 +49,14 @@ function Spinner() {
 }
 
 function AppRoutes() {
-  const { partner, tasiyici, loading } = useAuth()
+  const { partner, tasiyici, admin, loading } = useAuth()
   if (loading) return <Spinner />
 
   return (
     <Routes>
       {/* Root redirect */}
       <Route path="/" element={
+        admin   ? <Navigate to="/admin/dashboard" replace /> :
         partner ? <Navigate to="/partner/dashboard" replace /> :
         tasiyici ? <Navigate to="/tasiyici/havuz" replace /> :
         <Navigate to="/partner/login" replace />
@@ -62,6 +78,18 @@ function AppRoutes() {
         <Route index element={<Navigate to="havuz" replace />} />
         <Route path="havuz"   element={<Havuz />} />
         <Route path="islerim" element={<TasiyiciIslerim />} />
+      </Route>
+
+      {/* Admin */}
+      <Route path="/admin/login" element={admin ? <Navigate to="/admin/dashboard" replace /> : <AdminLogin />} />
+      <Route path="/admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard"   element={<AdminDashboard />} />
+        <Route path="partnerler"  element={<AdminPartnerler />} />
+        <Route path="tasiyicilar" element={<AdminTasiyicilar />} />
+        <Route path="isler"       element={<AdminIsler />} />
+        <Route path="fiyatlar"    element={<AdminFiyatlar />} />
+        <Route path="borclar"     element={<AdminBorclar />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

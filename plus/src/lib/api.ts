@@ -2,6 +2,7 @@ const BASE = '/api/plus'
 
 function partnerToken() { return localStorage.getItem('plus_partner_token') }
 function tasiyiciToken() { return localStorage.getItem('plus_tasiyici_token') }
+function adminToken() { return localStorage.getItem('plus_admin_token') }
 
 async function req(url: string, opts: RequestInit = {}, token?: string | null) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -58,6 +59,7 @@ export interface Is {
   paket_boyutu: PaketBoyutu
   aciklama: string | null
   alinma_saati: string
+  fiyat: number
   olusturma: string
   guncelleme: string
 }
@@ -70,7 +72,53 @@ export interface IsForm {
   paket_boyutu: PaketBoyutu; aciklama: string; alinma_saati: string
 }
 
+export interface Admin { id: number; ad: string; email: string }
+export interface Fiyat { id: number; il: string; ilce: string | null; mahalle: string | null; fiyat: number; aktif: number }
+export interface PartnerBorc {
+  id: number; firma_adi: string; yetkili_ad: string; telefon: string; email: string
+  toplam_borc: number; toplam_odendi: number; kalan_borc: number
+  havuzda: number; aktif: number; tamamlandi: number
+}
+
 export const api = {
+  admin: {
+    login: (email: string, sifre: string) =>
+      req(`${BASE}/admin/login`, { method: 'POST', body: JSON.stringify({ email, sifre }) }),
+    me: () => req(`${BASE}/admin/me`, {}, adminToken()),
+    stats: () => req(`${BASE}/admin/stats`, {}, adminToken()),
+    partnerler: {
+      list: () => req(`${BASE}/admin/partnerler`, {}, adminToken()),
+      create: (d: Record<string, unknown>) => req(`${BASE}/admin/partnerler`, { method: 'POST', body: JSON.stringify(d) }, adminToken()),
+      update: (id: number, d: Record<string, unknown>) => req(`${BASE}/admin/partnerler/${id}`, { method: 'PUT', body: JSON.stringify(d) }, adminToken()),
+      remove: (id: number) => req(`${BASE}/admin/partnerler/${id}`, { method: 'DELETE' }, adminToken()),
+    },
+    tasiyicilar: {
+      list: () => req(`${BASE}/admin/tasiyicilar`, {}, adminToken()),
+      create: (d: Record<string, unknown>) => req(`${BASE}/admin/tasiyicilar`, { method: 'POST', body: JSON.stringify(d) }, adminToken()),
+      update: (id: number, d: Record<string, unknown>) => req(`${BASE}/admin/tasiyicilar/${id}`, { method: 'PUT', body: JSON.stringify(d) }, adminToken()),
+      remove: (id: number) => req(`${BASE}/admin/tasiyicilar/${id}`, { method: 'DELETE' }, adminToken()),
+    },
+    isler: {
+      list: (durum?: string, partner_id?: number) =>
+        req(`${BASE}/admin/isler?durum=${durum||''}&partner_id=${partner_id||''}`, {}, adminToken()),
+      ata: (id: number, tasiyici_id: number) =>
+        req(`${BASE}/admin/is/${id}/ata`, { method: 'PUT', body: JSON.stringify({ tasiyici_id }) }, adminToken()),
+      fiyatGuncelle: (id: number, fiyat: number) =>
+        req(`${BASE}/admin/is/${id}/fiyat`, { method: 'PUT', body: JSON.stringify({ fiyat }) }, adminToken()),
+    },
+    fiyatlar: {
+      list: () => req(`${BASE}/admin/fiyatlar`, {}, adminToken()),
+      create: (d: Partial<Fiyat>) => req(`${BASE}/admin/fiyatlar`, { method: 'POST', body: JSON.stringify(d) }, adminToken()),
+      update: (id: number, d: Partial<Fiyat>) => req(`${BASE}/admin/fiyatlar/${id}`, { method: 'PUT', body: JSON.stringify(d) }, adminToken()),
+      remove: (id: number) => req(`${BASE}/admin/fiyatlar/${id}`, { method: 'DELETE' }, adminToken()),
+    },
+    borclar: {
+      list: () => req(`${BASE}/admin/borclar`, {}, adminToken()),
+      ode: (partner_id: number, miktar: number, aciklama: string) =>
+        req(`${BASE}/admin/borclar/${partner_id}/ode`, { method: 'POST', body: JSON.stringify({ miktar, aciklama }) }, adminToken()),
+      detay: (partner_id: number) => req(`${BASE}/admin/borclar/${partner_id}/detay`, {}, adminToken()),
+    },
+  },
   partner: {
     login: (email: string, sifre: string) =>
       req(`${BASE}/partner/login`, { method: 'POST', body: JSON.stringify({ email, sifre }) }),

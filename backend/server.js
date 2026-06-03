@@ -2241,6 +2241,14 @@ app.put('/api/bayi/kuryeler/:id/konum', bayiAuthMiddleware, wrap(async (req, res
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function initPlusDb() {
+  await run(`CREATE TABLE IF NOT EXISTS plus_adminler (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ad TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    sifre_hash TEXT NOT NULL,
+    aktif INTEGER DEFAULT 1,
+    olusturma TEXT DEFAULT (datetime('now','localtime'))
+  )`)
   await run(`CREATE TABLE IF NOT EXISTS plus_partnerler (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     firma_adi TEXT NOT NULL,
@@ -2258,6 +2266,15 @@ async function initPlusDb() {
     sifre_hash TEXT NOT NULL,
     telefon TEXT,
     arac_tipi TEXT DEFAULT 'Motosiklet',
+    aktif INTEGER DEFAULT 1,
+    olusturma TEXT DEFAULT (datetime('now','localtime'))
+  )`)
+  await run(`CREATE TABLE IF NOT EXISTS plus_fiyatlar (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    il TEXT NOT NULL,
+    ilce TEXT,
+    mahalle TEXT,
+    fiyat REAL NOT NULL,
     aktif INTEGER DEFAULT 1,
     olusturma TEXT DEFAULT (datetime('now','localtime'))
   )`)
@@ -2282,6 +2299,7 @@ async function initPlusDb() {
     paket_boyutu TEXT NOT NULL,
     aciklama TEXT,
     alinma_saati TEXT NOT NULL,
+    fiyat REAL DEFAULT 0,
     olusturma TEXT DEFAULT (datetime('now','localtime')),
     guncelleme TEXT DEFAULT (datetime('now','localtime')),
     FOREIGN KEY(partner_id) REFERENCES plus_partnerler(id),
@@ -2295,6 +2313,25 @@ async function initPlusDb() {
     tarih TEXT DEFAULT (datetime('now','localtime')),
     FOREIGN KEY(is_id) REFERENCES plus_isler(id)
   )`)
+  await run(`CREATE TABLE IF NOT EXISTS plus_odemeler (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    partner_id INTEGER NOT NULL,
+    miktar REAL NOT NULL,
+    aciklama TEXT,
+    tarih TEXT DEFAULT (datetime('now','localtime')),
+    FOREIGN KEY(partner_id) REFERENCES plus_partnerler(id)
+  )`)
+
+  // fiyat sütunu eski DB'lerde yoksa ekle
+  try { await run('ALTER TABLE plus_isler ADD COLUMN fiyat REAL DEFAULT 0') } catch {}
+
+  // Seed admin
+  const ea = await get('SELECT COUNT(*) as c FROM plus_adminler')
+  if (ea.c === 0) {
+    const ah = bcrypt.hashSync('admin123', 10)
+    await run(`INSERT INTO plus_adminler (ad,email,sifre_hash) VALUES (?,?,?)`,
+      ['Süper Admin', 'admin@plus.com', ah])
+  }
 
   // Seed demo partner
   const ep = await get('SELECT COUNT(*) as c FROM plus_partnerler')
@@ -2382,20 +2419,35 @@ app.post('/api/plus/is', plusPartnerAuth, wrap(async (req, res) => {
   if (!paket_boyutu || !alinma_saati)
     return res.status(400).json({ message: 'Paket ve zaman bilgisi gerekli' })
 
+  // Fiyat hesapla: mahalle > ilce > il > 0
+  let fiyat = 0
+  const fMahalle = alis_mahalle ? await get(
+    `SELECT fiyat FROM plus_fiyatlar WHERE il=? AND ilce=? AND mahalle=? AND aktif=1 LIMIT 1`,
+    [alis_il, alis_ilce, alis_mahalle]) : null
+  if (fMahalle) { fiyat = fMahalle.fiyat }
+  else {
+    const fIlce = await get(`SELECT fiyat FROM plus_fiyatlar WHERE il=? AND ilce=? AND (mahalle IS NULL OR mahalle='') AND aktif=1 LIMIT 1`, [alis_il, alis_ilce])
+    if (fIlce) { fiyat = fIlce.fiyat }
+    else {
+      const fIl = await get(`SELECT fiyat FROM plus_fiyatlar WHERE il=? AND (ilce IS NULL OR ilce='') AND aktif=1 LIMIT 1`, [alis_il])
+      if (fIl) fiyat = fIl.fiyat
+    }
+  }
+
   const qr = `PLU-${Date.now()}-${Math.random().toString(36).slice(2,8).toUpperCase()}`
   const { lastID } = await run(`
     INSERT INTO plus_isler
     (partner_id,qr_kodu,alis_il,alis_ilce,alis_mahalle,alis_adres,
      birakilis_il,birakilis_ilce,birakilis_mahalle,birakilis_adres,
      gonderici_ad,gonderici_telefon,alici_ad,alici_telefon,
-     paket_boyutu,aciklama,alinma_saati)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+     paket_boyutu,aciklama,alinma_saati,fiyat)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [req.partner.id,qr,alis_il,alis_ilce,alis_mahalle||null,alis_adres,
      birakilis_il,birakilis_ilce,birakilis_mahalle||null,birakilis_adres,
      gonderici_ad,gonderici_telefon,alici_ad,alici_telefon,
-     paket_boyutu,aciklama||null,alinma_saati])
+     paket_boyutu,aciklama||null,alinma_saati,fiyat])
   await run('INSERT INTO plus_hareketler (is_id,durum) VALUES (?,?)', [lastID,'Havuzda'])
-  res.json({ id: lastID, qr_kodu: qr })
+  res.json({ id: lastID, qr_kodu: qr, fiyat })
 }))
 
 app.get('/api/plus/is', plusPartnerAuth, wrap(async (req, res) => {
@@ -2479,6 +2531,189 @@ app.get('/api/plus/tasiyici/islerim', plusTasiyiciAuth, wrap(async (req, res) =>
     WHERE i.tasiyici_id=? AND i.durum IN ('Alındı','Yolda')
     ORDER BY i.guncelleme DESC`, [req.tasiyici.id])
   res.json(data)
+}))
+
+// ── Admin Auth Middleware ──────────────────────────────────────────────────────
+function plusAdminAuth(req, res, next) {
+  const h = req.headers.authorization
+  if (!h?.startsWith('Bearer ')) return res.status(401).json({ message: 'Yetkisiz' })
+  try {
+    req.admin = jwt.verify(h.slice(7), JWT_SECRET)
+    if (req.admin.type !== 'plus_admin') return res.status(401).json({ message: 'Yetkisiz' })
+    next()
+  } catch { res.status(401).json({ message: 'Geçersiz token' }) }
+}
+
+app.post('/api/plus/admin/login', wrap(async (req, res) => {
+  const { email, sifre } = req.body || {}
+  const a = await get('SELECT * FROM plus_adminler WHERE email=? AND aktif=1', [email])
+  if (!a || !bcrypt.compareSync(sifre, a.sifre_hash))
+    return res.status(401).json({ message: 'Geçersiz email veya şifre' })
+  const token = jwt.sign({ id: a.id, email: a.email, ad: a.ad, type: 'plus_admin' }, JWT_SECRET, { expiresIn: '7d' })
+  res.json({ token })
+}))
+
+app.get('/api/plus/admin/me', plusAdminAuth, wrap(async (req, res) => {
+  res.json(await get('SELECT id,ad,email FROM plus_adminler WHERE id=?', [req.admin.id]))
+}))
+
+app.get('/api/plus/admin/stats', plusAdminAuth, wrap(async (req, res) => {
+  const [partners, tasiyicilar, isler, havuzda, gelir] = await Promise.all([
+    get('SELECT COUNT(*) as c FROM plus_partnerler WHERE aktif=1'),
+    get('SELECT COUNT(*) as c FROM plus_tasiyicilar WHERE aktif=1'),
+    get('SELECT COUNT(*) as c FROM plus_isler'),
+    get("SELECT COUNT(*) as c FROM plus_isler WHERE durum='Havuzda'"),
+    get("SELECT COALESCE(SUM(fiyat),0) as toplam FROM plus_isler WHERE durum='Teslim Edildi'"),
+  ])
+  res.json({ partners: partners.c, tasiyicilar: tasiyicilar.c, isler: isler.c, havuzda: havuzda.c, gelir: gelir.toplam })
+}))
+
+app.get('/api/plus/admin/partnerler', plusAdminAuth, wrap(async (req, res) => {
+  const list = await all(`SELECT p.*,
+    COALESCE(SUM(CASE WHEN i.durum!='İptal' THEN i.fiyat ELSE 0 END),0) as toplam_borc,
+    COALESCE((SELECT SUM(o.miktar) FROM plus_odemeler o WHERE o.partner_id=p.id),0) as toplam_odendi
+    FROM plus_partnerler p LEFT JOIN plus_isler i ON i.partner_id=p.id
+    GROUP BY p.id ORDER BY p.olusturma DESC`)
+  res.json(list.map(p => ({ ...p, kalan_borc: +(p.toplam_borc - p.toplam_odendi).toFixed(2) })))
+}))
+
+app.post('/api/plus/admin/partnerler', plusAdminAuth, wrap(async (req, res) => {
+  const { firma_adi, yetkili_ad, email, sifre, telefon } = req.body
+  if (!firma_adi || !yetkili_ad || !email || !sifre) return res.status(400).json({ message: 'Zorunlu alanlar eksik' })
+  const hash = await bcrypt.hash(sifre, 10)
+  const { lastID } = await run(`INSERT INTO plus_partnerler (firma_adi,yetkili_ad,email,sifre_hash,telefon) VALUES (?,?,?,?,?)`,
+    [firma_adi, yetkili_ad, email, hash, telefon||null])
+  res.json({ id: lastID })
+}))
+
+app.put('/api/plus/admin/partnerler/:id', plusAdminAuth, wrap(async (req, res) => {
+  const { firma_adi, yetkili_ad, email, sifre, telefon, aktif } = req.body
+  if (sifre) {
+    const hash = await bcrypt.hash(sifre, 10)
+    await run(`UPDATE plus_partnerler SET firma_adi=?,yetkili_ad=?,email=?,sifre_hash=?,telefon=?,aktif=? WHERE id=?`,
+      [firma_adi, yetkili_ad, email, hash, telefon||null, aktif??1, req.params.id])
+  } else {
+    await run(`UPDATE plus_partnerler SET firma_adi=?,yetkili_ad=?,email=?,telefon=?,aktif=? WHERE id=?`,
+      [firma_adi, yetkili_ad, email, telefon||null, aktif??1, req.params.id])
+  }
+  res.json({ success: true })
+}))
+
+app.delete('/api/plus/admin/partnerler/:id', plusAdminAuth, wrap(async (req, res) => {
+  await run('UPDATE plus_partnerler SET aktif=0 WHERE id=?', [req.params.id])
+  res.json({ success: true })
+}))
+
+app.get('/api/plus/admin/tasiyicilar', plusAdminAuth, wrap(async (req, res) => {
+  res.json(await all('SELECT * FROM plus_tasiyicilar ORDER BY olusturma DESC'))
+}))
+
+app.post('/api/plus/admin/tasiyicilar', plusAdminAuth, wrap(async (req, res) => {
+  const { ad, email, sifre, telefon, arac_tipi } = req.body
+  if (!ad || !email || !sifre) return res.status(400).json({ message: 'Zorunlu alanlar eksik' })
+  const hash = await bcrypt.hash(sifre, 10)
+  const { lastID } = await run(`INSERT INTO plus_tasiyicilar (ad,email,sifre_hash,telefon,arac_tipi) VALUES (?,?,?,?,?)`,
+    [ad, email, hash, telefon||null, arac_tipi||'Motosiklet'])
+  res.json({ id: lastID })
+}))
+
+app.put('/api/plus/admin/tasiyicilar/:id', plusAdminAuth, wrap(async (req, res) => {
+  const { ad, email, sifre, telefon, arac_tipi, aktif } = req.body
+  if (sifre) {
+    const hash = await bcrypt.hash(sifre, 10)
+    await run(`UPDATE plus_tasiyicilar SET ad=?,email=?,sifre_hash=?,telefon=?,arac_tipi=?,aktif=? WHERE id=?`,
+      [ad, email, hash, telefon||null, arac_tipi||'Motosiklet', aktif??1, req.params.id])
+  } else {
+    await run(`UPDATE plus_tasiyicilar SET ad=?,email=?,telefon=?,arac_tipi=?,aktif=? WHERE id=?`,
+      [ad, email, telefon||null, arac_tipi||'Motosiklet', aktif??1, req.params.id])
+  }
+  res.json({ success: true })
+}))
+
+app.delete('/api/plus/admin/tasiyicilar/:id', plusAdminAuth, wrap(async (req, res) => {
+  await run('UPDATE plus_tasiyicilar SET aktif=0 WHERE id=?', [req.params.id])
+  res.json({ success: true })
+}))
+
+app.get('/api/plus/admin/isler', plusAdminAuth, wrap(async (req, res) => {
+  const { durum, partner_id } = req.query
+  let q = `SELECT i.*, p.firma_adi as partner_firma, t.ad as tasiyici_ad
+    FROM plus_isler i LEFT JOIN plus_partnerler p ON p.id=i.partner_id
+    LEFT JOIN plus_tasiyicilar t ON t.id=i.tasiyici_id WHERE 1=1`
+  const params = []
+  if (durum) { q += ' AND i.durum=?'; params.push(durum) }
+  if (partner_id) { q += ' AND i.partner_id=?'; params.push(partner_id) }
+  q += ' ORDER BY i.olusturma DESC LIMIT 300'
+  res.json(await all(q, params))
+}))
+
+app.put('/api/plus/admin/is/:id/ata', plusAdminAuth, wrap(async (req, res) => {
+  const { tasiyici_id } = req.body
+  if (!tasiyici_id) return res.status(400).json({ message: 'Taşıyıcı seçin' })
+  const is = await get("SELECT * FROM plus_isler WHERE id=? AND durum='Havuzda'", [req.params.id])
+  if (!is) return res.status(400).json({ message: 'Bu iş atanabilir durumda değil' })
+  await run(`UPDATE plus_isler SET tasiyici_id=?,durum='Alındı',guncelleme=datetime('now','localtime') WHERE id=?`,
+    [tasiyici_id, req.params.id])
+  await run('INSERT INTO plus_hareketler (is_id,durum,notlar) VALUES (?,?,?)',
+    [req.params.id,'Alındı','Admin tarafından atandı'])
+  res.json({ success: true })
+}))
+
+app.put('/api/plus/admin/is/:id/fiyat', plusAdminAuth, wrap(async (req, res) => {
+  await run('UPDATE plus_isler SET fiyat=? WHERE id=?', [req.body.fiyat, req.params.id])
+  res.json({ success: true })
+}))
+
+app.get('/api/plus/admin/fiyatlar', plusAdminAuth, wrap(async (req, res) => {
+  res.json(await all('SELECT * FROM plus_fiyatlar ORDER BY il,ilce,mahalle'))
+}))
+
+app.post('/api/plus/admin/fiyatlar', plusAdminAuth, wrap(async (req, res) => {
+  const { il, ilce, mahalle, fiyat } = req.body
+  if (!il || !fiyat) return res.status(400).json({ message: 'İl ve fiyat zorunlu' })
+  const { lastID } = await run(`INSERT INTO plus_fiyatlar (il,ilce,mahalle,fiyat) VALUES (?,?,?,?)`,
+    [il, ilce||null, mahalle||null, fiyat])
+  res.json({ id: lastID })
+}))
+
+app.put('/api/plus/admin/fiyatlar/:id', plusAdminAuth, wrap(async (req, res) => {
+  const { il, ilce, mahalle, fiyat, aktif } = req.body
+  await run('UPDATE plus_fiyatlar SET il=?,ilce=?,mahalle=?,fiyat=?,aktif=? WHERE id=?',
+    [il, ilce||null, mahalle||null, fiyat, aktif??1, req.params.id])
+  res.json({ success: true })
+}))
+
+app.delete('/api/plus/admin/fiyatlar/:id', plusAdminAuth, wrap(async (req, res) => {
+  await run('DELETE FROM plus_fiyatlar WHERE id=?', [req.params.id])
+  res.json({ success: true })
+}))
+
+app.get('/api/plus/admin/borclar', plusAdminAuth, wrap(async (req, res) => {
+  const list = await all(`SELECT p.id,p.firma_adi,p.yetkili_ad,p.telefon,p.email,
+    COALESCE(SUM(CASE WHEN i.durum!='İptal' THEN i.fiyat ELSE 0 END),0) as toplam_borc,
+    COALESCE((SELECT SUM(o.miktar) FROM plus_odemeler o WHERE o.partner_id=p.id),0) as toplam_odendi,
+    COUNT(CASE WHEN i.durum='Havuzda' THEN 1 END) as havuzda,
+    COUNT(CASE WHEN i.durum IN ('Alındı','Yolda') THEN 1 END) as aktif,
+    COUNT(CASE WHEN i.durum='Teslim Edildi' THEN 1 END) as tamamlandi
+    FROM plus_partnerler p LEFT JOIN plus_isler i ON i.partner_id=p.id
+    WHERE p.aktif=1 GROUP BY p.id ORDER BY toplam_borc DESC`)
+  res.json(list.map(p => ({ ...p, kalan_borc: +(p.toplam_borc - p.toplam_odendi).toFixed(2) })))
+}))
+
+app.post('/api/plus/admin/borclar/:partner_id/ode', plusAdminAuth, wrap(async (req, res) => {
+  const { miktar, aciklama } = req.body
+  if (!miktar || miktar <= 0) return res.status(400).json({ message: 'Geçerli miktar girin' })
+  await run('INSERT INTO plus_odemeler (partner_id,miktar,aciklama) VALUES (?,?,?)',
+    [req.params.partner_id, miktar, aciklama||null])
+  res.json({ success: true })
+}))
+
+app.get('/api/plus/admin/borclar/:partner_id/detay', plusAdminAuth, wrap(async (req, res) => {
+  const isler = await all(`SELECT i.*,t.ad as tasiyici_ad FROM plus_isler i
+    LEFT JOIN plus_tasiyicilar t ON t.id=i.tasiyici_id
+    WHERE i.partner_id=? AND i.durum!='İptal' ORDER BY i.olusturma DESC`, [req.params.partner_id])
+  const odemeler = await all('SELECT * FROM plus_odemeler WHERE partner_id=? ORDER BY tarih DESC', [req.params.partner_id])
+  res.json({ isler, odemeler })
 }))
 
 // ── Error handler ─────────────────────────────────────────────────────────────
