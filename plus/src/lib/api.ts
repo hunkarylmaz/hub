@@ -3,6 +3,7 @@ const BASE = '/api/plus'
 function partnerToken() { return localStorage.getItem('plus_partner_token') }
 function tasiyiciToken() { return localStorage.getItem('plus_tasiyici_token') }
 function adminToken() { return localStorage.getItem('plus_admin_token') }
+function altToken() { return localStorage.getItem('plus_alt_token') }
 
 async function req(url: string, opts: RequestInit = {}, token?: string | null) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -74,6 +75,33 @@ export interface IsForm {
 
 export interface Admin { id: number; ad: string; email: string }
 export interface Fiyat { id: number; il: string; ilce: string | null; mahalle: string | null; fiyat: number; aktif: number }
+
+export interface AltKullanici {
+  id: number
+  partner_id: number
+  firma_adi: string
+  ad: string
+  unvan: string | null
+  email: string
+  telefon: string | null
+  il: string | null
+  ilce: string | null
+  mahalle: string | null
+  adres: string | null
+  aktif: number
+}
+
+export interface AltIs {
+  id: number
+  alt_kullanici_id: number
+  partner_id: number
+  durum: IsDurum
+  paket_boyutu: PaketBoyutu
+  aciklama: string | null
+  olusturma: string
+  guncelleme: string
+}
+
 export interface PartnerBorc {
   id: number; firma_adi: string; yetkili_ad: string; telefon: string; email: string
   toplam_borc: number; toplam_odendi: number; kalan_borc: number
@@ -131,6 +159,21 @@ export const api = {
       req(`${BASE}/is/${id}`, {}, partnerToken()),
     isIptal: (id: number) =>
       req(`${BASE}/is/${id}/iptal`, { method: 'PUT' }, partnerToken()),
+    altKullanicilar: {
+      list: () => req(`${BASE}/partner/alt-kullanicilar`, {}, partnerToken()),
+      create: (d: Record<string, unknown>) =>
+        req(`${BASE}/partner/alt-kullanicilar`, { method: 'POST', body: JSON.stringify(d) }, partnerToken()),
+      update: (id: number, d: Record<string, unknown>) =>
+        req(`${BASE}/partner/alt-kullanicilar/${id}`, { method: 'PUT', body: JSON.stringify(d) }, partnerToken()),
+    },
+  },
+  alt: {
+    login: (email: string, sifre: string) =>
+      req(`${BASE}/alt/login`, { method: 'POST', body: JSON.stringify({ email, sifre }) }),
+    me: () => req(`${BASE}/alt/me`, {}, altToken()),
+    islerim: () => req(`${BASE}/alt/islerim`, {}, altToken()),
+    isOlustur: (data: { paket_boyutu: PaketBoyutu; aciklama: string }) =>
+      req(`${BASE}/alt/is`, { method: 'POST', body: JSON.stringify(data) }, altToken()),
   },
   tasiyici: {
     login: (email: string, sifre: string) =>

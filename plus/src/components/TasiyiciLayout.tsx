@@ -2,11 +2,10 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { Inbox, ClipboardList, LogOut, ChevronRight, Menu, X } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import Logo from './Logo'
 
 const nav = [
-  { to: '/tasiyici/havuz',   icon: Inbox,         label: 'İş Havuzu' },
-  { to: '/tasiyici/islerim', icon: ClipboardList,  label: 'Aktif İşlerim' },
+  { to: '/tasiyici/havuz',   icon: Inbox,        label: 'İş Havuzu' },
+  { to: '/tasiyici/islerim', icon: ClipboardList, label: 'Aktif İşlerim' },
 ]
 
 export default function TasiyiciLayout() {
@@ -19,7 +18,7 @@ export default function TasiyiciLayout() {
   const Sidebar = () => (
     <aside className="flex flex-col h-full bg-white border-r border-gray-100">
       <div className="px-6 py-5 border-b border-gray-100">
-        <Logo />
+        <span className="text-xl font-black text-gray-900">Rota<span className="text-emerald-500">.</span></span>
         {tasiyici && (
           <div className="mt-3 px-3 py-2.5 bg-emerald-50 rounded-xl">
             <p className="text-xs font-bold text-emerald-700 truncate">{tasiyici.ad}</p>
@@ -79,7 +78,7 @@ export default function TasiyiciLayout() {
           <button onClick={() => setOpen(true)} className="p-1.5 rounded-lg hover:bg-gray-100">
             {open ? <X size={20} /> : <Menu size={20} />}
           </button>
-          <span className="text-sm font-bold text-gray-900">Paketçiniz <span className="text-emerald-600">Taşıyıcı</span></span>
+          <span className="text-xl font-black text-gray-900">Rota<span className="text-emerald-500">.</span></span>
         </div>
         <main className="flex-1 overflow-y-auto p-6">
           <Outlet />
