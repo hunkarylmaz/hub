@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const cors = require('cors')
 const path = require('path')
+const QRCode = require('qrcode')
 
 const app = express()
 const PORT = 3002
@@ -121,6 +122,11 @@ async function initDb() {
     olusturma TEXT DEFAULT (datetime('now','localtime')),
     FOREIGN KEY(partner_id) REFERENCES plus_partnerler(id)
   )`)
+  await run(`CREATE TABLE IF NOT EXISTS plus_ayarlar (
+    anahtar TEXT PRIMARY KEY,
+    deger TEXT NOT NULL,
+    aciklama TEXT
+  )`)
 
   // Migrations — each wrapped so existing columns don't fail
   try { await run('ALTER TABLE plus_isler ADD COLUMN fiyat REAL DEFAULT 0') } catch {}
@@ -129,12 +135,29 @@ async function initDb() {
   try { await run('ALTER TABLE plus_partnerler ADD COLUMN merkez_ilce TEXT') } catch {}
   try { await run('ALTER TABLE plus_partnerler ADD COLUMN merkez_adres TEXT') } catch {}
 
+  // New columns
+  try { await run("ALTER TABLE plus_fiyatlar ADD COLUMN tur TEXT DEFAULT 'adres_dagitim'") } catch {}
+  try { await run("ALTER TABLE plus_isler ADD COLUMN is_turu TEXT DEFAULT 'adres_dagitim'") } catch {}
+  try { await run("ALTER TABLE plus_isler ADD COLUMN fiyat_detay TEXT") } catch {}
+  try { await run("ALTER TABLE plus_isler ADD COLUMN kdv_orani REAL DEFAULT 0") } catch {}
+  try { await run("ALTER TABLE plus_isler ADD COLUMN kdv_tutari REAL DEFAULT 0") } catch {}
+  try { await run("ALTER TABLE plus_adminler ADD COLUMN tip TEXT DEFAULT 'admin'") } catch {}
+
   // Seed admin
   const ea = await get('SELECT COUNT(*) as c FROM plus_adminler')
   if (ea.c === 0) {
     const ah = bcrypt.hashSync('admin123', 10)
-    await run(`INSERT INTO plus_adminler (ad,email,sifre_hash) VALUES (?,?,?)`,
-      ['Süper Admin', 'admin@plus.com', ah])
+    await run(`INSERT INTO plus_adminler (ad,email,sifre_hash,tip) VALUES (?,?,?,?)`,
+      ['Süper Admin', 'admin@plus.com', ah, 'super_admin'])
+  } else {
+    // Ensure first admin is super_admin if tip column was just added
+    await run(`UPDATE plus_adminler SET tip='super_admin' WHERE email='admin@plus.com'`)
+  }
+
+  // KDV ayarı
+  const kdvRow = await get("SELECT anahtar FROM plus_ayarlar WHERE anahtar='kdv_orani'")
+  if (!kdvRow) {
+    await run("INSERT INTO plus_ayarlar (anahtar,deger,aciklama) VALUES (?,?,?)", ['kdv_orani','20','KDV Oranı (%)'])
   }
 
   // Seed demo partner
@@ -144,11 +167,17 @@ async function initDb() {
     await run(`INSERT INTO plus_partnerler (firma_adi,yetkili_ad,email,sifre_hash,telefon,merkez_il,merkez_ilce,merkez_adres)
                VALUES (?,?,?,?,?,?,?,?)`,
       ['ABC Lojistik', 'Ahmet Kaya', 'partner@plus.com', ph, '05321000000', 'İstanbul', 'Şişli', 'Büyükdere Cad. 145'])
-    // Demo fiyatlar
-    await run(`INSERT INTO plus_fiyatlar (il,ilce,fiyat) VALUES (?,?,?)`, ['İstanbul', 'Kadıköy', 45.00])
-    await run(`INSERT INTO plus_fiyatlar (il,fiyat) VALUES (?,?)`, ['İstanbul', 35.00])
-    await run(`INSERT INTO plus_fiyatlar (il,fiyat) VALUES (?,?)`, ['Ankara', 30.00])
-    await run(`INSERT INTO plus_fiyatlar (il,fiyat) VALUES (?,?)`, ['İzmir', 32.00])
+    // Demo fiyatlar — all 4 service types
+    const TYPES = ['adres_dagitim','adres_toplama','otogar_alis','kargo_geri']
+    const BASE_FIYATLAR = [
+      ['İstanbul','Kadıköy',null,45],['İstanbul',null,null,35],['Ankara',null,null,30],['İzmir',null,null,32]
+    ]
+    for (const tur of TYPES) {
+      for (const [il,ilce,mahalle,fiyat] of BASE_FIYATLAR) {
+        await run(`INSERT INTO plus_fiyatlar (il,ilce,mahalle,fiyat,tur) VALUES (?,?,?,?,?)`,
+          [il.trim(),ilce||null,mahalle||null,fiyat+(TYPES.indexOf(tur)*10),tur])
+      }
+    }
   } else {
     // Update existing demo partner with merkez fields if they are NULL
     await run(`UPDATE plus_partnerler
@@ -184,12 +213,12 @@ async function initDb() {
         const t = await get("SELECT id FROM plus_tasiyicilar LIMIT 1")
         const tasiyici = durum !== 'Havuzda' ? t?.id : null
         const { lastID } = await run(`INSERT INTO plus_isler
-          (partner_id,qr_kodu,durum,alis_il,alis_ilce,alis_mahalle,alis_adres,
+          (partner_id,qr_kodu,durum,is_turu,alis_il,alis_ilce,alis_mahalle,alis_adres,
            birakilis_il,birakilis_ilce,birakilis_mahalle,birakilis_adres,
            gonderici_ad,gonderici_telefon,alici_ad,alici_telefon,
            paket_boyutu,alinma_saati,fiyat,tasiyici_id)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-          [p.id,qr,durum,ai,ail,am||null,aa,bi,bil,bm||null,ba,ga,gt,aa2,at2,pb,saat,fiyat,tasiyici])
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          [p.id,qr,durum,'adres_dagitim',ai,ail,am||null,aa,bi,bil,bm||null,ba,ga,gt,aa2,at2,pb,saat,fiyat,tasiyici])
         await run('INSERT INTO plus_hareketler (is_id,durum) VALUES (?,?)', [lastID, durum === 'Havuzda' ? 'Havuzda' : durum])
       }
       // Demo payment for partner
@@ -212,6 +241,28 @@ async function initDb() {
   }
 
   console.log('✓ DB hazır')
+}
+
+// ── Price Calculator ──────────────────────────────────────────────────────────
+async function calculatePrice(il, ilce, mahalle, is_turu = 'adres_dagitim') {
+  const kdvRow = await get("SELECT deger FROM plus_ayarlar WHERE anahtar='kdv_orani'")
+  const kdv_orani = kdvRow ? parseFloat(kdvRow.deger) : 0
+  let baz_fiyat = 0
+  if (mahalle) {
+    const f = await get(`SELECT fiyat FROM plus_fiyatlar WHERE il=? AND ilce=? AND mahalle=? AND tur=? AND aktif=1 LIMIT 1`, [il,ilce,mahalle,is_turu])
+    if (f) baz_fiyat = f.fiyat
+  }
+  if (!baz_fiyat) {
+    const f = await get(`SELECT fiyat FROM plus_fiyatlar WHERE il=? AND ilce=? AND (mahalle IS NULL OR mahalle='') AND tur=? AND aktif=1 LIMIT 1`, [il,ilce,is_turu])
+    if (f) baz_fiyat = f.fiyat
+  }
+  if (!baz_fiyat) {
+    const f = await get(`SELECT fiyat FROM plus_fiyatlar WHERE il=? AND (ilce IS NULL OR ilce='') AND tur=? AND aktif=1 LIMIT 1`, [il,is_turu])
+    if (f) baz_fiyat = f.fiyat
+  }
+  const kdv_tutari = +(baz_fiyat * kdv_orani / 100).toFixed(2)
+  const toplam = +(baz_fiyat + kdv_tutari).toFixed(2)
+  return { is_turu, baz_fiyat, kdv_orani, kdv_tutari, toplam }
 }
 
 // ── Auth Middleware ───────────────────────────────────────────────────────────
@@ -243,6 +294,14 @@ function adminAuth(req, res, next) {
     if (req.admin.type !== 'plus_admin') return res.status(401).json({ message: 'Yetkisiz' })
     next()
   } catch { res.status(401).json({ message: 'Geçersiz token' }) }
+}
+
+function superAdminAuth(req, res, next) {
+  adminAuth(req, res, async () => {
+    const a = await get('SELECT tip FROM plus_adminler WHERE id=?', [req.admin.id])
+    if (!a || a.tip !== 'super_admin') return res.status(403).json({ message: 'Süper admin yetkisi gerekli' })
+    next()
+  })
 }
 
 function altAuth(req, res, next) {
@@ -286,34 +345,23 @@ app.post('/api/plus/is', partnerAuth, wrap(async (req, res) => {
   if (!paket_boyutu || !alinma_saati)
     return res.status(400).json({ message: 'Paket ve zaman bilgisi gerekli' })
 
-  let fiyat = 0
-  const fMahalle = alis_mahalle ? await get(
-    `SELECT fiyat FROM plus_fiyatlar WHERE il=? AND ilce=? AND mahalle=? AND aktif=1 LIMIT 1`,
-    [alis_il, alis_ilce, alis_mahalle]) : null
-  if (fMahalle) { fiyat = fMahalle.fiyat }
-  else {
-    const fIlce = await get(`SELECT fiyat FROM plus_fiyatlar WHERE il=? AND ilce=? AND (mahalle IS NULL OR mahalle='') AND aktif=1 LIMIT 1`, [alis_il, alis_ilce])
-    if (fIlce) { fiyat = fIlce.fiyat }
-    else {
-      const fIl = await get(`SELECT fiyat FROM plus_fiyatlar WHERE il=? AND (ilce IS NULL OR ilce='') AND aktif=1 LIMIT 1`, [alis_il])
-      if (fIl) fiyat = fIl.fiyat
-    }
-  }
+  const is_turu = req.body.is_turu || 'adres_dagitim'
+  const priceInfo = await calculatePrice(alis_il, alis_ilce, alis_mahalle, is_turu)
 
   const qr = `PLU-${Date.now()}-${Math.random().toString(36).slice(2,8).toUpperCase()}`
   const { lastID } = await run(`
     INSERT INTO plus_isler
-    (partner_id,qr_kodu,alis_il,alis_ilce,alis_mahalle,alis_adres,
+    (partner_id,qr_kodu,is_turu,alis_il,alis_ilce,alis_mahalle,alis_adres,
      birakilis_il,birakilis_ilce,birakilis_mahalle,birakilis_adres,
      gonderici_ad,gonderici_telefon,alici_ad,alici_telefon,
-     paket_boyutu,aciklama,alinma_saati,fiyat)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    [req.partner.id,qr,alis_il,alis_ilce,alis_mahalle||null,alis_adres,
+     paket_boyutu,aciklama,alinma_saati,fiyat,fiyat_detay,kdv_orani,kdv_tutari)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [req.partner.id,qr,is_turu,alis_il,alis_ilce,alis_mahalle||null,alis_adres,
      birakilis_il,birakilis_ilce,birakilis_mahalle||null,birakilis_adres,
      gonderici_ad,gonderici_telefon,alici_ad,alici_telefon,
-     paket_boyutu,aciklama||null,alinma_saati,fiyat])
+     paket_boyutu,aciklama||null,alinma_saati,priceInfo.toplam,JSON.stringify(priceInfo),priceInfo.kdv_orani,priceInfo.kdv_tutari])
   await run('INSERT INTO plus_hareketler (is_id,durum) VALUES (?,?)', [lastID,'Havuzda'])
-  res.json({ id: lastID, qr_kodu: qr, fiyat })
+  res.json({ id: lastID, qr_kodu: qr, fiyat: priceInfo.toplam, fiyat_detay: priceInfo })
 }))
 
 app.get('/api/plus/is', partnerAuth, wrap(async (req, res) => {
@@ -346,6 +394,17 @@ app.put('/api/plus/is/:id/iptal', partnerAuth, wrap(async (req, res) => {
   await run(`UPDATE plus_isler SET durum='İptal', guncelleme=datetime('now','localtime') WHERE id=?`, [req.params.id])
   await run('INSERT INTO plus_hareketler (is_id,durum) VALUES (?,?)', [req.params.id,'İptal'])
   res.json({ success: true })
+}))
+
+// ── QR Code Image Endpoint (public) ──────────────────────────────────────────
+app.get('/api/plus/qr/:qr_kodu', wrap(async (req, res) => {
+  const qr_kodu = req.params.qr_kodu
+  const is = await get('SELECT id FROM plus_isler WHERE qr_kodu=?', [qr_kodu])
+  if (!is) return res.status(404).send('QR kod bulunamadı')
+  const png = await QRCode.toBuffer(qr_kodu, { width: 300, margin: 2, errorCorrectionLevel: 'H' })
+  res.set('Content-Type', 'image/png')
+  res.set('Cache-Control', 'public, max-age=86400')
+  res.send(png)
 }))
 
 // ── Partner Profile Endpoints ─────────────────────────────────────────────────
@@ -467,39 +526,27 @@ app.post('/api/plus/alt/is', altAuth, wrap(async (req, res) => {
   const birakilis_ilce  = a.merkez_ilce
   const birakilis_adres = a.merkez_adres
 
-  // Price calculation: mahalle > ilce > il
-  let fiyat = 0
-  const fMahalle = alis_mahalle ? await get(
-    `SELECT fiyat FROM plus_fiyatlar WHERE il=? AND ilce=? AND mahalle=? AND aktif=1 LIMIT 1`,
-    [alis_il, alis_ilce, alis_mahalle]) : null
-  if (fMahalle) { fiyat = fMahalle.fiyat }
-  else {
-    const fIlce = await get(`SELECT fiyat FROM plus_fiyatlar WHERE il=? AND ilce=? AND (mahalle IS NULL OR mahalle='') AND aktif=1 LIMIT 1`, [alis_il, alis_ilce])
-    if (fIlce) { fiyat = fIlce.fiyat }
-    else {
-      const fIl = await get(`SELECT fiyat FROM plus_fiyatlar WHERE il=? AND (ilce IS NULL OR ilce='') AND aktif=1 LIMIT 1`, [alis_il])
-      if (fIl) fiyat = fIl.fiyat
-    }
-  }
+  const priceInfo = await calculatePrice(alis_il, alis_ilce, alis_mahalle, 'adres_toplama')
 
   const effectiveAlinmaSaati = alinma_saati || new Date().toISOString().slice(0, 16).replace('T', ' ')
   const qr = `PLU-${Date.now()}-${Math.random().toString(36).slice(2,8).toUpperCase()}`
   const { lastID } = await run(`
     INSERT INTO plus_isler
-    (partner_id,alt_kullanici_id,qr_kodu,
+    (partner_id,alt_kullanici_id,qr_kodu,is_turu,
      alis_il,alis_ilce,alis_mahalle,alis_adres,
      birakilis_il,birakilis_ilce,birakilis_adres,
      gonderici_ad,gonderici_telefon,alici_ad,alici_telefon,
-     paket_boyutu,aciklama,alinma_saati,fiyat)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    [a.partner_id, a.id, qr,
+     paket_boyutu,aciklama,alinma_saati,fiyat,fiyat_detay,kdv_orani,kdv_tutari)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [a.partner_id, a.id, qr, 'adres_toplama',
      alis_il, alis_ilce, alis_mahalle, alis_adres,
      birakilis_il, birakilis_ilce, birakilis_adres,
      a.ad, a.telefon || '',
      a.firma_adi, '',
-     paket_boyutu, aciklama||null, effectiveAlinmaSaati, fiyat])
+     paket_boyutu, aciklama||null, effectiveAlinmaSaati,
+     priceInfo.toplam, JSON.stringify(priceInfo), priceInfo.kdv_orani, priceInfo.kdv_tutari])
   await run('INSERT INTO plus_hareketler (is_id,durum) VALUES (?,?)', [lastID, 'Havuzda'])
-  res.json({ id: lastID, qr_kodu: qr, fiyat })
+  res.json({ id: lastID, qr_kodu: qr, fiyat: priceInfo.toplam, fiyat_detay: priceInfo })
 }))
 
 app.get('/api/plus/alt/islerim', altAuth, wrap(async (req, res) => {
@@ -579,18 +626,59 @@ app.get('/api/plus/tasiyici/islerim', tasiyiciAuth, wrap(async (req, res) => {
   res.json(data)
 }))
 
+// ── Taşıyıcı QR Scan Endpoints ────────────────────────────────────────────────
+app.get('/api/plus/tasiyici/is-by-qr/:qr_kodu', tasiyiciAuth, wrap(async (req, res) => {
+  const is = await get(`SELECT i.*, p.firma_adi as partner_firma, t.ad as tasiyici_ad
+    FROM plus_isler i LEFT JOIN plus_partnerler p ON p.id=i.partner_id
+    LEFT JOIN plus_tasiyicilar t ON t.id=i.tasiyici_id
+    WHERE i.qr_kodu=?`, [req.params.qr_kodu])
+  if (!is) return res.status(404).json({ message: 'Bu QR koda ait iş bulunamadı' })
+  res.json(is)
+}))
+
+app.post('/api/plus/tasiyici/qr-tara', tasiyiciAuth, wrap(async (req, res) => {
+  const { qr_kodu, aksiyon } = req.body
+  if (!qr_kodu || !aksiyon) return res.status(400).json({ message: 'QR kod ve aksiyon gerekli' })
+  const is = await get(`SELECT i.*, p.firma_adi as partner_firma
+    FROM plus_isler i LEFT JOIN plus_partnerler p ON p.id=i.partner_id
+    WHERE i.qr_kodu=?`, [qr_kodu])
+  if (!is) return res.status(404).json({ message: 'Bu QR koda ait iş bulunamadı' })
+
+  if (aksiyon === 'al') {
+    if (is.durum !== 'Havuzda') return res.status(400).json({ message: `İş "${is.durum}" durumunda, alınamaz` })
+    await run(`UPDATE plus_isler SET durum='Alındı', tasiyici_id=?, guncelleme=datetime('now','localtime') WHERE id=?`, [req.tasiyici.id, is.id])
+    await run('INSERT INTO plus_hareketler (is_id,durum,notlar) VALUES (?,?,?)', [is.id,'Alındı','QR kod ile alındı'])
+    return res.json({ success: true, yeni_durum: 'Alındı', is })
+  }
+  if (aksiyon === 'yolda') {
+    if (is.durum !== 'Alındı' || is.tasiyici_id !== req.tasiyici.id)
+      return res.status(400).json({ message: 'Bu işlem için yetkiniz yok' })
+    await run(`UPDATE plus_isler SET durum='Yolda', guncelleme=datetime('now','localtime') WHERE id=?`, [is.id])
+    await run('INSERT INTO plus_hareketler (is_id,durum,notlar) VALUES (?,?,?)', [is.id,'Yolda','QR kod ile yola çıkıldı'])
+    return res.json({ success: true, yeni_durum: 'Yolda', is })
+  }
+  if (aksiyon === 'teslim') {
+    if (is.durum !== 'Yolda' || is.tasiyici_id !== req.tasiyici.id)
+      return res.status(400).json({ message: 'Bu işlem için yetkiniz yok' })
+    await run(`UPDATE plus_isler SET durum='Teslim Edildi', guncelleme=datetime('now','localtime') WHERE id=?`, [is.id])
+    await run('INSERT INTO plus_hareketler (is_id,durum,notlar) VALUES (?,?,?)', [is.id,'Teslim Edildi','QR kod ile teslim edildi'])
+    return res.json({ success: true, yeni_durum: 'Teslim Edildi', is })
+  }
+  return res.status(400).json({ message: 'Geçersiz aksiyon: al, yolda veya teslim olmalı' })
+}))
+
 // ── Admin Endpoints ───────────────────────────────────────────────────────────
 app.post('/api/plus/admin/login', wrap(async (req, res) => {
   const { email, sifre } = req.body || {}
   const a = await get('SELECT * FROM plus_adminler WHERE email=? AND aktif=1', [email])
   if (!a || !bcrypt.compareSync(sifre, a.sifre_hash))
     return res.status(401).json({ message: 'Geçersiz email veya şifre' })
-  const token = jwt.sign({ id: a.id, email: a.email, ad: a.ad, type: 'plus_admin' }, JWT_SECRET, { expiresIn: '7d' })
+  const token = jwt.sign({ id: a.id, email: a.email, ad: a.ad, tip: a.tip || 'admin', type: 'plus_admin' }, JWT_SECRET, { expiresIn: '7d' })
   res.json({ token })
 }))
 
 app.get('/api/plus/admin/me', adminAuth, wrap(async (req, res) => {
-  res.json(await get('SELECT id,ad,email FROM plus_adminler WHERE id=?', [req.admin.id]))
+  res.json(await get('SELECT id,ad,email,tip FROM plus_adminler WHERE id=?', [req.admin.id]))
 }))
 
 app.get('/api/plus/admin/stats', adminAuth, wrap(async (req, res) => {
@@ -712,21 +800,21 @@ app.put('/api/plus/admin/is/:id/fiyat', adminAuth, wrap(async (req, res) => {
 }))
 
 app.get('/api/plus/admin/fiyatlar', adminAuth, wrap(async (req, res) => {
-  res.json(await all('SELECT * FROM plus_fiyatlar ORDER BY il,ilce,mahalle'))
+  res.json(await all('SELECT * FROM plus_fiyatlar ORDER BY tur,il,ilce,mahalle'))
 }))
 
 app.post('/api/plus/admin/fiyatlar', adminAuth, wrap(async (req, res) => {
-  const { il, ilce, mahalle, fiyat } = req.body
+  const { il, ilce, mahalle, fiyat, tur } = req.body
   if (!il || !fiyat) return res.status(400).json({ message: 'İl ve fiyat zorunlu' })
-  const { lastID } = await run(`INSERT INTO plus_fiyatlar (il,ilce,mahalle,fiyat) VALUES (?,?,?,?)`,
-    [il, ilce||null, mahalle||null, fiyat])
+  const { lastID } = await run(`INSERT INTO plus_fiyatlar (il,ilce,mahalle,fiyat,tur) VALUES (?,?,?,?,?)`,
+    [il, ilce||null, mahalle||null, fiyat, tur||'adres_dagitim'])
   res.json({ id: lastID })
 }))
 
 app.put('/api/plus/admin/fiyatlar/:id', adminAuth, wrap(async (req, res) => {
-  const { il, ilce, mahalle, fiyat, aktif } = req.body
-  await run('UPDATE plus_fiyatlar SET il=?,ilce=?,mahalle=?,fiyat=?,aktif=? WHERE id=?',
-    [il, ilce||null, mahalle||null, fiyat, aktif??1, req.params.id])
+  const { il, ilce, mahalle, fiyat, aktif, tur } = req.body
+  await run('UPDATE plus_fiyatlar SET il=?,ilce=?,mahalle=?,fiyat=?,aktif=?,tur=? WHERE id=?',
+    [il, ilce||null, mahalle||null, fiyat, aktif??1, tur||'adres_dagitim', req.params.id])
   res.json({ success: true })
 }))
 
@@ -761,6 +849,52 @@ app.get('/api/plus/admin/borclar/:partner_id/detay', adminAuth, wrap(async (req,
     WHERE i.partner_id=? AND i.durum!='İptal' ORDER BY i.olusturma DESC`, [req.params.partner_id])
   const odemeler = await all('SELECT * FROM plus_odemeler WHERE partner_id=? ORDER BY tarih DESC', [req.params.partner_id])
   res.json({ isler, odemeler })
+}))
+
+// ── Admin Ayarlar Endpoints ───────────────────────────────────────────────────
+app.get('/api/plus/admin/ayarlar', adminAuth, wrap(async (req, res) => {
+  res.json(await all('SELECT * FROM plus_ayarlar ORDER BY anahtar'))
+}))
+
+app.put('/api/plus/admin/ayarlar/:anahtar', adminAuth, wrap(async (req, res) => {
+  const { deger } = req.body
+  if (deger === undefined) return res.status(400).json({ message: 'Değer gerekli' })
+  await run('INSERT OR REPLACE INTO plus_ayarlar (anahtar,deger,aciklama) VALUES (?,?,COALESCE((SELECT aciklama FROM plus_ayarlar WHERE anahtar=?),?))',
+    [req.params.anahtar, deger, req.params.anahtar, null])
+  res.json({ success: true })
+}))
+
+// ── Admin Kullanıcı Yönetimi (Süper Admin) ────────────────────────────────────
+app.get('/api/plus/admin/adminler', superAdminAuth, wrap(async (req, res) => {
+  res.json(await all('SELECT id,ad,email,tip,aktif,olusturma FROM plus_adminler ORDER BY olusturma'))
+}))
+
+app.post('/api/plus/admin/adminler', superAdminAuth, wrap(async (req, res) => {
+  const { ad, email, sifre, tip } = req.body
+  if (!ad || !email || !sifre) return res.status(400).json({ message: 'Ad, email ve şifre zorunlu' })
+  const hash = await bcrypt.hash(sifre, 10)
+  const { lastID } = await run(`INSERT INTO plus_adminler (ad,email,sifre_hash,tip) VALUES (?,?,?,?)`,
+    [ad, email, hash, tip||'admin'])
+  res.json({ id: lastID })
+}))
+
+app.put('/api/plus/admin/adminler/:id', superAdminAuth, wrap(async (req, res) => {
+  const { ad, email, sifre, tip, aktif } = req.body
+  if (sifre) {
+    const hash = await bcrypt.hash(sifre, 10)
+    await run('UPDATE plus_adminler SET ad=?,email=?,sifre_hash=?,tip=?,aktif=? WHERE id=?',
+      [ad, email, hash, tip||'admin', aktif??1, req.params.id])
+  } else {
+    await run('UPDATE plus_adminler SET ad=?,email=?,tip=?,aktif=? WHERE id=?',
+      [ad, email, tip||'admin', aktif??1, req.params.id])
+  }
+  res.json({ success: true })
+}))
+
+app.delete('/api/plus/admin/adminler/:id', superAdminAuth, wrap(async (req, res) => {
+  if (req.params.id == req.admin.id) return res.status(400).json({ message: 'Kendinizi silemezsiniz' })
+  await run('UPDATE plus_adminler SET aktif=0 WHERE id=?', [req.params.id])
+  res.json({ success: true })
 }))
 
 // ── Admin Alt Kullanıcı Endpoints ─────────────────────────────────────────────

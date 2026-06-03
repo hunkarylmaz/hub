@@ -1,16 +1,27 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Plus, Trash2, Edit2, Loader2, X, Check, Tag } from 'lucide-react'
-import { api, Fiyat } from '../../lib/api'
+import { api, Fiyat, HizmetTuru, HIZMET_TURU_LABELS } from '../../lib/api'
 import { ILLER } from '../../lib/locations'
 
-interface Form { il: string; ilce: string; mahalle: string; fiyat: string }
-const EMPTY: Form = { il: '', ilce: '', mahalle: '', fiyat: '' }
+const TURLER: HizmetTuru[] = ['adres_dagitim', 'adres_toplama', 'otogar_alis', 'kargo_geri']
+
+const TUR_COLOR: Record<HizmetTuru, string> = {
+  adres_dagitim: 'bg-blue-600 text-white',
+  adres_toplama: 'bg-emerald-600 text-white',
+  otogar_alis:   'bg-amber-500 text-white',
+  kargo_geri:    'bg-purple-600 text-white',
+}
+const TUR_INACTIVE = 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'
+
+interface Form { il: string; ilce: string; mahalle: string; fiyat: string; tur: HizmetTuru }
+const EMPTY = (tur: HizmetTuru): Form => ({ il: '', ilce: '', mahalle: '', fiyat: '', tur })
 
 export default function Fiyatlar() {
   const [list, setList] = useState<Fiyat[]>([])
   const [loading, setLoading] = useState(true)
+  const [activeTur, setActiveTur] = useState<HizmetTuru>('adres_dagitim')
   const [modal, setModal] = useState<{ open: boolean; edit?: Fiyat }>({ open: false })
-  const [form, setForm] = useState<Form>(EMPTY)
+  const [form, setForm] = useState<Form>(EMPTY('adres_dagitim'))
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
@@ -20,9 +31,9 @@ export default function Fiyatlar() {
 
   useEffect(() => { load() }, [load])
 
-  function openCreate() { setForm(EMPTY); setErr(''); setModal({ open: true }) }
+  function openCreate() { setForm(EMPTY(activeTur)); setErr(''); setModal({ open: true }) }
   function openEdit(f: Fiyat) {
-    setForm({ il: f.il, ilce: f.ilce || '', mahalle: f.mahalle || '', fiyat: String(f.fiyat) })
+    setForm({ il: f.il, ilce: f.ilce || '', mahalle: f.mahalle || '', fiyat: String(f.fiyat), tur: f.tur || 'adres_dagitim' })
     setErr(''); setModal({ open: true, edit: f })
   }
 
@@ -30,7 +41,7 @@ export default function Fiyatlar() {
     if (!form.il || !form.fiyat) { setErr('İl ve fiyat zorunlu'); return }
     setSaving(true); setErr('')
     try {
-      const data = { il: form.il, ilce: form.ilce || null, mahalle: form.mahalle || null, fiyat: Number(form.fiyat) }
+      const data = { il: form.il, ilce: form.ilce || null, mahalle: form.mahalle || null, fiyat: Number(form.fiyat), tur: form.tur }
       if (modal.edit) await api.admin.fiyatlar.update(modal.edit.id, data)
       else await api.admin.fiyatlar.create(data)
       setModal({ open: false }); load()
@@ -44,6 +55,7 @@ export default function Fiyatlar() {
   }
 
   const secilenIl = ILLER.find(i => i.il === form.il)
+  const filtered = list.filter(f => (f.tur || 'adres_dagitim') === activeTur)
 
   const scopeLabel = (f: Fiyat) => {
     if (f.mahalle) return `${f.il} / ${f.ilce} / ${f.mahalle}`
@@ -52,7 +64,7 @@ export default function Fiyatlar() {
   }
   const scopeType = (f: Fiyat) => {
     if (f.mahalle) return { label: 'Mahalle', color: 'bg-purple-50 text-purple-700' }
-    if (f.ilce) return { label: 'İlçe', color: 'bg-blue-50 text-blue-700' }
+    if (f.ilce)    return { label: 'İlçe',    color: 'bg-blue-50 text-blue-700' }
     return { label: 'İl', color: 'bg-gray-100 text-gray-700' }
   }
 
@@ -61,26 +73,46 @@ export default function Fiyatlar() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Fiyat Tablosu</h1>
-          <p className="text-sm text-gray-500 mt-0.5">İl / ilçe / mahalle bazlı teslimat fiyatları</p>
+          <p className="text-sm text-gray-500 mt-0.5">Hizmet türü ve bölge bazlı fiyatlar (KDV hariç)</p>
         </div>
         <button onClick={openCreate} className="btn-primary flex items-center gap-2">
           <Plus size={15} /> Fiyat Ekle
         </button>
       </div>
 
-      {/* Info card */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
-        <p className="font-semibold mb-1">Öncelik sırası: Mahalle {'>'} İlçe {'>'} İl</p>
-        <p className="text-blue-600 text-xs">İş oluşturulurken alış noktasına göre en spesifik fiyat otomatik uygulanır.</p>
+      {/* Service type tabs */}
+      <div className="flex flex-wrap gap-2">
+        {TURLER.map(tur => (
+          <button key={tur} onClick={() => setActiveTur(tur)}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+              activeTur === tur ? TUR_COLOR[tur] : TUR_INACTIVE
+            }`}>
+            {HIZMET_TURU_LABELS[tur]}
+            <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full font-bold ${
+              activeTur === tur ? 'bg-white/20' : 'bg-gray-100 text-gray-500'
+            }`}>
+              {list.filter(f => (f.tur || 'adres_dagitim') === tur).length}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Info */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700 flex items-start gap-2">
+        <span className="font-bold shrink-0">Öncelik:</span>
+        <span>Mahalle {'>'} İlçe {'>'} İl — iş oluşturulurken alış noktası + hizmet türüne göre en spesifik fiyat uygulanır.</span>
       </div>
 
       <div className="card overflow-hidden">
         {loading ? (
           <div className="py-12 text-center text-sm text-gray-400">Yükleniyor...</div>
-        ) : list.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className="py-12 text-center">
             <Tag size={32} className="mx-auto text-gray-200 mb-3" />
-            <p className="text-sm text-gray-400">Henüz fiyat tanımlanmamış</p>
+            <p className="text-sm text-gray-400">"{HIZMET_TURU_LABELS[activeTur]}" için fiyat tanımlı değil</p>
+            <button onClick={openCreate} className="mt-3 text-sm text-blue-600 font-semibold hover:underline">
+              İlk fiyatı ekle →
+            </button>
           </div>
         ) : (
           <table className="w-full text-sm">
@@ -88,13 +120,13 @@ export default function Fiyatlar() {
               <tr className="border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                 <th className="text-left px-5 py-3">Bölge</th>
                 <th className="text-left px-4 py-3">Kapsam</th>
-                <th className="text-right px-4 py-3">Fiyat</th>
+                <th className="text-right px-4 py-3">Baz Fiyat (KDV hariç)</th>
                 <th className="text-center px-4 py-3">Durum</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {list.map(f => {
+              {filtered.map(f => {
                 const scope = scopeType(f)
                 return (
                   <tr key={f.id} className={`hover:bg-gray-50 ${!f.aktif ? 'opacity-40' : ''}`}>
@@ -136,6 +168,13 @@ export default function Fiyatlar() {
             {err && <div className="mb-3 px-3 py-2 bg-red-50 text-red-600 text-sm rounded-lg">{err}</div>}
             <div className="space-y-3">
               <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Hizmet Türü *</label>
+                <select value={form.tur} onChange={e => setForm(f => ({ ...f, tur: e.target.value as HizmetTuru }))}
+                  className="input-field">
+                  {TURLER.map(t => <option key={t} value={t}>{HIZMET_TURU_LABELS[t]}</option>)}
+                </select>
+              </div>
+              <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">İl *</label>
                 <select value={form.il} onChange={e => setForm(f => ({ ...f, il: e.target.value, ilce: '' }))}
                   className="input-field">
@@ -157,7 +196,7 @@ export default function Fiyatlar() {
                   onChange={e => setForm(f => ({ ...f, mahalle: e.target.value }))} className="input-field" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Fiyat (₺) *</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Baz Fiyat (₺, KDV hariç) *</label>
                 <input type="number" step="0.01" min="0" value={form.fiyat}
                   onChange={e => setForm(f => ({ ...f, fiyat: e.target.value }))} className="input-field" />
               </div>

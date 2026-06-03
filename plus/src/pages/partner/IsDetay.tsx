@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { MapPin, User, Package, Clock, Truck, ChevronLeft, Copy, Check, Loader2, XCircle } from 'lucide-react'
-import { api, Is } from '../../lib/api'
+import { MapPin, User, Package, Clock, Truck, ChevronLeft, Copy, Check, Loader2, XCircle, Receipt } from 'lucide-react'
+import { api, Is, FiyatDetay, HIZMET_TURU_LABELS } from '../../lib/api'
 
 const DURUM_STEPS = ['Havuzda', 'Alındı', 'Yolda', 'Teslim Edildi']
 
@@ -121,11 +121,16 @@ export default function IsDetay() {
       <div className="card p-5">
         <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-4">QR Kodu</p>
         <div className="flex items-center gap-4">
-          <div className="w-24 h-24 rounded-xl bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center shrink-0">
-            <Package size={28} className="text-gray-300" />
+          <div className="w-28 h-28 rounded-xl overflow-hidden bg-white border border-gray-200 shrink-0 flex items-center justify-center">
+            <img
+              src={`/api/plus/qr/${is.qr_kodu}`}
+              alt="QR Kod"
+              className="w-full h-full object-contain"
+              onError={(e) => { (e.target as HTMLImageElement).style.display='none' }}
+            />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-gray-500 mb-2">Bu kodu taşıyıcı ile paylaşın</p>
+            <p className="text-xs text-gray-500 mb-2">Kurye paketi teslim alırken bu kodu okutacak</p>
             <div className="flex items-center gap-2">
               <code className="flex-1 bg-gray-50 rounded-lg px-3 py-2 text-sm font-mono text-gray-600 truncate border border-gray-100">
                 {is.qr_kodu}
@@ -140,6 +145,45 @@ export default function IsDetay() {
           </div>
         </div>
       </div>
+
+      {/* Price breakdown */}
+      {is.fiyat > 0 && (() => {
+        let detay: FiyatDetay | null = null
+        try { if (is.fiyat_detay) detay = JSON.parse(is.fiyat_detay) } catch {}
+        return (
+          <div className="card p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Receipt size={16} className="text-gray-400" />
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Ücret Detayı</p>
+            </div>
+            <div className="space-y-2">
+              {detay && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">
+                      Hizmet türü: <span className="font-medium text-gray-700">
+                        {HIZMET_TURU_LABELS[detay.is_turu] ?? detay.is_turu}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm pt-1 border-t border-gray-100">
+                    <span className="text-gray-500">Baz fiyat</span>
+                    <span className="font-medium text-gray-800">₺{detay.baz_fiyat.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">KDV (%{detay.kdv_orani})</span>
+                    <span className="font-medium text-gray-800">₺{detay.kdv_tutari.toFixed(2)}</span>
+                  </div>
+                </>
+              )}
+              <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
+                <span className="font-bold text-gray-800">Toplam</span>
+                <span className="font-bold text-blue-600 text-base">₺{is.fiyat.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Locations */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

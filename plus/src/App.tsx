@@ -20,6 +20,9 @@ import AdminTasiyicilar from './pages/admin/Tasiyicilar'
 import AdminIsler from './pages/admin/Isler'
 import AdminFiyatlar from './pages/admin/Fiyatlar'
 import AdminBorclar from './pages/admin/Borclar'
+import AdminAyarlar from './pages/admin/Ayarlar'
+import AdminAdminler from './pages/admin/Adminler'
+import TasiyiciQrTara from './pages/tasiyici/QrTara'
 import AltLogin from './pages/alt/Login'
 import AltDashboard from './pages/alt/Dashboard'
 import AltIsOlustur from './pages/alt/IsOlustur'
@@ -92,6 +95,7 @@ function AppRoutes() {
         <Route index element={<Navigate to="havuz" replace />} />
         <Route path="havuz"   element={<Havuz />} />
         <Route path="islerim" element={<TasiyiciIslerim />} />
+        <Route path="qr-tara" element={<TasiyiciQrTara />} />
       </Route>
 
       {/* Admin */}
@@ -104,6 +108,8 @@ function AppRoutes() {
         <Route path="isler"          element={<AdminIsler />} />
         <Route path="fiyatlar"       element={<AdminFiyatlar />} />
         <Route path="borclar"        element={<AdminBorclar />} />
+        <Route path="ayarlar"        element={<AdminAyarlar />} />
+        <Route path="adminler"       element={<AdminAdminler />} />
       </Route>
 
       {/* Alt Kullanıcı */}

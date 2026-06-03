@@ -1,11 +1,12 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Inbox, ClipboardList, LogOut, ChevronRight, Menu, X } from 'lucide-react'
+import { Inbox, ClipboardList, LogOut, ChevronRight, Menu, X, QrCode } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 
 const nav = [
   { to: '/tasiyici/havuz',   icon: Inbox,        label: 'İş Havuzu' },
   { to: '/tasiyici/islerim', icon: ClipboardList, label: 'Aktif İşlerim' },
+  { to: '/tasiyici/qr-tara', icon: QrCode,       label: 'QR Kod Tara' },
 ]
 
 export default function TasiyiciLayout() {

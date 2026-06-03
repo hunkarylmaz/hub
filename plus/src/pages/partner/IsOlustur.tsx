@@ -5,7 +5,14 @@ import {
   Check, Loader2, ArrowRight, Copy, RotateCcw
 } from 'lucide-react'
 import { ILLER } from '../../lib/locations'
-import { api, IsForm, PaketBoyutu } from '../../lib/api'
+import { api, IsForm, PaketBoyutu, HizmetTuru, HIZMET_TURU_LABELS } from '../../lib/api'
+
+const HIZMET_TURLERI: { value: HizmetTuru; desc: string }[] = [
+  { value: 'adres_dagitim', desc: 'Adresten adrese standart teslimat' },
+  { value: 'adres_toplama', desc: 'Adreslerden toplama merkeze taşıma' },
+  { value: 'otogar_alis',   desc: 'Otogar / terminal den alış' },
+  { value: 'kargo_geri',    desc: 'İade / kargoya geri gönderme' },
+]
 
 const STEPS = ['Alış Noktası', 'Bırakılma Noktası', 'Kişi Bilgileri', 'Paket & Zaman', 'Özet']
 
@@ -23,6 +30,7 @@ const EMPTY: IsForm = {
   gonderici_ad: '', gonderici_telefon: '',
   alici_ad: '', alici_telefon: '',
   paket_boyutu: 'Orta', aciklama: '', alinma_saati: '',
+  is_turu: 'adres_dagitim',
 }
 
 function LocationBlock({ prefix, form, set }: {
@@ -269,6 +277,28 @@ export default function IsOlustur() {
             {/* Step 3: Paket & Zaman */}
             {step === 3 && (
               <div className="space-y-5">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-3">Hizmet Türü *</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {HIZMET_TURLERI.map(t => (
+                      <button key={t.value} type="button"
+                        onClick={() => setForm(f => ({ ...f, is_turu: t.value }))}
+                        className={`flex items-start gap-3 p-3 rounded-xl border-2 text-left transition-all ${
+                          form.is_turu === t.value
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-100 hover:border-gray-200 bg-white'
+                        }`}>
+                        <div className={`w-3 h-3 rounded-full mt-0.5 shrink-0 ${form.is_turu === t.value ? 'bg-blue-500' : 'bg-gray-200'}`} />
+                        <div>
+                          <p className={`text-sm font-semibold ${form.is_turu === t.value ? 'text-blue-700' : 'text-gray-700'}`}>
+                            {HIZMET_TURU_LABELS[t.value]}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-0.5">{t.desc}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-3">Paket Boyutu *</label>
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">

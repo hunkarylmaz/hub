@@ -141,7 +141,8 @@ export default function TasiyiciIslerim() {
 
                 {/* Action buttons */}
                 {cfg?.next && (
-                  <div className="border-t border-gray-100 px-5 py-3 flex items-center justify-end">
+                  <div className="border-t border-gray-100 px-5 py-3 flex items-center gap-2 justify-end">
+                    <span className="text-xs text-gray-400 mr-auto">Manuel onay:</span>
                     <button
                       onClick={() => handleUpdate(is, cfg.next as 'yolda' | 'teslim')}
                       disabled={updating === is.id}

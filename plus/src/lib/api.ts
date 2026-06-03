@@ -36,6 +36,22 @@ export interface Tasiyici {
 
 export type PaketBoyutu = 'Zarf' | 'Küçük' | 'Orta' | 'Büyük' | 'Koli'
 export type IsDurum = 'Havuzda' | 'Alındı' | 'Yolda' | 'Teslim Edildi' | 'İptal'
+export type HizmetTuru = 'adres_dagitim' | 'adres_toplama' | 'otogar_alis' | 'kargo_geri'
+
+export const HIZMET_TURU_LABELS: Record<HizmetTuru, string> = {
+  adres_dagitim: 'Adres Dağıtım',
+  adres_toplama: 'Adres Toplama',
+  otogar_alis:   'Otogar Alış',
+  kargo_geri:    'Kargo İade',
+}
+
+export interface FiyatDetay {
+  is_turu: HizmetTuru
+  baz_fiyat: number
+  kdv_orani: number
+  kdv_tutari: number
+  toplam: number
+}
 
 export interface Is {
   id: number
@@ -45,6 +61,10 @@ export interface Is {
   tasiyici_ad?: string | null
   qr_kodu: string
   durum: IsDurum
+  is_turu?: HizmetTuru
+  fiyat_detay?: string
+  kdv_orani?: number
+  kdv_tutari?: number
   alis_il: string
   alis_ilce: string
   alis_mahalle: string
@@ -71,10 +91,13 @@ export interface IsForm {
   gonderici_ad: string; gonderici_telefon: string
   alici_ad: string; alici_telefon: string
   paket_boyutu: PaketBoyutu; aciklama: string; alinma_saati: string
+  is_turu?: HizmetTuru
 }
 
-export interface Admin { id: number; ad: string; email: string }
-export interface Fiyat { id: number; il: string; ilce: string | null; mahalle: string | null; fiyat: number; aktif: number }
+export interface Admin { id: number; ad: string; email: string; tip?: string }
+export interface AdminUser { id: number; ad: string; email: string; tip: string; aktif: number; olusturma: string }
+export interface Fiyat { id: number; il: string; ilce: string | null; mahalle: string | null; fiyat: number; tur: HizmetTuru; aktif: number }
+export interface Ayar { anahtar: string; deger: string; aciklama: string | null }
 
 export interface AltKullanici {
   id: number
@@ -140,6 +163,19 @@ export const api = {
       update: (id: number, d: Partial<Fiyat>) => req(`${BASE}/admin/fiyatlar/${id}`, { method: 'PUT', body: JSON.stringify(d) }, adminToken()),
       remove: (id: number) => req(`${BASE}/admin/fiyatlar/${id}`, { method: 'DELETE' }, adminToken()),
     },
+    ayarlar: {
+      list: () => req(`${BASE}/admin/ayarlar`, {}, adminToken()),
+      update: (anahtar: string, deger: string) =>
+        req(`${BASE}/admin/ayarlar/${anahtar}`, { method: 'PUT', body: JSON.stringify({ deger }) }, adminToken()),
+    },
+    adminler: {
+      list: () => req(`${BASE}/admin/adminler`, {}, adminToken()),
+      create: (d: Record<string, unknown>) =>
+        req(`${BASE}/admin/adminler`, { method: 'POST', body: JSON.stringify(d) }, adminToken()),
+      update: (id: number, d: Record<string, unknown>) =>
+        req(`${BASE}/admin/adminler/${id}`, { method: 'PUT', body: JSON.stringify(d) }, adminToken()),
+      remove: (id: number) => req(`${BASE}/admin/adminler/${id}`, { method: 'DELETE' }, adminToken()),
+    },
     borclar: {
       list: () => req(`${BASE}/admin/borclar`, {}, adminToken()),
       ode: (partner_id: number, miktar: number, aciklama: string) =>
@@ -191,5 +227,9 @@ export const api = {
       req(`${BASE}/is/${id}/teslim`, { method: 'PUT' }, tasiyiciToken()),
     isDetay: (id: number) =>
       req(`${BASE}/is/${id}`, {}, tasiyiciToken()),
+    isByQr: (qr_kodu: string) =>
+      req(`${BASE}/tasiyici/is-by-qr/${encodeURIComponent(qr_kodu)}`, {}, tasiyiciToken()),
+    qrTara: (qr_kodu: string, aksiyon: 'al' | 'yolda' | 'teslim') =>
+      req(`${BASE}/tasiyici/qr-tara`, { method: 'POST', body: JSON.stringify({ qr_kodu, aksiyon }) }, tasiyiciToken()),
   },
 }
