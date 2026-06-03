@@ -154,10 +154,17 @@ async function initDb() {
     await run(`UPDATE plus_adminler SET tip='super_admin' WHERE email='admin@plus.com'`)
   }
 
-  // KDV ayarı
-  const kdvRow = await get("SELECT anahtar FROM plus_ayarlar WHERE anahtar='kdv_orani'")
-  if (!kdvRow) {
-    await run("INSERT INTO plus_ayarlar (anahtar,deger,aciklama) VALUES (?,?,?)", ['kdv_orani','20','KDV Oranı (%)'])
+  // KDV ve paket çarpanları
+  const DEFAULT_AYARLAR = [
+    ['kdv_orani',    '20',  'KDV Oranı (%)'],
+    ['carpan_Zarf',  '0.7', 'Zarf paket boyutu çarpanı'],
+    ['carpan_Küçük', '1.0', 'Küçük paket boyutu çarpanı (baz)'],
+    ['carpan_Orta',  '1.4', 'Orta paket boyutu çarpanı'],
+    ['carpan_Büyük', '2.0', 'Büyük paket boyutu çarpanı'],
+    ['carpan_Koli',  '2.8', 'Koli paket boyutu çarpanı'],
+  ]
+  for (const [anahtar, deger, aciklama] of DEFAULT_AYARLAR) {
+    await run('INSERT OR IGNORE INTO plus_ayarlar (anahtar,deger,aciklama) VALUES (?,?,?)', [anahtar, deger, aciklama])
   }
 
   // Seed demo partner
@@ -244,25 +251,35 @@ async function initDb() {
 }
 
 // ── Price Calculator ──────────────────────────────────────────────────────────
-async function calculatePrice(il, ilce, mahalle, is_turu = 'adres_dagitim') {
-  const kdvRow = await get("SELECT deger FROM plus_ayarlar WHERE anahtar='kdv_orani'")
+async function calculatePrice(il, ilce, mahalle, is_turu = 'adres_dagitim', paket_boyutu = 'Orta') {
+  // Load KDV and package multiplier in parallel
+  const [kdvRow, carpanRow] = await Promise.all([
+    get("SELECT deger FROM plus_ayarlar WHERE anahtar='kdv_orani'"),
+    get('SELECT deger FROM plus_ayarlar WHERE anahtar=?', [`carpan_${paket_boyutu}`]),
+  ])
   const kdv_orani = kdvRow ? parseFloat(kdvRow.deger) : 0
-  let baz_fiyat = 0
+  const carpan    = carpanRow ? parseFloat(carpanRow.deger) : 1.0
+
+  // Location-based base price: mahalle → ilce → il
+  let lokasyon_fiyat = 0
   if (mahalle) {
     const f = await get(`SELECT fiyat FROM plus_fiyatlar WHERE il=? AND ilce=? AND mahalle=? AND tur=? AND aktif=1 LIMIT 1`, [il,ilce,mahalle,is_turu])
-    if (f) baz_fiyat = f.fiyat
+    if (f) lokasyon_fiyat = f.fiyat
   }
-  if (!baz_fiyat) {
+  if (!lokasyon_fiyat) {
     const f = await get(`SELECT fiyat FROM plus_fiyatlar WHERE il=? AND ilce=? AND (mahalle IS NULL OR mahalle='') AND tur=? AND aktif=1 LIMIT 1`, [il,ilce,is_turu])
-    if (f) baz_fiyat = f.fiyat
+    if (f) lokasyon_fiyat = f.fiyat
   }
-  if (!baz_fiyat) {
+  if (!lokasyon_fiyat) {
     const f = await get(`SELECT fiyat FROM plus_fiyatlar WHERE il=? AND (ilce IS NULL OR ilce='') AND tur=? AND aktif=1 LIMIT 1`, [il,is_turu])
-    if (f) baz_fiyat = f.fiyat
+    if (f) lokasyon_fiyat = f.fiyat
   }
+
+  const baz_fiyat  = +(lokasyon_fiyat * carpan).toFixed(2)
   const kdv_tutari = +(baz_fiyat * kdv_orani / 100).toFixed(2)
-  const toplam = +(baz_fiyat + kdv_tutari).toFixed(2)
-  return { is_turu, baz_fiyat, kdv_orani, kdv_tutari, toplam }
+  const toplam     = +(baz_fiyat + kdv_tutari).toFixed(2)
+
+  return { is_turu, paket_boyutu, lokasyon_fiyat, carpan, baz_fiyat, kdv_orani, kdv_tutari, toplam }
 }
 
 // ── Auth Middleware ───────────────────────────────────────────────────────────
@@ -346,7 +363,7 @@ app.post('/api/plus/is', partnerAuth, wrap(async (req, res) => {
     return res.status(400).json({ message: 'Paket ve zaman bilgisi gerekli' })
 
   const is_turu = req.body.is_turu || 'adres_dagitim'
-  const priceInfo = await calculatePrice(alis_il, alis_ilce, alis_mahalle, is_turu)
+  const priceInfo = await calculatePrice(alis_il, alis_ilce, alis_mahalle, is_turu, paket_boyutu)
 
   const qr = `PLU-${Date.now()}-${Math.random().toString(36).slice(2,8).toUpperCase()}`
   const { lastID } = await run(`
@@ -526,7 +543,7 @@ app.post('/api/plus/alt/is', altAuth, wrap(async (req, res) => {
   const birakilis_ilce  = a.merkez_ilce
   const birakilis_adres = a.merkez_adres
 
-  const priceInfo = await calculatePrice(alis_il, alis_ilce, alis_mahalle, 'adres_toplama')
+  const priceInfo = await calculatePrice(alis_il, alis_ilce, alis_mahalle, 'adres_toplama', paket_boyutu)
 
   const effectiveAlinmaSaati = alinma_saati || new Date().toISOString().slice(0, 16).replace('T', ' ')
   const qr = `PLU-${Date.now()}-${Math.random().toString(36).slice(2,8).toUpperCase()}`

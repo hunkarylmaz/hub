@@ -47,6 +47,9 @@ export const HIZMET_TURU_LABELS: Record<HizmetTuru, string> = {
 
 export interface FiyatDetay {
   is_turu: HizmetTuru
+  paket_boyutu: string
+  lokasyon_fiyat: number
+  carpan: number
   baz_fiyat: number
   kdv_orani: number
   kdv_tutari: number

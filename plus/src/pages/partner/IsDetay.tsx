@@ -156,31 +156,38 @@ export default function IsDetay() {
               <Receipt size={16} className="text-gray-400" />
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Ücret Detayı</p>
             </div>
-            <div className="space-y-2">
-              {detay && (
-                <>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">
-                      Hizmet türü: <span className="font-medium text-gray-700">
-                        {HIZMET_TURU_LABELS[detay.is_turu] ?? detay.is_turu}
-                      </span>
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm pt-1 border-t border-gray-100">
-                    <span className="text-gray-500">Baz fiyat</span>
-                    <span className="font-medium text-gray-800">₺{detay.baz_fiyat.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">KDV (%{detay.kdv_orani})</span>
-                    <span className="font-medium text-gray-800">₺{detay.kdv_tutari.toFixed(2)}</span>
-                  </div>
-                </>
-              )}
-              <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
-                <span className="font-bold text-gray-800">Toplam</span>
-                <span className="font-bold text-blue-600 text-base">₺{is.fiyat.toFixed(2)}</span>
+            {detay ? (
+              <div className="space-y-0">
+                <div className="flex justify-between items-center py-2 text-sm border-b border-gray-100">
+                  <span className="text-gray-500">Hizmet türü</span>
+                  <span className="font-medium text-gray-800">{HIZMET_TURU_LABELS[detay.is_turu] ?? detay.is_turu}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 text-sm border-b border-gray-100">
+                  <span className="text-gray-500">Lokasyon baz fiyatı</span>
+                  <span className="font-medium text-gray-800">₺{detay.lokasyon_fiyat.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 text-sm border-b border-gray-100">
+                  <span className="text-gray-500">
+                    Paket boyutu
+                    <span className="ml-1.5 text-xs text-gray-400">({detay.paket_boyutu} × {detay.carpan})</span>
+                  </span>
+                  <span className="font-medium text-gray-800">₺{detay.baz_fiyat.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 text-sm border-b border-gray-100">
+                  <span className="text-gray-500">KDV (%{detay.kdv_orani})</span>
+                  <span className="font-medium text-gray-800">+₺{detay.kdv_tutari.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center pt-3 mt-1">
+                  <span className="font-bold text-gray-800">Toplam</span>
+                  <span className="font-bold text-blue-600 text-lg">₺{detay.toplam.toFixed(2)}</span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex justify-between pt-2">
+                <span className="font-bold text-gray-800">Fiyat</span>
+                <span className="font-bold text-blue-600 text-lg">₺{is.fiyat.toFixed(2)}</span>
+              </div>
+            )}
           </div>
         )
       })()}
