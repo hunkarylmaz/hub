@@ -24,7 +24,7 @@ const infoItems = [
 
 export default function ContactCTA() {
   return (
-    <section className="bg-[#0a2569] py-20 relative overflow-hidden">
+    <section className="bg-[#0a2569] py-12 md:py-20 relative overflow-hidden">
 
       {/* Subtle background shapes */}
       <div

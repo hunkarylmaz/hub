@@ -72,7 +72,7 @@ export default function FAQ() {
   }, [])
 
   return (
-    <section className="py-24 bg-white" id="sss">
+    <section className="py-12 md:py-20 lg:py-24 bg-white" id="sss">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-16">

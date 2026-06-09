@@ -91,7 +91,7 @@ export default function Pricing() {
   }, [])
 
   return (
-    <section className="py-24 bg-white" id="fiyatlar">
+    <section className="py-12 md:py-20 lg:py-24 bg-white" id="fiyatlar">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-16">

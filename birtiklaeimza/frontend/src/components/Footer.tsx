@@ -65,11 +65,11 @@ export default function Footer() {
   return (
     <footer className="bg-[#0a2569] text-white">
       {/* Main Footer */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 md:gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-8">
 
           {/* Brand Column */}
-          <div className="lg:col-span-1">
+          <div className="col-span-2 md:col-span-2 lg:col-span-1">
             <Link to="/" className="inline-block mb-5">
               <img src="/logo.png" alt="Bir Tıkla e-İmza" className="h-12 w-auto mb-3" />
             </Link>

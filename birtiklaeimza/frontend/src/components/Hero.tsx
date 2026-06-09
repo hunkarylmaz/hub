@@ -11,7 +11,7 @@ const avatarColors = [
 
 export default function Hero() {
   return (
-    <section className="relative bg-white overflow-hidden" style={{ paddingTop: '105px' }}>
+    <section className="relative bg-white overflow-hidden" style={{ paddingTop: 'clamp(80px, 15vw, 105px)' }}>
       {/* Angled blue accent — top-right corner */}
       <div
         aria-hidden="true"
@@ -150,7 +150,7 @@ export default function Hero() {
           </div>
 
           {/* ── Right column — styled form mockup ── */}
-          <div className="relative w-full mx-auto lg:mx-0 mt-4 lg:mt-8 flex-shrink-0">
+          <div className="relative w-full mx-auto lg:mx-0 mt-4 lg:mt-8 flex-shrink-0 hidden lg:block">
 
             {/* Floating badge: */}
             <div

@@ -2,7 +2,7 @@ import { Monitor, Headphones, Check, Zap, ArrowRight } from 'lucide-react'
 
 export default function InstallationOptions() {
   return (
-    <section className="py-24 bg-white" id="kurulum">
+    <section className="py-12 md:py-20 lg:py-24 bg-white" id="kurulum">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-14">

@@ -40,7 +40,7 @@ export default function StatsBar() {
               `}
             >
               {/* Big number */}
-              <span className="text-[34px] sm:text-[38px] font-black text-[#1952d9] tracking-tight leading-none tabular-nums">
+              <span className="text-[26px] sm:text-[34px] lg:text-[38px] font-black text-[#1952d9] tracking-tight leading-none tabular-nums whitespace-nowrap">
                 {stat.value}
               </span>
               {/* Label */}

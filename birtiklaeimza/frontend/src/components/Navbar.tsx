@@ -35,15 +35,15 @@ export default function Navbar() {
             <div className="flex items-center gap-1 text-[11px] font-medium text-blue-200/90">
               <a
                 href="tel:+905503028540"
-                className="flex items-center gap-1.5 hover:text-white transition-colors duration-150 pr-3"
+                className="flex items-center gap-1.5 hover:text-white transition-colors duration-150"
               >
-                <Phone className="w-3 h-3 opacity-70" />
-                <span>0850 302 85 40</span>
+                <Phone className="w-3 h-3 opacity-70 flex-shrink-0" />
+                <span className="whitespace-nowrap">0850 302 85 40</span>
               </a>
-              <span className="text-blue-600 select-none px-1 font-light">|</span>
-              <span className="flex items-center gap-1.5 pl-1">
-                <Clock className="w-3 h-3 opacity-70" />
-                <span>Pazartesi–Cumartesi 09:00–18:00</span>
+              <span className="hidden sm:inline text-blue-600 select-none px-1 font-light">|</span>
+              <span className="hidden sm:flex items-center gap-1.5">
+                <Clock className="w-3 h-3 opacity-70 flex-shrink-0" />
+                <span className="whitespace-nowrap">Pzt–Cmt 09:00–18:00</span>
               </span>
             </div>
             {/* Right: WhatsApp */}

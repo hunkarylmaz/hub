@@ -54,7 +54,7 @@ const guaranteePoints = [
 
 export default function Features() {
   return (
-    <section className="py-24 bg-white" id="ozellikler">
+    <section className="py-12 md:py-20 lg:py-24 bg-white" id="ozellikler">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* ── Section header ── */}
