@@ -1,58 +1,45 @@
-import { Users, Activity, Clock, Headphones } from 'lucide-react'
-
 const stats = [
   {
-    icon: Users,
     value: '50.000+',
     label: 'Mutlu Müşteri',
-    color: 'text-[#1952d9]',
-    bg: 'bg-blue-50',
+    sublabel: 'Türkiye genelinde',
   },
   {
-    icon: Activity,
     value: '%99.9',
-    label: 'Uptime Garantisi',
-    color: 'text-green-600',
-    bg: 'bg-green-50',
+    label: 'Çalışma Süresi',
+    sublabel: 'Uptime garantisi',
   },
   {
-    icon: Clock,
     value: '24 Saat',
-    label: 'Hızlı Teslimat',
-    color: 'text-orange-500',
-    bg: 'bg-orange-50',
+    label: 'Ortalama Teslimat',
+    sublabel: 'Sipariş sonrası',
   },
   {
-    icon: Headphones,
     value: '7/24',
     label: 'Teknik Destek',
-    color: 'text-purple-600',
-    bg: 'bg-purple-50',
+    sublabel: 'Tatil dahil her gün',
   },
 ]
 
 export default function StatsBar() {
   return (
-    <section className="py-10 bg-white border-b border-slate-100">
+    <section className="bg-white border-y border-slate-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
-          {stats.map((stat, index) => {
-            const Icon = stat.icon
-            return (
-              <div
-                key={index}
-                className="flex items-center gap-4 p-4 rounded-2xl hover:bg-slate-50 transition-colors group"
-              >
-                <div className={`w-12 h-12 ${stat.bg} rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}>
-                  <Icon className={`w-6 h-6 ${stat.color}`} />
-                </div>
-                <div>
-                  <p className="text-2xl font-extrabold text-slate-900 leading-none">{stat.value}</p>
-                  <p className="text-sm text-slate-500 mt-0.5">{stat.label}</p>
-                </div>
-              </div>
-            )
-          })}
+        <div className="grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 divide-x-0 lg:divide-x divide-slate-100">
+          {stats.map((stat, index) => (
+            <div
+              key={index}
+              className="group flex flex-col items-center justify-center py-8 px-4 gap-1
+                         hover:-translate-y-0.5 hover:shadow-[0_4px_24px_rgba(25,82,217,0.06)]
+                         transition-all duration-200 cursor-default select-none"
+            >
+              <span className="text-3xl sm:text-4xl font-extrabold text-[#1952d9] tracking-tight leading-none">
+                {stat.value}
+              </span>
+              <span className="text-sm font-semibold text-[#0f1629] mt-1">{stat.label}</span>
+              <span className="text-xs text-[#475569]">{stat.sublabel}</span>
+            </div>
+          ))}
         </div>
       </div>
     </section>

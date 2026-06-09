@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Menu, X, Phone, FileSignature, ChevronRight } from 'lucide-react'
+import { Menu, X, Phone, Clock, MessageCircle } from 'lucide-react'
 
 const navLinks = [
   { label: 'Ana Sayfa', to: '/' },
@@ -13,10 +13,9 @@ export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
-  const isHome = location.pathname === '/'
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20)
+    const handleScroll = () => setIsScrolled(window.scrollY > 10)
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
@@ -25,133 +24,170 @@ export default function Navbar() {
     setMobileOpen(false)
   }, [location.pathname])
 
-  // On home page: transparent until scrolled; on other pages: always white
-  const isTransparent = isHome && !isScrolled && !mobileOpen
-  const navBg = isTransparent
-    ? 'bg-transparent'
-    : 'bg-white shadow-md'
-  const logoTextColor = isTransparent ? 'text-white' : 'text-[#0a2569]'
-  const logoAccentColor = isTransparent ? 'text-blue-300' : 'text-[#1952d9]'
-
   return (
-    <header
-      className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${navBg}`}
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 md:h-18">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 flex-shrink-0">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
-              isTransparent ? 'bg-white/20' : 'bg-[#1952d9]'
-            }`}>
-              <FileSignature className={`w-5 h-5 ${isTransparent ? 'text-white' : 'text-white'}`} />
-            </div>
-            <div className="flex items-baseline gap-0.5">
-              <span className={`text-xl font-bold tracking-tight transition-colors ${logoTextColor}`}>
-                Bir Tıkla
+    <header className="fixed top-0 left-0 right-0 z-50">
+      {/* Top info bar */}
+      <div className="bg-[#0a2569] text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-9">
+            <div className="flex items-center gap-4 text-xs text-blue-200">
+              <a
+                href="tel:+908508882345"
+                className="flex items-center gap-1.5 hover:text-white transition-colors"
+              >
+                <Phone className="w-3 h-3" />
+                <span>0850 888 23 45</span>
+              </a>
+              <span className="text-blue-700 select-none">|</span>
+              <span className="flex items-center gap-1.5">
+                <Clock className="w-3 h-3" />
+                <span>Pazartesi–Cumartesi 09:00–18:00</span>
               </span>
-              <span className={`text-xl font-bold tracking-tight transition-colors ${logoAccentColor}`}>
-                &nbsp;e-İmza
-              </span>
             </div>
-          </Link>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-1">
-            {navLinks.map((link) => {
-              const isActive = location.pathname === link.to
-              return (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 animated-underline
-                    ${isActive
-                      ? isTransparent
-                        ? 'text-white bg-white/15'
-                        : 'text-[#1952d9] bg-blue-50'
-                      : isTransparent
-                        ? 'text-white/85 hover:text-white hover:bg-white/10'
-                        : 'text-slate-600 hover:text-[#1952d9] hover:bg-slate-50'
-                    }`}
-                >
-                  {link.label}
-                </Link>
-              )
-            })}
-          </nav>
-
-          {/* Right side - phone + CTA */}
-          <div className="hidden md:flex items-center gap-4">
             <a
-              href="tel:+908508882345"
-              className={`flex items-center gap-2 text-sm font-medium transition-colors ${
-                isTransparent ? 'text-white/85 hover:text-white' : 'text-slate-600 hover:text-[#1952d9]'
-              }`}
+              href="https://wa.me/908508882345?text=Merhaba%2C%20e-%C4%B0mza%20hakk%C4%B1nda%20bilgi%20almak%20istiyorum."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden sm:flex items-center gap-1.5 text-xs text-green-400 hover:text-green-300 transition-colors font-medium"
             >
-              <Phone className="w-4 h-4" />
-              <span>0850 888 23 45</span>
-            </a>
-            <a
-              href="/urunler"
-              className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-gradient-to-r from-[#1952d9] to-[#0ea5e9] text-white text-sm font-semibold rounded-xl hover:shadow-lg hover:shadow-blue-500/30 hover:-translate-y-0.5 transition-all duration-200"
-            >
-              Hemen Al
-              <ChevronRight className="w-4 h-4" />
+              <MessageCircle className="w-3 h-3" />
+              WhatsApp ile Ulaşın
             </a>
           </div>
-
-          {/* Mobile hamburger */}
-          <button
-            onClick={() => setMobileOpen(!mobileOpen)}
-            className={`md:hidden p-2 rounded-lg transition-colors ${
-              isTransparent ? 'text-white hover:bg-white/10' : 'text-slate-600 hover:bg-slate-100'
-            }`}
-            aria-label="Menü"
-          >
-            {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
         </div>
       </div>
 
-      {/* Mobile Menu */}
-      {mobileOpen && (
-        <div className="md:hidden bg-white border-t border-slate-100 shadow-xl animate-slide-down">
-          <div className="max-w-7xl mx-auto px-4 py-4 space-y-1">
-            {navLinks.map((link) => {
-              const isActive = location.pathname === link.to
-              return (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className={`block px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-blue-50 text-[#1952d9]'
-                      : 'text-slate-700 hover:bg-slate-50 hover:text-[#1952d9]'
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              )
-            })}
-            <div className="pt-3 pb-1 border-t border-slate-100 space-y-3">
-              <a
-                href="tel:+908508882345"
-                className="flex items-center gap-2 px-4 py-2.5 text-slate-600 text-sm font-medium"
+      {/* Main nav */}
+      <div
+        className={`bg-white transition-shadow duration-300 ${
+          isScrolled ? 'shadow-[0_1px_12px_rgba(0,0,0,0.08)]' : 'border-b border-slate-100'
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <Link to="/" className="flex items-center gap-2.5 flex-shrink-0 group">
+              {/* Inline SVG logo — document with pen */}
+              <svg
+                width="36"
+                height="36"
+                viewBox="0 0 36 36"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="flex-shrink-0"
               >
-                <Phone className="w-4 h-4 text-[#1952d9]" />
-                0850 888 23 45
-              </a>
+                <rect width="36" height="36" rx="9" fill="#1952d9" />
+                <path
+                  d="M10 9h11l5 5v13a1 1 0 01-1 1H10a1 1 0 01-1-1V10a1 1 0 011-1z"
+                  fill="white"
+                  fillOpacity="0.9"
+                />
+                <path d="M21 9l5 5h-4a1 1 0 01-1-1V9z" fill="white" fillOpacity="0.5" />
+                <path d="M13 16h10M13 19h7" stroke="#1952d9" strokeWidth="1.5" strokeLinecap="round" />
+                <circle cx="24" cy="25" r="5" fill="#0ea5e9" />
+                <path
+                  d="M22.5 25.5l1.2 1.2 2-2.4"
+                  stroke="white"
+                  strokeWidth="1.3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <div className="flex items-baseline leading-none">
+                <span className="text-[17px] font-bold tracking-tight text-[#0f1629]">Bir Tıkla</span>
+                <span className="text-[17px] font-bold tracking-tight text-[#1952d9]">&nbsp;e-İmza</span>
+              </div>
+            </Link>
+
+            {/* Desktop nav links */}
+            <nav className="hidden md:flex items-center gap-0.5">
+              {navLinks.map((link) => {
+                const isActive = location.pathname === link.to
+                return (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    className={`relative px-4 py-2 text-sm font-medium transition-colors duration-200 rounded-md group
+                      ${isActive ? 'text-[#1952d9]' : 'text-[#475569] hover:text-[#0f1629]'}`}
+                  >
+                    {link.label}
+                    <span
+                      className={`absolute bottom-0 left-4 right-4 h-0.5 bg-[#1952d9] rounded-full transition-transform duration-200 origin-left
+                        ${isActive ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'}`}
+                    />
+                  </Link>
+                )
+              })}
+            </nav>
+
+            {/* CTA */}
+            <div className="hidden md:flex items-center gap-3">
               <a
-                href="/urunler"
-                className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-[#1952d9] to-[#0ea5e9] text-white text-sm font-semibold rounded-xl"
+                href="https://wa.me/908508882345?text=Merhaba%2C%20e-%C4%B0mza%20hakk%C4%B1nda%20bilgi%20almak%20istiyorum."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-green-700 border border-green-200 rounded-lg hover:bg-green-50 transition-colors"
               >
-                Hemen Satın Al
-                <ChevronRight className="w-4 h-4" />
+                <MessageCircle className="w-4 h-4" />
+                WhatsApp
               </a>
+              <Link
+                to="/urunler"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#1952d9] text-white text-sm font-semibold rounded-lg hover:bg-[#1445c0] transition-colors duration-200"
+              >
+                Hemen Al
+              </Link>
             </div>
+
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => setMobileOpen(!mobileOpen)}
+              className="md:hidden p-2 rounded-lg text-[#475569] hover:bg-slate-50 transition-colors"
+              aria-label="Menü"
+            >
+              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         </div>
-      )}
+
+        {/* Mobile menu */}
+        {mobileOpen && (
+          <div className="md:hidden border-t border-slate-100 bg-white animate-slide-down">
+            <div className="max-w-7xl mx-auto px-4 py-3 space-y-0.5">
+              {navLinks.map((link) => {
+                const isActive = location.pathname === link.to
+                return (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    className={`block px-4 py-2.5 text-sm font-medium rounded-lg transition-colors
+                      ${isActive ? 'text-[#1952d9] bg-blue-50' : 'text-[#475569] hover:text-[#0f1629] hover:bg-slate-50'}`}
+                  >
+                    {link.label}
+                  </Link>
+                )
+              })}
+              <div className="pt-3 pb-1 border-t border-slate-100 space-y-2">
+                <a
+                  href="https://wa.me/908508882345?text=Merhaba%2C%20e-%C4%B0mza%20hakk%C4%B1nda%20bilgi%20almak%20istiyorum."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-green-700 border border-green-200 rounded-lg hover:bg-green-50 transition-colors"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  WhatsApp ile Ulaşın
+                </a>
+                <Link
+                  to="/urunler"
+                  className="flex items-center justify-center gap-2 w-full py-3 bg-[#1952d9] text-white text-sm font-semibold rounded-lg hover:bg-[#1445c0] transition-colors"
+                >
+                  Hemen Satın Al
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </header>
   )
 }
