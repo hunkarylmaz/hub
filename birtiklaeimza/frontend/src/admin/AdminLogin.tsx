@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Shield, Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react'
+import { Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function AdminLogin() {
@@ -32,10 +32,7 @@ export default function AdminLogin() {
       <div className="w-full max-w-md">
         {/* Logo / Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl shadow-lg mb-4">
-            <Shield className="w-9 h-9 text-[#1952d9]" />
-          </div>
-          <h1 className="text-2xl font-bold text-white">Bir Tıkla e-İmza</h1>
+          <img src="/logo.png" alt="Bir Tıkla e-İmza" className="h-12 w-auto mx-auto mb-2" />
           <p className="text-blue-200 mt-1 text-sm">Yönetim Paneli</p>
         </div>
 

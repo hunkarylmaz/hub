@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  FileSignature, Phone, Mail, MapPin, MessageCircle,
+  Phone, Mail, MapPin, MessageCircle,
   Facebook, Twitter, Instagram, Linkedin, Youtube,
   ChevronRight, Shield, Award
 } from 'lucide-react'
@@ -22,12 +22,12 @@ interface Settings {
 }
 
 const defaultSettings: Settings = {
-  phone: '0850 888 23 45',
+  phone: '0850 302 85 40',
   email: 'info@birtiklaeimza.com',
   address: 'Maslak Mahallesi, Ahi Evran Cad. No:6, Sarıyer / İstanbul',
-  whatsapp: '908508882345',
+  whatsapp: '905503028540',
   company_name: 'Bir Tıkla e-İmza',
-  company_description: 'Türkiye\'nin en hızlı ve güvenilir elektronik imza hizmet sağlayıcısı. BİLGEM/TÜBİTAK onaylı nitelikli elektronik imza çözümleri.',
+  company_description: 'Türkiye\'nin en hızlı ve güvenilir elektronik imza hizmet sağlayıcısı. nitelikli elektronik imza çözümleri.',
 }
 
 const quickLinks = [
@@ -70,14 +70,8 @@ export default function Footer() {
 
           {/* Brand Column */}
           <div className="lg:col-span-1">
-            <Link to="/" className="flex items-center gap-2.5 mb-5">
-              <div className="w-10 h-10 rounded-xl bg-[#1952d9] flex items-center justify-center">
-                <FileSignature className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex items-baseline gap-0.5">
-                <span className="text-xl font-bold text-white">Bir Tıkla</span>
-                <span className="text-xl font-bold text-[#0ea5e9]">&nbsp;e-İmza</span>
-              </div>
+            <Link to="/" className="inline-block mb-5">
+              <img src="/logo.png" alt="Bir Tıkla e-İmza" className="h-12 w-auto mb-3" />
             </Link>
             <p className="text-blue-200 text-sm leading-relaxed mb-6">
               {settings.company_description}
@@ -87,7 +81,7 @@ export default function Footer() {
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2 text-sm text-blue-200">
                 <Award className="w-4 h-4 text-yellow-400 flex-shrink-0" />
-                BİLGEM / TÜBİTAK Onaylı
+                Akredite CA / Nitelikli Onaylı
               </div>
               <div className="flex items-center gap-2 text-sm text-blue-200">
                 <Shield className="w-4 h-4 text-green-400 flex-shrink-0" />

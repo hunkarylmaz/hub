@@ -18,6 +18,7 @@ const testimonialRoutes   = require('./routes/testimonials');
 const faqRoutes           = require('./routes/faq');
 const settingsRoutes      = require('./routes/settings');
 const announcementRoutes  = require('./routes/announcements');
+const popupsRouter        = require('./routes/popups');
 
 // ── App Setup ──────────────────────────────────────────────────────────────
 const app  = express();
@@ -68,6 +69,7 @@ app.use('/api/testimonials',  testimonialRoutes);
 app.use('/api/faq',           faqRoutes);
 app.use('/api/settings',      settingsRoutes);
 app.use('/api/announcements', announcementRoutes);
+app.use('/api/popups',        popupsRouter);
 
 // ── Static Frontend (production) ──────────────────────────────────────────
 const FRONTEND_DIST = path.join(__dirname, '..', 'frontend', 'dist');

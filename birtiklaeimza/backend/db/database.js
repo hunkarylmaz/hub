@@ -162,6 +162,24 @@ function initDatabase() {
     )
   `);
 
+  // ── Popups ────────────────────────────────────────────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS popups (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      title        TEXT NOT NULL,
+      content      TEXT NOT NULL,
+      button_text  TEXT DEFAULT 'Hemen Sipariş Ver',
+      button_link  TEXT DEFAULT '/urunler',
+      button2_text TEXT,
+      button2_link TEXT,
+      show_delay   INTEGER DEFAULT 3,
+      show_once    INTEGER DEFAULT 1,
+      bg_color     TEXT DEFAULT 'white',
+      active       INTEGER DEFAULT 0,
+      created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   seedDatabase(db);
   return db;
 }
@@ -603,6 +621,27 @@ function seedDatabase(db) {
       VALUES (?, ?, ?, ?)
     `).run('🎉 Yaz kampanyası! Tüm ürünlerde %25 indirim. Kampanya 30 Haziran\'a kadar geçerlidir.', 'blue', 1, 1);
     console.log('[DB] Duyurular oluşturuldu.');
+  }
+
+  // ── Popups ────────────────────────────────────────────────────────────────
+  const popupCount = db.prepare('SELECT COUNT(*) as c FROM popups').get().c;
+  if (popupCount === 0) {
+    db.prepare(`
+      INSERT INTO popups (title, content, button_text, button_link, button2_text, button2_link, show_delay, show_once, bg_color, active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      '🎉 Özel Kampanya!',
+      'Tüm e-imza paketlerinde %15 indirim! Sınırlı süre için geçerlidir.',
+      'Hemen Sipariş Ver',
+      '/urunler',
+      'Daha Sonra',
+      '',
+      3,
+      1,
+      'white',
+      0
+    );
+    console.log('[DB] Popuplar oluşturuldu.');
   }
 }
 

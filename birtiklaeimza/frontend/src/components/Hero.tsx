@@ -43,7 +43,7 @@ export default function Hero() {
             <div className="inline-flex items-center gap-2 self-start px-3.5 py-1.5 bg-white border border-[#1952d9]/20 rounded-full shadow-sm">
               <span className="w-1.5 h-1.5 rounded-full bg-[#1952d9] flex-shrink-0" />
               <span className="text-[11px] font-bold text-[#1952d9] tracking-widest uppercase">
-                TÜBİTAK &amp; BİLGEM Onaylı
+                Nitelikli CA &amp; Resmi Sertifikalı
               </span>
             </div>
 
@@ -84,7 +84,7 @@ export default function Hero() {
 
             {/* Description */}
             <p className="text-[17px] text-[#475569] leading-[1.7] max-w-[500px]">
-              BİLGEM/TÜBİTAK onaylı nitelikli elektronik imza sertifikalarınızı hızlı ve
+              nitelikli elektronik imza sertifikalarınızı hızlı ve
               güvenli biçimde edinin. Devlet işlerinden kurumsal belgelere kadar her alanda
               yasal geçerliliğe sahip e-imza çözümü.
             </p>
@@ -99,7 +99,7 @@ export default function Hero() {
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <a
-                href="https://wa.me/908508882345?text=Merhaba%2C%20e-%C4%B0mza%20sipari%C5%9Fi%20vermek%20istiyorum."
+                href="https://wa.me/905503028540?text=Merhaba%2C%20e-%C4%B0mza%20sipari%C5%9Fi%20vermek%20istiyorum."
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2.5 px-7 py-3.5 bg-white border-2 border-green-500 text-green-700 font-bold rounded-lg hover:bg-green-50 transition-colors duration-150 text-[15px]"
@@ -152,13 +152,13 @@ export default function Hero() {
           {/* ── Right column — styled form mockup ── */}
           <div className="relative w-full mx-auto lg:mx-0 mt-4 lg:mt-8 flex-shrink-0">
 
-            {/* Floating badge: BİLGEM Onaylı */}
+            {/* Floating badge: */}
             <div
               className="absolute z-20 flex items-center gap-1.5 px-3 py-1.5 bg-white border border-green-200 rounded-full shadow-md text-[11px] font-bold text-green-700"
               style={{ top: '-14px', left: '-10px' }}
             >
               <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-              BİLGEM Onaylı
+              Resmi Sertifikalı
             </div>
 
             {/* Floating badge: Güvenli */}
@@ -274,7 +274,7 @@ export default function Hero() {
               Güvenilir Partnerler
             </span>
             <div className="flex flex-wrap items-center gap-6 sm:gap-10">
-              {['TÜBİTAK', 'BİLGEM', 'e-Devlet', 'EKAP', 'GİB'].map((partner) => (
+              {['Nitelikli CA', 'Akredite CA', 'e-Devlet', 'EKAP', 'GİB'].map((partner) => (
                 <span
                   key={partner}
                   className="text-[13px] font-bold text-slate-300 tracking-wide hover:text-slate-500 transition-colors duration-150 cursor-default select-none"

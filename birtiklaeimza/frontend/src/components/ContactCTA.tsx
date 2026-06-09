@@ -17,7 +17,7 @@ const infoItems = [
   {
     icon: Phone,
     label: 'Telefon',
-    value: '0850 888 23 45',
+    value: '0850 302 85 40',
     sub: 'Ücretsiz numaradan arayabilirsiniz',
   },
 ]
@@ -73,7 +73,7 @@ export default function ContactCTA() {
             {/* Buttons */}
             <div className="flex flex-col sm:flex-row gap-3">
               <a
-                href="https://wa.me/908508882345?text=Merhaba%2C%20e-%C4%B0mza%20hakk%C4%B1nda%20bilgi%20almak%20istiyorum."
+                href="https://wa.me/905503028540?text=Merhaba%2C%20e-%C4%B0mza%20hakk%C4%B1nda%20bilgi%20almak%20istiyorum."
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-2.5 px-7 py-3.5 bg-[#22c55e] hover:bg-[#16a34a] active:bg-[#15803d] text-white font-bold rounded-xl transition-colors duration-150 text-[15px]"
@@ -85,11 +85,11 @@ export default function ContactCTA() {
                 WhatsApp ile Ulaşın
               </a>
               <a
-                href="tel:+908508882345"
+                href="tel:+905503028540"
                 className="inline-flex items-center justify-center gap-2.5 px-7 py-3.5 bg-white/10 border border-white/20 hover:bg-white/15 text-white font-bold rounded-xl transition-colors duration-150 text-[15px]"
               >
                 <Phone className="w-4 h-4 flex-shrink-0" />
-                0850 888 23 45
+                0850 302 85 40
               </a>
             </div>
 

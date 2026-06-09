@@ -25,7 +25,7 @@ const fallbackPlans: PricingPlan[] = [
     features: [
       { text: '1 Yıl Geçerlilik', included: true },
       { text: 'USB Token Dahil', included: true },
-      { text: 'BİLGEM Onaylı', included: true },
+      { text: 'Resmi Sertifikalı', included: true },
       { text: 'E-posta Desteği', included: true },
       { text: 'Telefon Desteği', included: false },
       { text: 'Öncelikli Kurulum', included: false },
@@ -42,7 +42,7 @@ const fallbackPlans: PricingPlan[] = [
     features: [
       { text: '3 Yıl Geçerlilik', included: true },
       { text: 'USB Token Dahil', included: true },
-      { text: 'BİLGEM/TÜBİTAK Onaylı', included: true },
+      { text: 'Akredite CA/Nitelikli Onaylı', included: true },
       { text: 'E-posta Desteği', included: true },
       { text: 'Telefon Desteği', included: true },
       { text: 'Öncelikli Kurulum', included: true },
@@ -61,7 +61,7 @@ const fallbackPlans: PricingPlan[] = [
     features: [
       { text: '3 Yıl Geçerlilik', included: true },
       { text: 'USB Token Dahil', included: true },
-      { text: 'TÜBİTAK Onaylı Kurumsal', included: true },
+      { text: 'Kurumsal', included: true },
       { text: 'E-posta Desteği', included: true },
       { text: 'Telefon Desteği', included: true },
       { text: 'Öncelikli Kurulum', included: true },

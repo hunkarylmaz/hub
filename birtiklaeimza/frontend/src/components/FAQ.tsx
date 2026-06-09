@@ -112,7 +112,7 @@ export default function FAQ() {
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <a
-              href="tel:+908508882345"
+              href="tel:+905503028540"
               className="inline-flex items-center gap-2 px-6 py-3 bg-[#1952d9] text-white font-semibold rounded-xl hover:bg-[#0a2569] transition-colors"
             >
               Bizi Arayın

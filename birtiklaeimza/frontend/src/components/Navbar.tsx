@@ -33,11 +33,11 @@ export default function Navbar() {
             {/* Left: phone + hours */}
             <div className="flex items-center gap-1 text-[11px] font-medium text-blue-200/90">
               <a
-                href="tel:+908508882345"
+                href="tel:+905503028540"
                 className="flex items-center gap-1.5 hover:text-white transition-colors duration-150 pr-3"
               >
                 <Phone className="w-3 h-3 opacity-70" />
-                <span>0850 888 23 45</span>
+                <span>0850 302 85 40</span>
               </a>
               <span className="text-blue-600 select-none px-1 font-light">|</span>
               <span className="flex items-center gap-1.5 pl-1">
@@ -47,7 +47,7 @@ export default function Navbar() {
             </div>
             {/* Right: WhatsApp */}
             <a
-              href="https://wa.me/908508882345?text=Merhaba%2C%20e-%C4%B0mza%20hakk%C4%B1nda%20bilgi%20almak%20istiyorum."
+              href="https://wa.me/905503028540?text=Merhaba%2C%20e-%C4%B0mza%20hakk%C4%B1nda%20bilgi%20almak%20istiyorum."
               target="_blank"
               rel="noopener noreferrer"
               className="hidden sm:flex items-center gap-1.5 text-[11px] font-semibold text-[#22c55e] hover:text-[#4ade80] transition-colors duration-150"
@@ -76,36 +76,12 @@ export default function Navbar() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-[60px]">
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2.5 flex-shrink-0 group">
-              <svg
-                width="34"
-                height="34"
-                viewBox="0 0 36 36"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="flex-shrink-0"
-              >
-                <rect width="36" height="36" rx="8" fill="#1952d9" />
-                <path
-                  d="M9.5 8.5h10.5l5.5 5.5v13a1 1 0 01-1 1H9.5a1 1 0 01-1-1v-17.5a.5.5 0 01.5-.5z"
-                  fill="white"
-                  fillOpacity="0.92"
-                />
-                <path d="M20 8.5l5.5 5.5h-4a1.5 1.5 0 01-1.5-1.5V8.5z" fill="white" fillOpacity="0.45" />
-                <path d="M12.5 16h11M12.5 19.5h7.5" stroke="#1952d9" strokeWidth="1.5" strokeLinecap="round" />
-                <circle cx="24.5" cy="25.5" r="5" fill="#0ea5e9" />
-                <path
-                  d="M22.8 25.7l1.3 1.3 2.2-2.6"
-                  stroke="white"
-                  strokeWidth="1.4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <div className="flex items-baseline leading-none">
-                <span className="text-[16px] font-bold tracking-tight text-[#0f1629]">Bir Tıkla</span>
-                <span className="text-[16px] font-bold tracking-tight text-[#1952d9]">&nbsp;e-İmza</span>
-              </div>
+            <Link to="/" className="flex items-center flex-shrink-0">
+              <img
+                src="/logo.png"
+                alt="Bir Tıkla e-İmza"
+                className="h-10 w-auto"
+              />
             </Link>
 
             {/* Desktop nav links */}
@@ -133,7 +109,7 @@ export default function Navbar() {
             {/* Desktop CTA area */}
             <div className="hidden md:flex items-center gap-2.5">
               <a
-                href="https://wa.me/908508882345?text=Merhaba%2C%20e-%C4%B0mza%20hakk%C4%B1nda%20bilgi%20almak%20istiyorum."
+                href="https://wa.me/905503028540?text=Merhaba%2C%20e-%C4%B0mza%20hakk%C4%B1nda%20bilgi%20almak%20istiyorum."
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-semibold text-green-700 border border-green-300 rounded-lg hover:bg-green-50 transition-colors duration-150"
@@ -179,7 +155,7 @@ export default function Navbar() {
               })}
               <div className="pt-3 pb-1 border-t border-slate-100 space-y-2">
                 <a
-                  href="https://wa.me/908508882345?text=Merhaba%2C%20e-%C4%B0mza%20hakk%C4%B1nda%20bilgi%20almak%20istiyorum."
+                  href="https://wa.me/905503028540?text=Merhaba%2C%20e-%C4%B0mza%20hakk%C4%B1nda%20bilgi%20almak%20istiyorum."
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-green-700 border border-green-200 rounded-lg hover:bg-green-50 transition-colors"

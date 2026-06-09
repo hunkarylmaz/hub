@@ -10,6 +10,7 @@ import {
   Star,
   HelpCircle,
   Bell,
+  BellRing,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -37,6 +38,7 @@ const navItems = [
   { to: '/admin/testimonials', label: 'Müşteri Yorumları', icon: Star },
   { to: '/admin/faq', label: 'SSS', icon: HelpCircle },
   { to: '/admin/announcements', label: 'Duyurular', icon: Bell },
+  { to: '/admin/popups', label: 'Popup Yönetimi', icon: BellRing },
   { to: '/admin/settings', label: 'Ayarlar', icon: Settings },
 ]
 

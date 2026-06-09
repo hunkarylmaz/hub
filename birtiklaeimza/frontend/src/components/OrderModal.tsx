@@ -99,7 +99,7 @@ export default function OrderModal({ product, onClose }: OrderModalProps) {
               </p>
               <p className="text-slate-500 mb-8">
                 En kısa sürede <strong>{form.email}</strong> adresine onay e-postası gönderilecektir.
-                Sorularınız için 0850 888 23 45 numaralı hattımızı arayabilirsiniz.
+                Sorularınız için 0850 302 85 40 numaralı hattımızı arayabilirsiniz.
               </p>
               <button
                 onClick={onClose}

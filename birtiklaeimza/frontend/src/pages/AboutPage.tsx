@@ -23,7 +23,7 @@ const team = [
   {
     name: 'Ayşe Yıldız',
     role: 'Teknik Direktör',
-    bio: 'Kriptografi ve güvenlik alanında uzman. BİLGEM/TÜBİTAK sertifika süreçlerinin mimarı.',
+    bio: 'Kriptografi ve güvenlik alanında uzman. Akredite CA/Nitelikli CA sertifika süreçlerinin mimarı.',
     initials: 'AY',
   },
   {
@@ -230,7 +230,7 @@ export default function AboutPage() {
             </div>
             <div className="grid md:grid-cols-3 gap-6">
               {[
-                { title: 'BİLGEM Onaylı', desc: 'TÜBİTAK BİLGEM tarafından onaylı nitelikli elektronik sertifika hizmet sağlayıcısı.', icon: Award },
+                { title: 'Resmi Sertifikalı', desc: 'Nitelikli CA Akredite CA tarafından onaylı nitelikli elektronik sertifika hizmet sağlayıcısı.', icon: Award },
                 { title: 'ISO 27001', desc: 'Bilgi güvenliği yönetim sistemi standardına uygun altyapı ve süreçler.', icon: Shield },
                 { title: 'KVKK Uyumlu', desc: '6698 sayılı Kişisel Verilerin Korunması Kanunu\'na tam uyumluluk.', icon: CheckCircle2 },
               ].map((cert, i) => {

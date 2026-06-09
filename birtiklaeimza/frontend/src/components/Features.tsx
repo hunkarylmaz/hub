@@ -18,7 +18,7 @@ const features = [
   {
     icon: Award,
     title: 'Resmi Sertifika',
-    description: 'BİLGEM/TÜBİTAK onaylı, yasal geçerliliği olan Nitelikli Elektronik İmza sertifikaları.',
+    description: 'yasal geçerliliği olan Nitelikli Elektronik İmza sertifikaları.',
     iconBg: 'bg-yellow-100',
     iconColor: 'text-yellow-600',
   },
@@ -47,7 +47,7 @@ const features = [
 
 const guaranteePoints = [
   'Aynı gün işleme ve onay süreci',
-  'TÜBİTAK sertifikalı altyapı',
+  'Nitelikli CA sertifikalı altyapı',
   'KVKK uyumlu veri işleme',
   'Ücretsiz teknik kurulum desteği',
 ]
@@ -143,7 +143,7 @@ export default function Features() {
 
             {/* Badge row */}
             <div className="pt-4 border-t border-white/10 flex flex-wrap gap-2">
-              {['TÜBİTAK Onaylı', 'BİLGEM Sertifikalı', 'KVKK Uyumlu'].map((badge) => (
+              {['Nitelikli Onaylı', 'Güvenli Sertifikalı', 'KVKK Uyumlu'].map((badge) => (
                 <span
                   key={badge}
                   className="inline-flex items-center px-2.5 py-1 bg-white/10 border border-white/15 rounded-full text-[10.5px] font-bold text-blue-200 tracking-wide"

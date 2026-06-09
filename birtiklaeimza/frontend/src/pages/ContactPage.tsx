@@ -17,8 +17,8 @@ const contactInfo = [
   {
     icon: Phone,
     title: 'Telefon',
-    lines: ['0850 888 23 45', 'Pazartesi - Cuma: 09:00 - 18:00'],
-    href: 'tel:+908508882345',
+    lines: ['0850 302 85 40', 'Pazartesi - Cuma: 09:00 - 18:00'],
+    href: 'tel:+905503028540',
     color: 'bg-blue-50',
     iconColor: 'text-[#1952d9]',
   },
@@ -33,8 +33,8 @@ const contactInfo = [
   {
     icon: MessageCircle,
     title: 'WhatsApp',
-    lines: ['0850 888 23 45', '7 Gün 24 Saat Aktif'],
-    href: 'https://wa.me/908508882345',
+    lines: ['0850 302 85 40', '7 Gün 24 Saat Aktif'],
+    href: 'https://wa.me/905503028540',
     color: 'bg-green-50',
     iconColor: 'text-green-600',
   },
@@ -160,7 +160,7 @@ export default function ContactPage() {
                   </div>
                   <h3 className="text-xl font-bold text-slate-900 mb-2">Mesajınız İletildi!</h3>
                   <p className="text-slate-500 mb-6">
-                    En kısa sürede size dönüş yapacağız. Acil durumlarda 0850 888 23 45 numaralı hattımızı arayabilirsiniz.
+                    En kısa sürede size dönüş yapacağız. Acil durumlarda 0850 302 85 40 numaralı hattımızı arayabilirsiniz.
                   </p>
                   <button
                     onClick={() => setSuccess(false)}
