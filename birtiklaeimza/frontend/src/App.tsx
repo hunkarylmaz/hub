@@ -15,6 +15,9 @@ import AdminSettings from './admin/AdminSettings'
 import AdminAnnouncements from './admin/AdminAnnouncements'
 import AdminTestimonials from './admin/AdminTestimonials'
 import AdminFAQ from './admin/AdminFAQ'
+import ContactsAdmin from './admin/ContactsAdmin'
+import PricingAdmin from './admin/PricingAdmin'
+import ContentAdmin from './admin/ContentAdmin'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -58,6 +61,9 @@ export default function App() {
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="products" element={<AdminProducts />} />
           <Route path="orders" element={<AdminOrders />} />
+          <Route path="contacts" element={<ContactsAdmin />} />
+          <Route path="pricing" element={<PricingAdmin />} />
+          <Route path="content" element={<ContentAdmin />} />
           <Route path="announcements" element={<AdminAnnouncements />} />
           <Route path="testimonials" element={<AdminTestimonials />} />
           <Route path="faq" element={<AdminFAQ />} />

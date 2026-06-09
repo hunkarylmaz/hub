@@ -30,7 +30,6 @@ export default function Navbar() {
   const navBg = isTransparent
     ? 'bg-transparent'
     : 'bg-white shadow-md'
-  const textColor = isTransparent ? 'text-white' : 'text-slate-700'
   const logoTextColor = isTransparent ? 'text-white' : 'text-[#0a2569]'
   const logoAccentColor = isTransparent ? 'text-blue-300' : 'text-[#1952d9]'
 

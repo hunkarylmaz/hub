@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Search, SlidersHorizontal, ShoppingCart, CheckCircle2, X, Loader2, Tag, Filter } from 'lucide-react'
+import { Search, ShoppingCart, CheckCircle2, X, Loader2, Tag, Filter } from 'lucide-react'
 import AnnouncementBar from '../components/AnnouncementBar'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'

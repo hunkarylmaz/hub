@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Save, AlertCircle, CheckCircle, FileText } from 'lucide-react'
 import api from '../lib/api'
 
@@ -46,7 +46,9 @@ const defaultContent: ContentData = {
   seo_keywords: '',
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+import type { ReactNode } from 'react'
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="px-5 py-3.5 bg-gray-50 border-b border-gray-100">
