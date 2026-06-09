@@ -21,13 +21,15 @@ api.interceptors.request.use(
   }
 )
 
-// Response interceptor - handle errors
+// Response interceptor - handle 401 only on protected admin routes
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      if (!window.location.pathname.startsWith('/admin/login')) {
+      const isAdminRoute = window.location.pathname.startsWith('/admin') &&
+        !window.location.pathname.startsWith('/admin/login')
+      if (isAdminRoute) {
+        localStorage.removeItem('token')
         window.location.href = '/admin/login'
       }
     }
