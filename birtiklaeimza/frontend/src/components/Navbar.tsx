@@ -5,6 +5,7 @@ import { Menu, X, Phone, Clock, MessageCircle } from 'lucide-react'
 const navLinks = [
   { label: 'Ana Sayfa', to: '/' },
   { label: 'Ürünler', to: '/urunler' },
+  { label: 'Kurulum', to: '/kurulum' },
   { label: 'Hakkımızda', to: '/hakkimizda' },
   { label: 'İletişim', to: '/iletisim' },
 ]

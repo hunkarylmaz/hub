@@ -18,6 +18,8 @@ import AdminFAQ from './admin/AdminFAQ'
 import ContactsAdmin from './admin/ContactsAdmin'
 import PricingAdmin from './admin/PricingAdmin'
 import ContentAdmin from './admin/ContentAdmin'
+import PopupsAdmin from './admin/PopupsAdmin'
+import KurulumPage from './pages/KurulumPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -46,6 +48,7 @@ export default function App() {
         <Route path="/urunler" element={<ProductsPage />} />
         <Route path="/hakkimizda" element={<AboutPage />} />
         <Route path="/iletisim" element={<ContactPage />} />
+        <Route path="/kurulum" element={<KurulumPage />} />
 
         {/* Admin Routes */}
         <Route path="/admin/login" element={<AdminLogin />} />
@@ -68,6 +71,7 @@ export default function App() {
           <Route path="testimonials" element={<AdminTestimonials />} />
           <Route path="faq" element={<AdminFAQ />} />
           <Route path="settings" element={<AdminSettings />} />
+          <Route path="popups" element={<PopupsAdmin />} />
         </Route>
 
         {/* 404 */}
