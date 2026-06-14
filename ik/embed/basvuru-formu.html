@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bize Katılın — İş Başvuru Formu | Paketçiniz</title>
+<style>
+  :root { --pk-blue: #2563eb; --pk-blue-dark: #1d4ed8; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: #f9fafb;
+    color: #111827;
+    padding: 40px 16px;
+  }
+  .pk-wrap { max-width: 720px; margin: 0 auto; }
+  .pk-logo { display: flex; justify-content: center; margin-bottom: 24px; }
+  .pk-logo img { height: 56px; width: auto; object-fit: contain; }
+  .pk-card { background: #fff; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); overflow: hidden; }
+  .pk-head { padding: 32px 32px 24px; border-bottom: 1px solid #f3f4f6; text-align: center; }
+  .pk-head h1 { font-size: 20px; font-weight: 700; margin: 0 0 4px; color: #111827; }
+  .pk-head p { font-size: 14px; color: #6b7280; margin: 0; }
+  form { padding: 32px; display: flex; flex-direction: column; gap: 16px; }
+  .pk-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  @media (min-width: 600px) { .pk-grid { grid-template-columns: 1fr 1fr; } }
+  label { display: block; font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 6px; }
+  .input-field {
+    width: 100%; padding: 10px 14px; font-size: 14px; border: 1px solid #e5e7eb;
+    border-radius: 12px; background: #fff; color: #111827; outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .input-field:focus { border-color: var(--pk-blue); box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+  textarea.input-field { min-height: 90px; resize: vertical; font-family: inherit; }
+  .pk-submit {
+    width: 100%; padding: 14px; font-size: 14px; font-weight: 700; color: #fff;
+    background: var(--pk-blue); border: none; border-radius: 12px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: background .15s;
+  }
+  .pk-submit:hover { background: var(--pk-blue-dark); }
+  .pk-submit:disabled { opacity: .6; cursor: not-allowed; }
+  .pk-error {
+    padding: 12px 16px; background: #fef2f2; border: 1px solid #fee2e2;
+    border-radius: 12px; font-size: 14px; color: #dc2626;
+  }
+  .pk-success {
+    max-width: 480px; margin: 0 auto; background: #fff; border-radius: 24px;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); padding: 40px 32px; text-align: center;
+  }
+  .pk-success-icon {
+    width: 64px; height: 64px; border-radius: 50%; background: #ecfdf5;
+    display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;
+  }
+  .pk-success h1 { font-size: 18px; font-weight: 700; margin: 0 0 8px; color: #111827; }
+  .pk-success p { font-size: 14px; color: #6b7280; margin: 0; }
+  .pk-spinner {
+    width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: #fff; border-radius: 50%; animation: pk-spin 0.6s linear infinite;
+  }
+  @keyframes pk-spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+  <div class="pk-wrap">
+    <div class="pk-logo">
+      <img src="data:image/png;base64,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" alt="Paketçiniz" />
+    </div>
+
+    <!-- Form -->
+    <div id="pk-form-card" class="pk-card">
+      <div class="pk-head">
+        <h1>Bize Katılın — İş Başvuru Formu</h1>
+        <p>Paketçiniz ailesine katılmak için aşağıdaki formu doldurun, ekibimiz sizinle iletişime geçecektir.</p>
+      </div>
+      <form id="pk-basvuru-form">
+        <div id="pk-error" class="pk-error" style="display:none"></div>
+        <div class="pk-grid">
+          <div>
+            <label for="pk-ad_soyad">Ad Soyad *</label>
+            <input class="input-field" id="pk-ad_soyad" name="ad_soyad" required placeholder="Adınız Soyadınız" />
+          </div>
+          <div>
+            <label for="pk-telefon">Telefon *</label>
+            <input class="input-field" id="pk-telefon" name="telefon" required placeholder="05XX XXX XX XX" />
+          </div>
+          <div>
+            <label for="pk-email">E-posta</label>
+            <input class="input-field" type="email" id="pk-email" name="email" placeholder="ornek@mail.com" />
+          </div>
+          <div>
+            <label for="pk-dogum_tarihi">Doğum Tarihi</label>
+            <input class="input-field" type="date" id="pk-dogum_tarihi" name="dogum_tarihi" />
+          </div>
+          <div>
+            <label for="pk-pozisyon">Başvurulan Pozisyon *</label>
+            <select class="input-field" id="pk-pozisyon" name="pozisyon" required>
+              <option value="">Seçiniz</option>
+              <option>Kurye</option>
+              <option>Bölge Sorumlusu</option>
+              <option>Operasyon Sorumlusu</option>
+              <option>Çağrı Merkezi</option>
+              <option>Depo Personeli</option>
+              <option>Diğer</option>
+            </select>
+          </div>
+          <div>
+            <label for="pk-sehir">Şehir / Bölge *</label>
+            <select class="input-field" id="pk-sehir" name="sehir" required>
+              <option value="">Seçiniz</option>
+              <option>İzmir</option>
+              <option>Afyonkarahisar</option>
+              <option>Bursa</option>
+              <option>Muğla</option>
+              <option>Osmaniye</option>
+              <option>Kütahya</option>
+              <option>Diğer</option>
+            </select>
+          </div>
+          <div>
+            <label for="pk-ehliyet">Sürücü Belgesi</label>
+            <input class="input-field" id="pk-ehliyet" name="ehliyet" placeholder="Örn: A2, B" />
+          </div>
+          <div>
+            <label for="pk-arac">Araç Durumu</label>
+            <input class="input-field" id="pk-arac" name="arac" placeholder="Örn: Motosiklet (kendine ait)" />
+          </div>
+        </div>
+
+        <div>
+          <label for="pk-deneyim">Deneyim</label>
+          <input class="input-field" id="pk-deneyim" name="deneyim" placeholder="Önceki iş tecrübeleriniz" />
+        </div>
+
+        <div>
+          <label for="pk-mesaj">Mesajınız</label>
+          <textarea class="input-field" id="pk-mesaj" name="mesaj" placeholder="Eklemek istediğiniz notlar..."></textarea>
+        </div>
+
+        <button type="submit" id="pk-submit-btn" class="pk-submit">
+          <span id="pk-submit-text">Başvuruyu Gönder</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- Success message (hidden by default) -->
+    <div id="pk-success-card" class="pk-success" style="display:none">
+      <div class="pk-success-icon">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      </div>
+      <h1>Başvurunuz Alındı!</h1>
+      <p>İlginiz için teşekkür ederiz. İK ekibimiz başvurunuzu değerlendirip size en kısa sürede dönüş yapacaktır.</p>
+    </div>
+  </div>
+
+<script>
+  // ----------------------------------------------------------------
+  // AYAR: İK & Vardiya panelinizin yayında olduğu adresi buraya yazın.
+  // Örn: 'https://ik.paketciniz.com' veya 'https://panel.paketciniz.com'
+  // Backend zaten tüm originlere açık (CORS), bu form farklı bir
+  // domainden (paketciniz.com) gönderim yapabilir.
+  // ----------------------------------------------------------------
+  var IK_API_BASE = 'https://ik-api.paketciniz.com';
+
+  var form = document.getElementById('pk-basvuru-form');
+  var errorBox = document.getElementById('pk-error');
+  var submitBtn = document.getElementById('pk-submit-btn');
+  var submitText = document.getElementById('pk-submit-text');
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    errorBox.style.display = 'none';
+    submitBtn.disabled = true;
+    submitText.innerHTML = '<span class="pk-spinner"></span> Gönderiliyor...';
+
+    var payload = {
+      ad_soyad: document.getElementById('pk-ad_soyad').value,
+      telefon: document.getElementById('pk-telefon').value,
+      email: document.getElementById('pk-email').value,
+      dogum_tarihi: document.getElementById('pk-dogum_tarihi').value,
+      pozisyon: document.getElementById('pk-pozisyon').value,
+      sehir: document.getElementById('pk-sehir').value,
+      ehliyet: document.getElementById('pk-ehliyet').value,
+      arac: document.getElementById('pk-arac').value,
+      deneyim: document.getElementById('pk-deneyim').value,
+      mesaj: document.getElementById('pk-mesaj').value
+    };
+
+    fetch(IK_API_BASE + '/api/ik/basvuru', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(function (res) {
+        if (!res.ok) {
+          return res.json().catch(function () { return {}; }).then(function (data) {
+            throw new Error(data.message || 'Başvuru gönderilemedi');
+          });
+        }
+        return res.json();
+      })
+      .then(function () {
+        document.getElementById('pk-form-card').style.display = 'none';
+        document.getElementById('pk-success-card').style.display = 'block';
+      })
+      .catch(function (err) {
+        errorBox.textContent = err.message || 'Başvuru gönderilemedi. Lütfen daha sonra tekrar deneyin.';
+        errorBox.style.display = 'block';
+        submitBtn.disabled = false;
+        submitText.textContent = 'Başvuruyu Gönder';
+      });
+  });
+</script>
+</body>
+</html>
