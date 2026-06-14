@@ -4,7 +4,11 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "start:plus": "node plus-server.js",
+    "dev:plus": "node --watch plus-server.js",
+    "start:ik": "node ik-server.js",
+    "dev:ik": "node --watch ik-server.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
