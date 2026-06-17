@@ -12,6 +12,7 @@
    0) Paylaşılan değişkenler (Shadow DOM içinde de geçerli olsun diye
       :host ve sayfa düzeyinde aynı isimlerle tanımlanır)
    ───────────────────────────────────────────────────────────────────── */
+:root,
 :host,
 .psupport-scope {
   --psupport-primary: #2563eb;
