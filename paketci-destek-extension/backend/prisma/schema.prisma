@@ -1,0 +1,155 @@
+// Paketçi Destek Talebi — bağımsız Prisma şeması.
+// Bu şema, repo kökündeki/diğer modüllerdeki Prisma şemalarından TAMAMEN
+// AYRIDIR; kendi DATABASE_URL'i (paketci_support) ile çalışır.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TicketPriority {
+  low
+  normal
+  high
+  urgent
+  critical
+}
+
+enum TicketStatus {
+  open
+  in_progress
+  resolved
+  closed
+}
+
+enum MailLogStatus {
+  pending
+  sent
+  failed
+}
+
+enum MailQueueJobStatus {
+  queued
+  processing
+  completed
+  failed
+}
+
+/// Ana ticket kaydı — kullanıcının destek talebi formunda verdiği alanlar.
+model SupportTicket {
+  id                String         @id @default(uuid())
+  ticketNumber      String         @unique @map("ticket_number")
+  source            String         @default("chrome_extension")
+  extensionVersion  String?        @map("extension_version")
+  status            TicketStatus   @default(open)
+  priority          TicketPriority
+  /// Sorun tipi (issueType) — extension constants.js > ISSUE_TYPES.value ile eşleşir.
+  category          String
+  title             String
+  description       String
+
+  senderName        String  @map("sender_name")
+  senderEmail       String  @map("sender_email")
+  senderPhone       String? @map("sender_phone")
+
+  paketciPackageId  String? @map("paketci_package_id")
+  paketciOrderNumber String? @map("paketci_order_number")
+  paketciDetailUrl  String? @map("paketci_detail_url")
+  createdFromUrl    String? @map("created_from_url")
+
+  duplicateOfTicketId String?        @map("duplicate_of_ticket_id")
+  duplicateOfTicket   SupportTicket? @relation("TicketDuplicates", fields: [duplicateOfTicketId], references: [id])
+  duplicatesOfThis    SupportTicket[] @relation("TicketDuplicates")
+
+  packageSnapshot   PackageSnapshot?
+  mailLogs          MailLog[]
+  mailQueueJobs     MailQueueJob[]
+
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@index([paketciPackageId])
+  @@index([paketciOrderNumber])
+  @@index([senderEmail])
+  @@index([status])
+  @@index([createdAt])
+  @@map("support_tickets")
+}
+
+/// Ticket oluşturulduğu anda DOM'dan okunan paket verisinin anlık görüntüsü.
+model PackageSnapshot {
+  id                    String   @id @default(uuid())
+  ticketId              String   @unique @map("ticket_id")
+  ticket                SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  paketciPackageId      String?  @map("paketci_package_id")
+  orderNumber           String?  @map("order_number")
+  restaurantName        String?  @map("restaurant_name")
+  branchName            String?  @map("branch_name")
+  courierName           String?  @map("courier_name")
+  packageStatus         String?  @map("package_status")
+  deliveryStatus        String?  @map("delivery_status")
+  paymentType           String?  @map("payment_type")
+  packageTotal          String?  @map("package_total")
+  customerNameMasked    String?  @map("customer_name_masked")
+  customerPhoneMasked   String?  @map("customer_phone_masked")
+  customerAddressMasked String?  @map("customer_address_masked")
+  packageCreatedAt      String?  @map("package_created_at")
+  paketciDetailUrl      String?  @map("paketci_detail_url")
+
+  /// Adapter'ın döndürdüğü ham alanların TÜMÜ — debug/inceleme amaçlı.
+  rawSnapshot           Json     @map("raw_snapshot")
+
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  @@map("package_snapshots")
+}
+
+/// Her mail gönderim denemesinin sonucu (1 ticket → genelde 2+ satır).
+model MailLog {
+  id              String        @id @default(uuid())
+  ticketId        String        @map("ticket_id")
+  ticket          SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  provider        String
+  templateKey     String        @map("template_key")
+  recipientEmail  String        @map("recipient_email")
+  recipientName   String?       @map("recipient_name")
+  subject         String
+  status          MailLogStatus @default(pending)
+  errorMessage    String?       @map("error_message")
+  retryCount      Int           @default(0) @map("retry_count")
+  sentAt          DateTime?     @map("sent_at")
+  failedAt        DateTime?     @map("failed_at")
+  metadata        Json?
+
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@index([ticketId, status])
+  @@map("mail_logs")
+}
+
+/// Kuyruğa atılan job'ların uygulama seviyesi izi (BullMQ'nun kendi Redis
+/// durumuna ek olarak; admin panelde sorgulanabilir kalıcı kayıt sağlar).
+model MailQueueJob {
+  id          String             @id @default(uuid())
+  ticketId    String             @map("ticket_id")
+  ticket      SupportTicket      @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  type        String
+  status      MailQueueJobStatus @default(queued)
+  payload     Json
+  retryCount  Int                @default(0) @map("retry_count")
+  lastError   String?            @map("last_error")
+
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+
+  @@index([ticketId, status])
+  @@map("mail_queue_jobs")
+}

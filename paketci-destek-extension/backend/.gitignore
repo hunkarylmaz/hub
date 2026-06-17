@@ -1,0 +1,23 @@
+# Bağımlılıklar ve build çıktıları
+node_modules/
+dist/
+coverage/
+
+# GÜVENLİK: .env GERÇEK SMTP şifresini içerir, ASLA commit edilmez.
+.env
+.env.*.local
+
+# Loglar
+*.log
+npm-debug.log*
+
+# Redis local dump (yerel geliştirme artığı)
+dump.rdb
+
+# Prisma
+prisma/migrations/.gitkeep
+
+# Editör/OS
+.DS_Store
+.vscode/
+.idea/

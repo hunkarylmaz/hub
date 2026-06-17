@@ -1,0 +1,64 @@
+{
+  "manifest_version": 3,
+  "name": "Paketçi Destek Talebi",
+  "short_name": "Paketçi Destek",
+  "version": "1.0.0",
+  "description": "Paketçi panelinde paket/sipariş satırlarından ve detay sayfasından tek tıkla destek talebi oluşturun.",
+  "default_locale": "tr",
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+
+  "action": {
+    "default_title": "Paketçi Destek Talebi",
+    "default_popup": "src/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+
+  "background": {
+    "service_worker": "src/background.js"
+  },
+
+  "content_scripts": [
+    {
+      "//": "GÜVENLİK NOTU: 'matches' deseni gerçek Paketçi domaini ile sınırlı tutulmalı. Buradaki değer placeholder'dır; src/config.js içindeki ALLOWED_HOSTNAMES ile birlikte güncellenmelidir.",
+      "matches": [
+        "https://*.paketci-domaininiz.com/*",
+        "http://localhost:5173/*"
+      ],
+      "js": ["src/config.js", "src/constants.js", "src/domUtils.js", "src/paketciAdapter.js", "src/supportFormValidator.js", "src/authStorage.js", "src/apiClient.js", "src/toast.js", "src/supportPanel.js", "src/content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+
+  "host_permissions": [
+    "https://*.paketci-domaininiz.com/*",
+    "http://localhost:5173/*",
+    "http://localhost:3001/*",
+    "https://destek-api.sizin-domaininiz.com/*"
+  ],
+
+  "permissions": ["storage", "scripting"],
+
+  "web_accessible_resources": [
+    {
+      "resources": ["src/styles.css", "icons/icon16.png", "icons/icon48.png", "icons/icon128.png"],
+      "matches": [
+        "https://*.paketci-domaininiz.com/*",
+        "http://localhost:5173/*"
+      ]
+    }
+  ],
+
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self';"
+  }
+}

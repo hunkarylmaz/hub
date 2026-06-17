@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Paketçi Destek Talebi</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="psupport-popup">
+    <header class="psupport-popup-header">
+      <img src="../icons/icon48.png" alt="" width="28" height="28" />
+      <h1>Paketçi Destek Talebi</h1>
+    </header>
+
+    <section class="psupport-popup-status">
+      <div class="psupport-popup-status-row">
+        <span class="psupport-popup-dot" id="psupport-domain-dot"></span>
+        <span id="psupport-domain-text">Sayfa kontrol ediliyor…</span>
+      </div>
+      <div class="psupport-popup-status-row">
+        <span class="psupport-popup-dot" id="psupport-backend-dot"></span>
+        <span id="psupport-backend-text">Backend kontrol ediliyor…</span>
+      </div>
+    </section>
+
+    <button id="psupport-quick-action" class="psupport-popup-btn" type="button" disabled>
+      Yeni Destek Talebi
+    </button>
+    <p class="psupport-popup-hint" id="psupport-quick-hint"></p>
+
+    <footer class="psupport-popup-footer">
+      <span id="psupport-version-text"></span>
+      <span id="psupport-env-text"></span>
+    </footer>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="constants.js"></script>
+  <script src="apiClient.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

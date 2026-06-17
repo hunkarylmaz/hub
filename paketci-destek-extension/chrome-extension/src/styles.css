@@ -1,0 +1,535 @@
+/**
+ * Paketçi Destek Talebi eklentisi — TÜM görsel stiller burada toplanır.
+ * Bu dosya hem Paketçi sayfasının <head>'ine (satır/detay butonları için)
+ * hem de paneli/toast'ı barındıran Shadow DOM köklerine enjekte edilir.
+ *
+ * KURAL: Paketçi'nin kendi CSS'iyle çakışmayı önlemek için TÜM seçiciler
+ * `psupport-` ön ekiyle başlar. Genel etiket seçicisi (button, div, ...)
+ * KULLANILMAZ.
+ */
+
+/* ─────────────────────────────────────────────────────────────────────
+   0) Paylaşılan değişkenler (Shadow DOM içinde de geçerli olsun diye
+      :host ve sayfa düzeyinde aynı isimlerle tanımlanır)
+   ───────────────────────────────────────────────────────────────────── */
+:host,
+.psupport-scope {
+  --psupport-primary: #2563eb;
+  --psupport-primary-dark: #1d4ed8;
+  --psupport-danger: #dc2626;
+  --psupport-success: #16a34a;
+  --psupport-text: #111827;
+  --psupport-text-muted: #6b7280;
+  --psupport-border: #e5e7eb;
+  --psupport-bg: #ffffff;
+  --psupport-bg-muted: #f9fafb;
+  --psupport-radius: 8px;
+  --psupport-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  --psupport-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--psupport-font);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   1) Sayfa içine enjekte edilen "Destek Talebi Oluştur" butonları
+   ───────────────────────────────────────────────────────────────────── */
+.psupport-row-action-btn,
+.psupport-detail-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--psupport-font);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  color: #ffffff;
+  background-color: var(--psupport-primary);
+  border: none;
+  border-radius: 6px;
+  padding: 7px 12px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.05s ease;
+  white-space: nowrap;
+}
+
+.psupport-row-action-btn:hover,
+.psupport-detail-action-btn:hover {
+  background-color: var(--psupport-primary-dark);
+}
+
+.psupport-row-action-btn:active,
+.psupport-detail-action-btn:active {
+  transform: scale(0.98);
+}
+
+.psupport-row-action-btn:focus-visible,
+.psupport-detail-action-btn:focus-visible {
+  outline: 2px solid var(--psupport-primary-dark);
+  outline-offset: 2px;
+}
+
+.psupport-detail-action-btn {
+  font-size: 14px;
+  padding: 9px 16px;
+}
+
+.psupport-row-action-btn .psupport-icon,
+.psupport-detail-action-btn .psupport-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   2) Drawer (panel) — overlay + 420px sağ panel
+   ───────────────────────────────────────────────────────────────────── */
+.psupport-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 2147483000;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.psupport-overlay--visible {
+  opacity: 1;
+}
+
+.psupport-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 420px;
+  max-width: 92vw;
+  background: var(--psupport-bg);
+  box-shadow: var(--psupport-shadow);
+  z-index: 2147483001;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+}
+
+.psupport-drawer--visible {
+  transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .psupport-drawer,
+  .psupport-overlay,
+  .psupport-toast {
+    transition: none !important;
+  }
+}
+
+.psupport-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--psupport-border);
+  flex-shrink: 0;
+}
+
+.psupport-drawer-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--psupport-text);
+  margin: 0;
+}
+
+.psupport-drawer-close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--psupport-text-muted);
+  font-size: 20px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.psupport-drawer-close:hover {
+  background: var(--psupport-bg-muted);
+  color: var(--psupport-text);
+}
+
+.psupport-drawer-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 16px 20px 24px;
+}
+
+.psupport-drawer-footer {
+  flex-shrink: 0;
+  padding: 14px 20px;
+  border-top: 1px solid var(--psupport-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   3) Paket bilgi özeti
+   ───────────────────────────────────────────────────────────────────── */
+.psupport-summary {
+  background: var(--psupport-bg-muted);
+  border: 1px solid var(--psupport-border);
+  border-radius: var(--psupport-radius);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.psupport-summary-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--psupport-text-muted);
+  margin: 0 0 8px;
+}
+
+.psupport-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+}
+
+.psupport-summary-item {
+  min-width: 0;
+}
+
+.psupport-summary-label {
+  font-size: 11px;
+  color: var(--psupport-text-muted);
+  margin: 0 0 2px;
+}
+
+.psupport-summary-value {
+  font-size: 13px;
+  color: var(--psupport-text);
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.psupport-summary-value--empty {
+  color: var(--psupport-text-muted);
+  font-weight: 400;
+  font-style: italic;
+}
+
+.psupport-manual-hint {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  border-radius: var(--psupport-radius);
+  padding: 10px 12px;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   4) Form alanları
+   ───────────────────────────────────────────────────────────────────── */
+.psupport-field {
+  margin-bottom: 16px;
+}
+
+.psupport-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--psupport-text);
+  margin-bottom: 6px;
+}
+
+.psupport-label .psupport-required {
+  color: var(--psupport-danger);
+  margin-left: 2px;
+}
+
+.psupport-input,
+.psupport-select,
+.psupport-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--psupport-font);
+  font-size: 13px;
+  color: var(--psupport-text);
+  background: var(--psupport-bg);
+  border: 1px solid var(--psupport-border);
+  border-radius: 6px;
+  padding: 9px 11px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.psupport-textarea {
+  resize: vertical;
+  min-height: 90px;
+}
+
+.psupport-input:focus,
+.psupport-select:focus,
+.psupport-textarea:focus {
+  outline: none;
+  border-color: var(--psupport-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.psupport-input--error,
+.psupport-select--error,
+.psupport-textarea--error {
+  border-color: var(--psupport-danger);
+}
+
+.psupport-field-error {
+  color: var(--psupport-danger);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.psupport-priority-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 3px 9px;
+  margin-left: 8px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   5) Dosya yükleme (dropzone)
+   ───────────────────────────────────────────────────────────────────── */
+.psupport-dropzone {
+  border: 2px dashed var(--psupport-border);
+  border-radius: var(--psupport-radius);
+  padding: 18px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--psupport-text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.psupport-dropzone:hover,
+.psupport-dropzone--dragover {
+  border-color: var(--psupport-primary);
+  background: rgba(37, 99, 235, 0.04);
+}
+
+.psupport-dropzone input[type='file'] {
+  display: none;
+}
+
+.psupport-file-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--psupport-bg-muted);
+  border: 1px solid var(--psupport-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.psupport-file-preview-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.psupport-file-remove {
+  background: transparent;
+  border: none;
+  color: var(--psupport-danger);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   6) Butonlar
+   ───────────────────────────────────────────────────────────────────── */
+.psupport-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--psupport-font);
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 10px 16px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.psupport-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.psupport-btn--primary {
+  background: var(--psupport-primary);
+  color: #ffffff;
+}
+
+.psupport-btn--primary:hover:not(:disabled) {
+  background: var(--psupport-primary-dark);
+}
+
+.psupport-btn--secondary {
+  background: var(--psupport-bg);
+  color: var(--psupport-text);
+  border-color: var(--psupport-border);
+}
+
+.psupport-btn--secondary:hover:not(:disabled) {
+  background: var(--psupport-bg-muted);
+}
+
+.psupport-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: psupport-spin 0.6s linear infinite;
+}
+
+@keyframes psupport-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   7) Sonuç ekranları (başarı / hata)
+   ───────────────────────────────────────────────────────────────────── */
+.psupport-result {
+  text-align: center;
+  padding: 32px 12px;
+}
+
+.psupport-result-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.psupport-result-icon--success {
+  background: #dcfce7;
+  color: var(--psupport-success);
+}
+
+.psupport-result-icon--error {
+  background: #fee2e2;
+  color: var(--psupport-danger);
+}
+
+.psupport-result-message {
+  font-size: 13px;
+  color: var(--psupport-text);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.psupport-confirm-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.psupport-confirm-box {
+  background: var(--psupport-bg);
+  border-radius: var(--psupport-radius);
+  box-shadow: var(--psupport-shadow);
+  padding: 20px;
+  max-width: 320px;
+  text-align: center;
+}
+
+.psupport-confirm-text {
+  font-size: 13px;
+  color: var(--psupport-text);
+  margin-bottom: 16px;
+}
+
+.psupport-confirm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   8) Toast bildirimleri
+   ───────────────────────────────────────────────────────────────────── */
+.psupport-toast-container {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 2147483003;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 320px;
+}
+
+.psupport-toast {
+  font-family: var(--psupport-font);
+  font-size: 13px;
+  color: #ffffff;
+  border-radius: 6px;
+  padding: 10px 14px;
+  box-shadow: var(--psupport-shadow);
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.psupport-toast--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.psupport-toast--success {
+  background: var(--psupport-success);
+}
+
+.psupport-toast--error {
+  background: var(--psupport-danger);
+}
+
+.psupport-toast--info {
+  background: #334155;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   9) Erişilebilirlik yardımcıları
+   ───────────────────────────────────────────────────────────────────── */
+.psupport-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
