@@ -19,6 +19,13 @@ const DURUM_RENKLER: Record<string, string> = {
   'İptal': 'bg-red-50 text-red-600',
 }
 
+const ODEME_RENKLER: Record<string, string> = {
+  'Nakit': 'bg-emerald-50 text-emerald-700',
+  'Kredi Kartı': 'bg-blue-50 text-blue-700',
+  'Yemek Kartı': 'bg-amber-50 text-amber-700',
+  'Online': 'bg-purple-50 text-purple-700',
+}
+
 function fmtTarih(s: string) {
   try {
     const d = new Date(s)
@@ -181,7 +188,7 @@ export default function GecmisSiparisler() {
                     <td className="px-4 py-3 text-sm text-gray-700">{s.restoran_ad || '—'}</td>
                     <td className="px-4 py-3 text-right">
                       <p className="text-sm font-semibold text-gray-800">₺{fmt(s.tutar)}</p>
-                      <p className="text-xs text-gray-400">{s.odeme_yontemi}</p>
+                      <span className={`inline-block mt-0.5 text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${ODEME_RENKLER[s.odeme_yontemi] || 'bg-gray-100 text-gray-600'}`}>{s.odeme_yontemi}</span>
                     </td>
                     <td className="px-4 py-3 text-center">
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${DURUM_RENKLER[s.durum] || 'bg-gray-100 text-gray-600'}`}>{s.durum}</span>

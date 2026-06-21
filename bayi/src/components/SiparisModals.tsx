@@ -173,7 +173,7 @@ interface SiparisAlanModalProps {
   onSave: () => void
 }
 
-const ODEME_SECENEKLERI = ['Nakit', 'Kart', 'Online']
+const ODEME_SECENEKLERI = ['Nakit', 'Kredi Kartı', 'Yemek Kartı', 'Online']
 
 export function SiparisAlanModal({ siparis, field, title, onClose, onSave }: SiparisAlanModalProps) {
   const [value, setValue] = useState<string>(String(siparis[field] ?? ''))

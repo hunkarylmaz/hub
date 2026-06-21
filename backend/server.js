@@ -690,14 +690,14 @@ async function initBayiDb() {
 
   // Seed orders
   const orders = [
-    ['SIP-001', r1, k1, 'Fatma Kaya',   '05301234567', 'Alsancak Mah. No:5',   87.50,  'Nakit',  'Yolda',         '2026-05-29 10:30', null],
-    ['SIP-002', r2, k3, 'Ayşe Demir',   '05312345678', 'Bornova Mah. No:12',   124.00, 'Kart',   'Yolda',         '2026-05-29 10:15', null],
-    ['SIP-003', r3, null,'Can Yıldız',  '05323456789', 'Konak Mah. No:7',      55.00,  'Nakit',  'Beklemede',     '2026-05-29 10:45', null],
-    ['SIP-004', r1, k2, 'Merve Şahin',  '05334567890', 'Karşıyaka Mah. No:3', 210.00, 'Online', 'Teslim Edildi', '2026-05-29 09:00', '2026-05-29 09:45'],
-    ['SIP-005', r4, k5, 'Burak Arslan', '05345678901', 'Buca Mah. No:18',      68.00,  'Kart',   'Atandı',        '2026-05-29 10:50', null],
-    ['SIP-006', r5, k2, 'Zeynep Çelik', '05356789012', 'Alsancak Mah. No:9',   42.50,  'Nakit',  'Teslim Edildi', '2026-05-29 08:30', '2026-05-29 09:10'],
-    ['SIP-007', r2, null,'Serkan Kurt',  '05367890123', 'Konak Mah. No:15',    155.00, 'Nakit',  'Beklemede',     '2026-05-29 11:00', null],
-    ['SIP-008', r3, k1, 'Elif Yılmaz',  '05378901234', 'Bornova Mah. No:20',   78.00,  'Kart',   'Yolda',         '2026-05-29 10:55', null],
+    ['SIP-001', r1, k1, 'Fatma Kaya',   '05301234567', 'Alsancak Mah. No:5',   87.50,  'Nakit',      'Yolda',         '2026-05-29 10:30', null],
+    ['SIP-002', r2, k3, 'Ayşe Demir',   '05312345678', 'Bornova Mah. No:12',   124.00, 'Kredi Kartı','Yolda',         '2026-05-29 10:15', null],
+    ['SIP-003', r3, null,'Can Yıldız',  '05323456789', 'Konak Mah. No:7',      55.00,  'Nakit',      'Beklemede',     '2026-05-29 10:45', null],
+    ['SIP-004', r1, k2, 'Merve Şahin',  '05334567890', 'Karşıyaka Mah. No:3', 210.00, 'Online',     'Teslim Edildi', '2026-05-29 09:00', '2026-05-29 09:45'],
+    ['SIP-005', r4, k5, 'Burak Arslan', '05345678901', 'Buca Mah. No:18',      68.00,  'Yemek Kartı','Atandı',        '2026-05-29 10:50', null],
+    ['SIP-006', r5, k2, 'Zeynep Çelik', '05356789012', 'Alsancak Mah. No:9',   42.50,  'Nakit',      'Teslim Edildi', '2026-05-29 08:30', '2026-05-29 09:10'],
+    ['SIP-007', r2, null,'Serkan Kurt',  '05367890123', 'Konak Mah. No:15',    155.00, 'Nakit',      'Beklemede',     '2026-05-29 11:00', null],
+    ['SIP-008', r3, k1, 'Elif Yılmaz',  '05378901234', 'Bornova Mah. No:20',   78.00,  'Kredi Kartı','Yolda',         '2026-05-29 10:55', null],
   ]
 
   for (const [no, rid, kid, mAd, mTel, adres, tutar, odeme, durum, olusturma, teslim] of orders) {

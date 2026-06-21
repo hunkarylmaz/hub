@@ -15,6 +15,16 @@ function durumBadge(durum: Siparis['durum']) {
   return map[durum] || 'bg-gray-100 text-gray-600'
 }
 
+function odemeBadge(odeme: string) {
+  const map: Record<string, string> = {
+    'Nakit': 'bg-emerald-50 text-emerald-700',
+    'Kredi Kartı': 'bg-blue-50 text-blue-700',
+    'Yemek Kartı': 'bg-amber-50 text-amber-700',
+    'Online': 'bg-purple-50 text-purple-700',
+  }
+  return map[odeme] || 'bg-gray-100 text-gray-600'
+}
+
 function formatTarih(dt: string) {
   const d = new Date(dt)
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -96,7 +106,8 @@ function YeniSiparisModal({ restoranlar, onClose, onSave }: YeniSiparisModalProp
               <label className="block text-xs font-medium text-gray-600 mb-1">Ödeme Yöntemi</label>
               <select value={form.odeme_yontemi} onChange={e => setForm(f => ({ ...f, odeme_yontemi: e.target.value }))} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20">
                 <option>Nakit</option>
-                <option>Kart</option>
+                <option>Kredi Kartı</option>
+                <option>Yemek Kartı</option>
                 <option>Online</option>
               </select>
             </div>
@@ -238,6 +249,7 @@ export default function Siparisler() {
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Müşteri</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Kurye</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tutar</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Ödeme</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Durum</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tarih</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">İşlem</th>
@@ -245,7 +257,7 @@ export default function Siparisler() {
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={8} className="text-center py-12 text-gray-400 text-sm">Sipariş bulunamadı</td></tr>
+              <tr><td colSpan={9} className="text-center py-12 text-gray-400 text-sm">Sipariş bulunamadı</td></tr>
             ) : (
               filtered.map(s => (
                 <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
@@ -257,6 +269,9 @@ export default function Siparisler() {
                   </td>
                   <td className="px-5 py-3 text-sm text-gray-700">{s.kurye_ad || '—'}</td>
                   <td className="px-5 py-3 text-sm font-semibold text-gray-800">{s.tutar.toFixed(2)} ₺</td>
+                  <td className="px-5 py-3">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${odemeBadge(s.odeme_yontemi)}`}>{s.odeme_yontemi}</span>
+                  </td>
                   <td className="px-5 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${durumBadge(s.durum)}`}>{s.durum}</span>
                   </td>
