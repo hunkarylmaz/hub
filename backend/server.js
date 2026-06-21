@@ -9,6 +9,7 @@ const path = require('path')
 const PORT = 3001
 const JWT_SECRET = 'paketci-b2b-jwt-secret-2026'
 const DB_PATH = path.join(__dirname, 'data.db')
+const SIPARIS_KANALLARI = ['Telefon', 'WhatsApp', 'Uygulama', 'Web Sitesi', 'Yemeksepeti', 'Getir']
 
 // ── DB helpers ────────────────────────────────────────────────────────────────
 const db = new sqlite3.Database(DB_PATH)
@@ -615,6 +616,7 @@ async function initBayiDb() {
   try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN son_konum_tarihi TEXT') } catch {}
   try { await run('ALTER TABLE bayi_siparisler ADD COLUMN musteri_lat REAL') } catch {}
   try { await run('ALTER TABLE bayi_siparisler ADD COLUMN musteri_lon REAL') } catch {}
+  try { await run("ALTER TABLE bayi_siparisler ADD COLUMN kanal TEXT DEFAULT 'Telefon'") } catch {}
 
   // Genel Ayarlar extensions for bayi_ayarlar
   try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN calisma_acilis TEXT DEFAULT '11:00'") } catch {}
@@ -946,7 +948,7 @@ app.delete('/api/bayi/restoranlar/:id', bayiAuthMiddleware, wrap(async (req, res
 // ── BAYİ SİPARİŞLER ─────────────────────────────────────────────────────────
 app.get('/api/bayi/siparisler', bayiAuthMiddleware, wrap(async (req, res) => {
   const { durum, tarih } = req.query
-  let sql = `SELECT bs.*, br.ad as restoran_ad, bk.ad as kurye_ad
+  let sql = `SELECT bs.*, br.ad as restoran_ad, bk.ad as kurye_ad, bk.telefon as kurye_telefon
              FROM bayi_siparisler bs
              LEFT JOIN bayi_restoranlar br ON br.id=bs.restoran_id
              LEFT JOIN bayi_kuryeler bk ON bk.id=bs.kurye_id
@@ -959,19 +961,22 @@ app.get('/api/bayi/siparisler', bayiAuthMiddleware, wrap(async (req, res) => {
 }))
 
 app.post('/api/bayi/siparisler', bayiAuthMiddleware, wrap(async (req, res) => {
-  const { restoran_id, musteri_ad, musteri_telefon, teslimat_adresi, musteri_lat, musteri_lon, tutar, odeme_yontemi } = req.body || {}
+  const { restoran_id, musteri_ad, musteri_telefon, teslimat_adresi, musteri_lat, musteri_lon, tutar, odeme_yontemi, kanal } = req.body || {}
   if (!restoran_id) return res.status(400).json({ message: 'Restoran seçilmeli' })
+  if (!kanal || !SIPARIS_KANALLARI.includes(kanal)) {
+    return res.status(400).json({ message: 'Sipariş kanalı seçilmeli' })
+  }
   const restoran = await get('SELECT harita_konum FROM bayi_restoranlar WHERE id=? AND bayilik_id=?', [restoran_id, req.bayi.bayilikId])
   if (restoran?.harita_konum && (musteri_lat == null || musteri_lon == null)) {
     return res.status(400).json({ message: 'Bu restoran için haritadan müşteri konumu seçilmesi zorunlu' })
   }
   const siparis_no = `SIP-${Date.now()}`
   const { lastID } = await run(
-    'INSERT INTO bayi_siparisler (bayilik_id,siparis_no,restoran_id,musteri_ad,musteri_telefon,teslimat_adresi,musteri_lat,musteri_lon,tutar,odeme_yontemi) VALUES (?,?,?,?,?,?,?,?,?,?)',
-    [req.bayi.bayilikId, siparis_no, restoran_id, musteri_ad||null, musteri_telefon||null, teslimat_adresi||null, musteri_lat??null, musteri_lon??null, tutar||0, odeme_yontemi||'Nakit']
+    'INSERT INTO bayi_siparisler (bayilik_id,siparis_no,restoran_id,musteri_ad,musteri_telefon,teslimat_adresi,musteri_lat,musteri_lon,tutar,odeme_yontemi,kanal) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+    [req.bayi.bayilikId, siparis_no, restoran_id, musteri_ad||null, musteri_telefon||null, teslimat_adresi||null, musteri_lat??null, musteri_lon??null, tutar||0, odeme_yontemi||'Nakit', kanal]
   )
   res.status(201).json(await get(
-    `SELECT bs.*, br.ad as restoran_ad, bk.ad as kurye_ad FROM bayi_siparisler bs LEFT JOIN bayi_restoranlar br ON br.id=bs.restoran_id LEFT JOIN bayi_kuryeler bk ON bk.id=bs.kurye_id WHERE bs.id=?`,
+    `SELECT bs.*, br.ad as restoran_ad, bk.ad as kurye_ad, bk.telefon as kurye_telefon FROM bayi_siparisler bs LEFT JOIN bayi_restoranlar br ON br.id=bs.restoran_id LEFT JOIN bayi_kuryeler bk ON bk.id=bs.kurye_id WHERE bs.id=?`,
     [lastID]
   ))
 }))
@@ -987,7 +992,7 @@ app.put('/api/bayi/siparisler/:id/kurye-ata', bayiAuthMiddleware, wrap(async (re
     [kurye_id, 'Atandı', req.params.id])
   await run("UPDATE bayi_kuryeler SET durum='Dağıtımda' WHERE id=?", [kurye_id])
   res.json(await get(
-    `SELECT bs.*, br.ad as restoran_ad, bk.ad as kurye_ad FROM bayi_siparisler bs LEFT JOIN bayi_restoranlar br ON br.id=bs.restoran_id LEFT JOIN bayi_kuryeler bk ON bk.id=bs.kurye_id WHERE bs.id=?`,
+    `SELECT bs.*, br.ad as restoran_ad, bk.ad as kurye_ad, bk.telefon as kurye_telefon FROM bayi_siparisler bs LEFT JOIN bayi_restoranlar br ON br.id=bs.restoran_id LEFT JOIN bayi_kuryeler bk ON bk.id=bs.kurye_id WHERE bs.id=?`,
     [req.params.id]
   ))
 }))
@@ -1038,10 +1043,11 @@ app.put('/api/bayi/siparisler/:id/duzenle', bayiAuthMiddleware, wrap(async (req,
   const musteri_telefon = req.body?.musteri_telefon ?? s.musteri_telefon
   const teslimat_adresi = req.body?.teslimat_adresi ?? s.teslimat_adresi
   const odeme_yontemi = req.body?.odeme_yontemi ?? s.odeme_yontemi
-  await run('UPDATE bayi_siparisler SET musteri_telefon=?,teslimat_adresi=?,odeme_yontemi=? WHERE id=?',
-    [musteri_telefon, teslimat_adresi, odeme_yontemi, req.params.id])
+  const kanal = (req.body?.kanal && SIPARIS_KANALLARI.includes(req.body.kanal)) ? req.body.kanal : s.kanal
+  await run('UPDATE bayi_siparisler SET musteri_telefon=?,teslimat_adresi=?,odeme_yontemi=?,kanal=? WHERE id=?',
+    [musteri_telefon, teslimat_adresi, odeme_yontemi, kanal, req.params.id])
   res.json(await get(
-    `SELECT bs.*, br.ad as restoran_ad, bk.ad as kurye_ad FROM bayi_siparisler bs LEFT JOIN bayi_restoranlar br ON br.id=bs.restoran_id LEFT JOIN bayi_kuryeler bk ON bk.id=bs.kurye_id WHERE bs.id=?`,
+    `SELECT bs.*, br.ad as restoran_ad, bk.ad as kurye_ad, bk.telefon as kurye_telefon FROM bayi_siparisler bs LEFT JOIN bayi_restoranlar br ON br.id=bs.restoran_id LEFT JOIN bayi_kuryeler bk ON bk.id=bs.kurye_id WHERE bs.id=?`,
     [req.params.id]
   ))
 }))
@@ -1617,7 +1623,8 @@ app.get('/api/bayi/raporlar/gecmis', bayiAuthMiddleware, wrap(async (req, res) =
   const siparisler = await all(
     `SELECT bs.*,
             br.ad AS restoran_ad,
-            bk.ad AS kurye_ad
+            bk.ad AS kurye_ad,
+            bk.telefon AS kurye_telefon
      FROM bayi_siparisler bs
      LEFT JOIN bayi_restoranlar br ON br.id=bs.restoran_id
      LEFT JOIN bayi_kuryeler bk ON bk.id=bs.kurye_id

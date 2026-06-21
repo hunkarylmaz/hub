@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   Search, Plus, Bike, CheckCircle2, Navigation, PauseCircle, RefreshCw, Ban,
-  MoreVertical, Eye, CreditCard, MapPin, Phone,
+  MoreVertical, Eye, CreditCard, MapPin, Phone, Radio,
 } from 'lucide-react'
 import { api, Siparis, Kurye, Restoran } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
@@ -28,13 +28,25 @@ function odemeBadge(odeme: string) {
   return map[odeme] || 'bg-gray-100 text-gray-600'
 }
 
+function kanalBadge(kanal?: string | null) {
+  const map: Record<string, string> = {
+    'Telefon': 'bg-sky-50 text-sky-700',
+    'WhatsApp': 'bg-green-50 text-green-700',
+    'Uygulama': 'bg-violet-50 text-violet-700',
+    'Web Sitesi': 'bg-indigo-50 text-indigo-700',
+    'Yemeksepeti': 'bg-orange-50 text-orange-700',
+    'Getir': 'bg-purple-50 text-purple-700',
+  }
+  return map[kanal || ''] || 'bg-gray-100 text-gray-600'
+}
+
 function formatTarih(dt: string) {
   const d = new Date(dt)
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-type AlanField = 'musteri_telefon' | 'teslimat_adresi' | 'odeme_yontemi'
+type AlanField = 'musteri_telefon' | 'teslimat_adresi' | 'odeme_yontemi' | 'kanal'
 
 function RowActionsMenu({
   siparis: s, aktif, updatingDurum, delivering, open, onToggle, onClose, onDetay, onAlan, onDurumGuncelle, onTeslim,
@@ -90,6 +102,9 @@ function RowActionsMenu({
             </button>
             <button onClick={() => { onAlan('odeme_yontemi', 'Ödeme Güncelleme'); onClose() }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">
               <CreditCard size={13} /> Ödeme Güncelleme
+            </button>
+            <button onClick={() => { onAlan('kanal', 'Kanal Güncelleme'); onClose() }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">
+              <Radio size={13} /> Kanal Güncelleme
             </button>
             <button onClick={() => { onAlan('teslimat_adresi', 'Adres Güncelleme'); onClose() }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">
               <MapPin size={13} /> Adres Güncelleme
@@ -160,7 +175,7 @@ export default function SiparisTablosu({
   const q = search.trim().toLowerCase()
   const filtered = siparisler.filter(s => {
     const matchDurum = durumFilter === 'Tümü' || s.durum === durumFilter
-    const matchSearch = q === '' || [s.siparis_no, s.musteri_ad, s.kurye_ad, s.restoran_ad, s.teslimat_adresi, s.musteri_telefon]
+    const matchSearch = q === '' || [s.siparis_no, s.musteri_ad, s.kurye_ad, s.restoran_ad, s.teslimat_adresi, s.musteri_telefon, s.kurye_telefon, s.kanal]
       .some(v => (v || '').toLowerCase().includes(q))
     return matchDurum && matchSearch
   })
@@ -241,11 +256,16 @@ export default function SiparisTablosu({
                   <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50/60 transition-colors">
                     <td className="px-4 py-3">
                       <p className="text-sm font-semibold text-gray-800">{s.siparis_no}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{s.restoran_ad || '—'}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <p className="text-xs text-gray-400">{s.restoran_ad || '—'}</p>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap ${kanalBadge(s.kanal)}`}>{s.kanal || 'Telefon'}</span>
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <p className="text-sm text-gray-800">{s.musteri_ad || 'Müşteri'}</p>
-                      <p className="text-xs text-gray-400 truncate max-w-[170px]">{s.teslimat_adresi || s.musteri_telefon || '—'}</p>
+                      <p className="text-xs text-gray-400 truncate max-w-[170px]" title={s.teslimat_adresi || undefined}>
+                        {s.musteri_telefon || '—'}{s.teslimat_adresi ? ` · ${s.teslimat_adresi}` : ''}
+                      </p>
                     </td>
                     <td className="px-4 py-3 text-sm">
                       {aktif ? (
@@ -263,6 +283,7 @@ export default function SiparisTablosu({
                           {s.kurye_ad || <span className="text-gray-400">—</span>}
                         </span>
                       )}
+                      {s.kurye_telefon && <p className="text-xs text-gray-400 mt-0.5 ml-[19px]">{s.kurye_telefon}</p>}
                     </td>
                     <td className="px-4 py-3 text-right text-sm font-bold text-gray-800">{s.tutar.toFixed(2)} ₺</td>
                     <td className="px-4 py-3">

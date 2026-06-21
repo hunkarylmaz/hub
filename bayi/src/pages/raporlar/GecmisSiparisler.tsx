@@ -26,6 +26,15 @@ const ODEME_RENKLER: Record<string, string> = {
   'Online': 'bg-purple-50 text-purple-700',
 }
 
+const KANAL_RENKLER: Record<string, string> = {
+  'Telefon': 'bg-sky-50 text-sky-700',
+  'WhatsApp': 'bg-green-50 text-green-700',
+  'Uygulama': 'bg-violet-50 text-violet-700',
+  'Web Sitesi': 'bg-indigo-50 text-indigo-700',
+  'Yemeksepeti': 'bg-orange-50 text-orange-700',
+  'Getir': 'bg-purple-50 text-purple-700',
+}
+
 function fmtTarih(s: string) {
   try {
     const d = new Date(s)
@@ -168,6 +177,7 @@ export default function GecmisSiparisler() {
               <thead className="border-b border-gray-100 bg-gray-50/50">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Tarih / Saat</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Kanal</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Müşteri</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Kurye</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Restoran</th>
@@ -181,10 +191,16 @@ export default function GecmisSiparisler() {
                   <tr key={s.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/30">
                     <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{fmtTarih(s.olusturma_tarihi)}</td>
                     <td className="px-4 py-3">
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${KANAL_RENKLER[s.kanal] || 'bg-gray-100 text-gray-600'}`}>{s.kanal || 'Telefon'}</span>
+                    </td>
+                    <td className="px-4 py-3">
                       <p className="text-sm font-medium text-gray-800">{s.musteri_ad || '—'}</p>
                       <p className="text-xs text-gray-400">{s.musteri_telefon || ''}</p>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{s.kurye_ad || '—'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">
+                      <p>{s.kurye_ad || '—'}</p>
+                      {s.kurye_telefon && <p className="text-xs text-gray-400">{s.kurye_telefon}</p>}
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-700">{s.restoran_ad || '—'}</td>
                     <td className="px-4 py-3 text-right">
                       <p className="text-sm font-semibold text-gray-800">₺{fmt(s.tutar)}</p>

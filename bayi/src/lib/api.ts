@@ -101,6 +101,9 @@ export interface BakiyeHareketi {
   olusturma_tarihi: string
 }
 
+export const SIPARIS_KANALLARI = ['Telefon', 'WhatsApp', 'Uygulama', 'Web Sitesi', 'Yemeksepeti', 'Getir'] as const
+export type SiparisKanali = typeof SIPARIS_KANALLARI[number]
+
 export interface Siparis {
   id: number
   bayilik_id: number
@@ -114,12 +117,14 @@ export interface Siparis {
   musteri_lon?: number | null
   tutar: number
   odeme_yontemi: string
+  kanal: string
   durum: 'Beklemede' | 'Atandı' | 'Yolda' | 'Teslim Edildi' | 'İptal'
   atama_zamani: string | null
   teslim_zamani: string | null
   olusturma_tarihi: string
   restoran_ad?: string
   kurye_ad?: string
+  kurye_telefon?: string | null
 }
 
 export interface DashboardData {
@@ -375,7 +380,7 @@ export const api = {
       if (params?.tarih) q.set('tarih', params.tarih)
       return request<Siparis[]>(`/api/bayi/siparisler?${q}`, { headers: authHeaders() })
     },
-    create: (data: { restoran_id: number; musteri_ad?: string; musteri_telefon?: string; teslimat_adresi?: string; musteri_lat?: number; musteri_lon?: number; tutar?: number; odeme_yontemi?: string }) =>
+    create: (data: { restoran_id: number; musteri_ad?: string; musteri_telefon?: string; teslimat_adresi?: string; musteri_lat?: number; musteri_lon?: number; tutar?: number; odeme_yontemi?: string; kanal: string }) =>
       request<Siparis>('/api/bayi/siparisler', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
     kurye_ata: (id: number, kurye_id: number) =>
       request<Siparis>(`/api/bayi/siparisler/${id}/kurye-ata`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ kurye_id }) }),
@@ -385,7 +390,7 @@ export const api = {
       request<{ success: boolean; yeni_token: number }>(`/api/bayi/siparisler/${id}/teslim`, { method: 'PUT', headers: authHeaders() }),
     setDurum: (id: number, durum: string) =>
       request<Siparis>(`/api/bayi/siparisler/${id}/durum`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ durum }) }),
-    duzenle: (id: number, data: { musteri_telefon?: string; teslimat_adresi?: string; odeme_yontemi?: string }) =>
+    duzenle: (id: number, data: { musteri_telefon?: string; teslimat_adresi?: string; odeme_yontemi?: string; kanal?: string }) =>
       request<Siparis>(`/api/bayi/siparisler/${id}/duzenle`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
   },
 

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { MapContainer, TileLayer, Marker } from 'react-leaflet'
-import { X, Phone, MapPin, Store, User, CreditCard, Bike, Clock } from 'lucide-react'
-import { api, Siparis, Kurye, Restoran } from '../lib/api'
+import { X, Phone, MapPin, Store, User, CreditCard, Bike, Clock, Radio } from 'lucide-react'
+import { api, Siparis, Kurye, Restoran, SIPARIS_KANALLARI } from '../lib/api'
 import { createKonumIcon } from '../lib/mapUtils'
 import KonumSecici from './KonumSecici'
 
@@ -32,7 +32,7 @@ interface YeniSiparisModalProps {
 }
 
 export function YeniSiparisModal({ restoranlar, onClose, onSave }: YeniSiparisModalProps) {
-  const [form, setForm] = useState({ restoran_id: '', musteri_ad: '', musteri_telefon: '', teslimat_adresi: '', tutar: '', odeme_yontemi: 'Nakit' })
+  const [form, setForm] = useState({ restoran_id: '', musteri_ad: '', musteri_telefon: '', teslimat_adresi: '', tutar: '', odeme_yontemi: 'Nakit', kanal: 'Telefon' })
   const [konum, setKonum] = useState<{ lat: number | null; lon: number | null }>({ lat: null, lon: null })
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
@@ -58,6 +58,7 @@ export function YeniSiparisModal({ restoranlar, onClose, onSave }: YeniSiparisMo
         musteri_lon: konum.lon ?? undefined,
         tutar: form.tutar ? Number(form.tutar) : undefined,
         odeme_yontemi: form.odeme_yontemi,
+        kanal: form.kanal,
       })
       onSave()
       onClose()
@@ -86,6 +87,16 @@ export function YeniSiparisModal({ restoranlar, onClose, onSave }: YeniSiparisMo
             >
               <option value="">Restoran seçin</option>
               {restoranlar.filter(r => r.aktif).map(r => <option key={r.id} value={r.id}>{r.ad}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Sipariş Kanalı *</label>
+            <select
+              value={form.kanal}
+              onChange={e => setForm(f => ({ ...f, kanal: e.target.value }))}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20"
+            >
+              {SIPARIS_KANALLARI.map(k => <option key={k} value={k}>{k}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -229,6 +240,13 @@ export function SiparisDetayModal({ siparis, onClose }: { siparis: Siparis; onCl
               </div>
             </div>
             <div className="flex items-start gap-3">
+              <Radio size={15} className="text-gray-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-gray-800 font-medium">{siparis.kanal || 'Telefon'}</p>
+                <p className="text-xs text-gray-400">Sipariş Kanalı</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
               <User size={15} className="text-gray-400 mt-0.5 shrink-0" />
               <div>
                 <p className="text-gray-800 font-medium">{siparis.musteri_ad || 'Müşteri'}</p>
@@ -239,7 +257,7 @@ export function SiparisDetayModal({ siparis, onClose }: { siparis: Siparis; onCl
               <Phone size={15} className="text-gray-400 mt-0.5 shrink-0" />
               <div>
                 <p className="text-gray-800 font-medium">{siparis.musteri_telefon || '—'}</p>
-                <p className="text-xs text-gray-400">Telefon</p>
+                <p className="text-xs text-gray-400">Müşteri Telefon</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -253,7 +271,7 @@ export function SiparisDetayModal({ siparis, onClose }: { siparis: Siparis; onCl
               <Bike size={15} className="text-gray-400 mt-0.5 shrink-0" />
               <div>
                 <p className="text-gray-800 font-medium">{siparis.kurye_ad || 'Atanmamış'}</p>
-                <p className="text-xs text-gray-400">Kurye</p>
+                <p className="text-xs text-gray-400">Kurye{siparis.kurye_telefon ? ` · ${siparis.kurye_telefon}` : ''}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -290,7 +308,7 @@ export function SiparisDetayModal({ siparis, onClose }: { siparis: Siparis; onCl
   )
 }
 
-type DuzenleField = 'musteri_telefon' | 'teslimat_adresi' | 'odeme_yontemi'
+type DuzenleField = 'musteri_telefon' | 'teslimat_adresi' | 'odeme_yontemi' | 'kanal'
 
 interface SiparisAlanModalProps {
   siparis: Siparis
@@ -338,6 +356,15 @@ export function SiparisAlanModal({ siparis, field, title, onClose, onSave }: Sip
               autoFocus
             >
               {ODEME_SECENEKLERI.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+          ) : field === 'kanal' ? (
+            <select
+              value={value}
+              onChange={e => setValue(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20"
+              autoFocus
+            >
+              {SIPARIS_KANALLARI.map(k => <option key={k} value={k}>{k}</option>)}
             </select>
           ) : (
             <input
