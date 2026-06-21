@@ -101,7 +101,7 @@ export interface BakiyeHareketi {
   olusturma_tarihi: string
 }
 
-export const SIPARIS_KANALLARI = ['Telefon', 'WhatsApp', 'Uygulama', 'Web Sitesi', 'Yemeksepeti', 'Getir'] as const
+export const SIPARIS_KANALLARI = ['Telefon', 'WhatsApp', 'Uygulama', 'Web Sitesi', 'Yemeksepeti', 'Getir Yemek', 'Trendyol Yemek', 'Migros Yemek'] as const
 export type SiparisKanali = typeof SIPARIS_KANALLARI[number]
 
 export interface Siparis {
@@ -390,7 +390,7 @@ export const api = {
       request<{ success: boolean; yeni_token: number }>(`/api/bayi/siparisler/${id}/teslim`, { method: 'PUT', headers: authHeaders() }),
     setDurum: (id: number, durum: string) =>
       request<Siparis>(`/api/bayi/siparisler/${id}/durum`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ durum }) }),
-    duzenle: (id: number, data: { musteri_telefon?: string; teslimat_adresi?: string; odeme_yontemi?: string; kanal?: string }) =>
+    duzenle: (id: number, data: { musteri_telefon?: string; teslimat_adresi?: string; odeme_yontemi?: string; kanal?: string; tutar?: number }) =>
       request<Siparis>(`/api/bayi/siparisler/${id}/duzenle`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
   },
 

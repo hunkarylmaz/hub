@@ -5,7 +5,7 @@ import {
 } from 'lucide-react'
 import { api, Siparis, Kurye, Restoran } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
-import { KuryeAtaModal, SiparisDetayModal, SiparisAlanModal, YeniSiparisModal } from './SiparisModals'
+import { KuryeAtaModal, SiparisDetayModal, SiparisAlanModal, YeniSiparisModal, OdemeDuzenleModal } from './SiparisModals'
 
 function durumBadge(durum: Siparis['durum']) {
   const map: Record<string, string> = {
@@ -28,16 +28,18 @@ function odemeBadge(odeme: string) {
   return map[odeme] || 'bg-gray-100 text-gray-600'
 }
 
-function kanalBadge(kanal?: string | null) {
-  const map: Record<string, string> = {
-    'Telefon': 'bg-sky-50 text-sky-700',
-    'WhatsApp': 'bg-green-50 text-green-700',
-    'Uygulama': 'bg-violet-50 text-violet-700',
-    'Web Sitesi': 'bg-indigo-50 text-indigo-700',
-    'Yemeksepeti': 'bg-orange-50 text-orange-700',
-    'Getir': 'bg-purple-50 text-purple-700',
-  }
-  return map[kanal || ''] || 'bg-gray-100 text-gray-600'
+const KANAL_STYLE: Record<string, { badge: string; dot: string }> = {
+  'Telefon': { badge: 'bg-sky-50 text-sky-700', dot: 'bg-sky-500' },
+  'WhatsApp': { badge: 'bg-green-50 text-green-700', dot: 'bg-green-500' },
+  'Uygulama': { badge: 'bg-violet-50 text-violet-700', dot: 'bg-violet-500' },
+  'Web Sitesi': { badge: 'bg-indigo-50 text-indigo-700', dot: 'bg-indigo-500' },
+  'Yemeksepeti': { badge: 'bg-orange-50 text-orange-700', dot: 'bg-orange-500' },
+  'Getir Yemek': { badge: 'bg-purple-50 text-purple-700', dot: 'bg-purple-500' },
+  'Trendyol Yemek': { badge: 'bg-amber-50 text-amber-700', dot: 'bg-amber-500' },
+  'Migros Yemek': { badge: 'bg-teal-50 text-teal-700', dot: 'bg-teal-500' },
+}
+function kanalStyle(kanal?: string | null) {
+  return KANAL_STYLE[kanal || ''] || { badge: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400' }
 }
 
 function formatTarih(dt: string) {
@@ -46,10 +48,10 @@ function formatTarih(dt: string) {
   return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-type AlanField = 'musteri_telefon' | 'teslimat_adresi' | 'odeme_yontemi' | 'kanal'
+type AlanField = 'musteri_telefon' | 'teslimat_adresi' | 'kanal'
 
 function RowActionsMenu({
-  siparis: s, aktif, updatingDurum, delivering, open, onToggle, onClose, onDetay, onAlan, onDurumGuncelle, onTeslim,
+  siparis: s, aktif, updatingDurum, delivering, open, onToggle, onClose, onDetay, onAlan, onOdeme, onDurumGuncelle, onTeslim,
 }: {
   siparis: Siparis
   aktif: boolean
@@ -60,6 +62,7 @@ function RowActionsMenu({
   onClose: () => void
   onDetay: () => void
   onAlan: (field: AlanField, title: string) => void
+  onOdeme: () => void
   onDurumGuncelle: (durum: string) => void
   onTeslim: () => void
 }) {
@@ -100,8 +103,8 @@ function RowActionsMenu({
             <button onClick={() => { onDetay(); onClose() }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">
               <Eye size={13} /> Sipariş Detay
             </button>
-            <button onClick={() => { onAlan('odeme_yontemi', 'Ödeme Güncelleme'); onClose() }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">
-              <CreditCard size={13} /> Ödeme Güncelleme
+            <button onClick={() => { onOdeme(); onClose() }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">
+              <CreditCard size={13} /> Ödeme Düzenleme
             </button>
             <button onClick={() => { onAlan('kanal', 'Kanal Güncelleme'); onClose() }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">
               <Radio size={13} /> Kanal Güncelleme
@@ -142,6 +145,7 @@ export default function SiparisTablosu({
   const [ataModal, setAtaModal] = useState<Siparis | null>(null)
   const [detayModal, setDetayModal] = useState<Siparis | null>(null)
   const [alanModal, setAlanModal] = useState<{ siparis: Siparis; field: AlanField; title: string } | null>(null)
+  const [odemeModal, setOdemeModal] = useState<Siparis | null>(null)
   const [menuFor, setMenuFor] = useState<number | null>(null)
   const [delivering, setDelivering] = useState<number | null>(null)
   const [updatingDurum, setUpdatingDurum] = useState<number | null>(null)
@@ -197,6 +201,7 @@ export default function SiparisTablosu({
           onSave={onRefresh}
         />
       )}
+      {odemeModal && <OdemeDuzenleModal siparis={odemeModal} onClose={() => setOdemeModal(null)} onSave={onRefresh} />}
 
       <div className={`px-5 py-3.5 border-b border-gray-100 flex items-center justify-between gap-4 flex-wrap ${bare ? 'shrink-0' : ''}`}>
         <div className="flex items-center gap-2.5">
@@ -258,7 +263,10 @@ export default function SiparisTablosu({
                       <p className="text-sm font-semibold text-gray-800">{s.siparis_no}</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <p className="text-xs text-gray-400">{s.restoran_ad || '—'}</p>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap ${kanalBadge(s.kanal)}`}>{s.kanal || 'Telefon'}</span>
+                        <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap ${kanalStyle(s.kanal).badge}`}>
+                          <span className={`w-1 h-1 rounded-full ${kanalStyle(s.kanal).dot}`} />
+                          {s.kanal || 'Telefon'}
+                        </span>
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -305,6 +313,7 @@ export default function SiparisTablosu({
                           onClose={() => setMenuFor(null)}
                           onDetay={() => setDetayModal(s)}
                           onAlan={(field, ftitle) => setAlanModal({ siparis: s, field, title: ftitle })}
+                          onOdeme={() => setOdemeModal(s)}
                           onDurumGuncelle={durum => handleDurumGuncelle(s, durum)}
                           onTeslim={() => handleTeslim(s)}
                         />

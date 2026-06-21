@@ -25,6 +25,20 @@ function formatTarih(dt: string | null) {
 
 const ODEME_YONTEMLERI = ['Nakit', 'Kredi Kartı', 'Yemek Kartı', 'Online']
 
+const KANAL_STYLE: Record<string, { badge: string; dot: string }> = {
+  'Telefon': { badge: 'bg-sky-50 text-sky-700', dot: 'bg-sky-500' },
+  'WhatsApp': { badge: 'bg-green-50 text-green-700', dot: 'bg-green-500' },
+  'Uygulama': { badge: 'bg-violet-50 text-violet-700', dot: 'bg-violet-500' },
+  'Web Sitesi': { badge: 'bg-indigo-50 text-indigo-700', dot: 'bg-indigo-500' },
+  'Yemeksepeti': { badge: 'bg-orange-50 text-orange-700', dot: 'bg-orange-500' },
+  'Getir Yemek': { badge: 'bg-purple-50 text-purple-700', dot: 'bg-purple-500' },
+  'Trendyol Yemek': { badge: 'bg-amber-50 text-amber-700', dot: 'bg-amber-500' },
+  'Migros Yemek': { badge: 'bg-teal-50 text-teal-700', dot: 'bg-teal-500' },
+}
+function kanalStyle(kanal?: string | null) {
+  return KANAL_STYLE[kanal || ''] || { badge: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400' }
+}
+
 interface YeniSiparisModalProps {
   restoranlar: Restoran[]
   onClose: () => void
@@ -242,8 +256,11 @@ export function SiparisDetayModal({ siparis, onClose }: { siparis: Siparis; onCl
             <div className="flex items-start gap-3">
               <Radio size={15} className="text-gray-400 mt-0.5 shrink-0" />
               <div>
-                <p className="text-gray-800 font-medium">{siparis.kanal || 'Telefon'}</p>
-                <p className="text-xs text-gray-400">Sipariş Kanalı</p>
+                <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-full ${kanalStyle(siparis.kanal).badge}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${kanalStyle(siparis.kanal).dot}`} />
+                  {siparis.kanal || 'Telefon'}
+                </span>
+                <p className="text-xs text-gray-400 mt-1">Sipariş Kanalı</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -308,7 +325,7 @@ export function SiparisDetayModal({ siparis, onClose }: { siparis: Siparis; onCl
   )
 }
 
-type DuzenleField = 'musteri_telefon' | 'teslimat_adresi' | 'odeme_yontemi' | 'kanal'
+type DuzenleField = 'musteri_telefon' | 'teslimat_adresi' | 'kanal'
 
 interface SiparisAlanModalProps {
   siparis: Siparis
@@ -348,16 +365,7 @@ export function SiparisAlanModal({ siparis, field, title, onClose, onSave }: Sip
         </div>
         <div className="p-6 space-y-3">
           {err && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{err}</p>}
-          {field === 'odeme_yontemi' ? (
-            <select
-              value={value}
-              onChange={e => setValue(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20"
-              autoFocus
-            >
-              {ODEME_SECENEKLERI.map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
-          ) : field === 'kanal' ? (
+          {field === 'kanal' ? (
             <select
               value={value}
               onChange={e => setValue(e.target.value)}
@@ -375,6 +383,68 @@ export function SiparisAlanModal({ siparis, field, title, onClose, onSave }: Sip
               autoFocus
             />
           )}
+        </div>
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">İptal</button>
+          <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-60">
+            {saving ? 'Kaydediliyor...' : 'Kaydet'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function OdemeDuzenleModal({ siparis, onClose, onSave }: { siparis: Siparis; onClose: () => void; onSave: () => void }) {
+  const [tutar, setTutar] = useState(String(siparis.tutar ?? ''))
+  const [odemeYontemi, setOdemeYontemi] = useState(siparis.odeme_yontemi)
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+
+  async function handleSave() {
+    const n = Number(tutar)
+    if (!tutar || Number.isNaN(n) || n < 0) { setErr('Geçerli bir tutar girin'); return }
+    setSaving(true)
+    setErr('')
+    try {
+      await api.siparisler.duzenle(siparis.id, { tutar: n, odeme_yontemi: odemeYontemi })
+      onSave()
+      onClose()
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Hata')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h3 className="font-semibold text-gray-800">Ödeme Düzenleme — {siparis.siparis_no}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          {err && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{err}</p>}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Tutar (₺)</label>
+            <input
+              type="number" min="0" step="0.01" autoFocus
+              value={tutar}
+              onChange={e => setTutar(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Ödeme Yöntemi</label>
+            <select
+              value={odemeYontemi}
+              onChange={e => setOdemeYontemi(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20"
+            >
+              {ODEME_SECENEKLERI.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
         </div>
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100">
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">İptal</button>

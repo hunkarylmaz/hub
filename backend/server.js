@@ -9,7 +9,7 @@ const path = require('path')
 const PORT = 3001
 const JWT_SECRET = 'paketci-b2b-jwt-secret-2026'
 const DB_PATH = path.join(__dirname, 'data.db')
-const SIPARIS_KANALLARI = ['Telefon', 'WhatsApp', 'Uygulama', 'Web Sitesi', 'Yemeksepeti', 'Getir']
+const SIPARIS_KANALLARI = ['Telefon', 'WhatsApp', 'Uygulama', 'Web Sitesi', 'Yemeksepeti', 'Getir Yemek', 'Trendyol Yemek', 'Migros Yemek']
 
 // ── DB helpers ────────────────────────────────────────────────────────────────
 const db = new sqlite3.Database(DB_PATH)
@@ -617,6 +617,7 @@ async function initBayiDb() {
   try { await run('ALTER TABLE bayi_siparisler ADD COLUMN musteri_lat REAL') } catch {}
   try { await run('ALTER TABLE bayi_siparisler ADD COLUMN musteri_lon REAL') } catch {}
   try { await run("ALTER TABLE bayi_siparisler ADD COLUMN kanal TEXT DEFAULT 'Telefon'") } catch {}
+  try { await run("UPDATE bayi_siparisler SET kanal='Getir Yemek' WHERE kanal='Getir'") } catch {}
 
   // Genel Ayarlar extensions for bayi_ayarlar
   try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN calisma_acilis TEXT DEFAULT '11:00'") } catch {}
@@ -1044,8 +1045,14 @@ app.put('/api/bayi/siparisler/:id/duzenle', bayiAuthMiddleware, wrap(async (req,
   const teslimat_adresi = req.body?.teslimat_adresi ?? s.teslimat_adresi
   const odeme_yontemi = req.body?.odeme_yontemi ?? s.odeme_yontemi
   const kanal = (req.body?.kanal && SIPARIS_KANALLARI.includes(req.body.kanal)) ? req.body.kanal : s.kanal
-  await run('UPDATE bayi_siparisler SET musteri_telefon=?,teslimat_adresi=?,odeme_yontemi=?,kanal=? WHERE id=?',
-    [musteri_telefon, teslimat_adresi, odeme_yontemi, kanal, req.params.id])
+  let tutar = s.tutar
+  if (req.body?.tutar != null) {
+    const n = Number(req.body.tutar)
+    if (Number.isNaN(n) || n < 0) return res.status(400).json({ message: 'Geçerli bir tutar girin' })
+    tutar = n
+  }
+  await run('UPDATE bayi_siparisler SET musteri_telefon=?,teslimat_adresi=?,odeme_yontemi=?,kanal=?,tutar=? WHERE id=?',
+    [musteri_telefon, teslimat_adresi, odeme_yontemi, kanal, tutar, req.params.id])
   res.json(await get(
     `SELECT bs.*, br.ad as restoran_ad, bk.ad as kurye_ad, bk.telefon as kurye_telefon FROM bayi_siparisler bs LEFT JOIN bayi_restoranlar br ON br.id=bs.restoran_id LEFT JOIN bayi_kuryeler bk ON bk.id=bs.kurye_id WHERE bs.id=?`,
     [req.params.id]

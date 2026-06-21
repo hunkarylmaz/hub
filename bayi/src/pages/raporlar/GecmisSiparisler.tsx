@@ -26,13 +26,18 @@ const ODEME_RENKLER: Record<string, string> = {
   'Online': 'bg-purple-50 text-purple-700',
 }
 
-const KANAL_RENKLER: Record<string, string> = {
-  'Telefon': 'bg-sky-50 text-sky-700',
-  'WhatsApp': 'bg-green-50 text-green-700',
-  'Uygulama': 'bg-violet-50 text-violet-700',
-  'Web Sitesi': 'bg-indigo-50 text-indigo-700',
-  'Yemeksepeti': 'bg-orange-50 text-orange-700',
-  'Getir': 'bg-purple-50 text-purple-700',
+const KANAL_STYLE: Record<string, { badge: string; dot: string }> = {
+  'Telefon': { badge: 'bg-sky-50 text-sky-700', dot: 'bg-sky-500' },
+  'WhatsApp': { badge: 'bg-green-50 text-green-700', dot: 'bg-green-500' },
+  'Uygulama': { badge: 'bg-violet-50 text-violet-700', dot: 'bg-violet-500' },
+  'Web Sitesi': { badge: 'bg-indigo-50 text-indigo-700', dot: 'bg-indigo-500' },
+  'Yemeksepeti': { badge: 'bg-orange-50 text-orange-700', dot: 'bg-orange-500' },
+  'Getir Yemek': { badge: 'bg-purple-50 text-purple-700', dot: 'bg-purple-500' },
+  'Trendyol Yemek': { badge: 'bg-amber-50 text-amber-700', dot: 'bg-amber-500' },
+  'Migros Yemek': { badge: 'bg-teal-50 text-teal-700', dot: 'bg-teal-500' },
+}
+function kanalStyle(kanal?: string | null) {
+  return KANAL_STYLE[kanal || ''] || { badge: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400' }
 }
 
 function fmtTarih(s: string) {
@@ -191,7 +196,10 @@ export default function GecmisSiparisler() {
                   <tr key={s.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/30">
                     <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{fmtTarih(s.olusturma_tarihi)}</td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${KANAL_RENKLER[s.kanal] || 'bg-gray-100 text-gray-600'}`}>{s.kanal || 'Telefon'}</span>
+                      <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${kanalStyle(s.kanal).badge}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${kanalStyle(s.kanal).dot}`} />
+                        {s.kanal || 'Telefon'}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <p className="text-sm font-medium text-gray-800">{s.musteri_ad || '—'}</p>
