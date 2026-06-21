@@ -36,14 +36,20 @@ function formatTarih(dt: string) {
 
 type AlanField = 'musteri_telefon' | 'teslimat_adresi' | 'odeme_yontemi'
 
-function ExtraActionsMenu({
-  open, onToggle, onClose, onDetay, onAlan,
+function RowActionsMenu({
+  siparis: s, aktif, updatingDurum, delivering, open, onToggle, onClose, onDetay, onAlan, onDurumGuncelle, onTeslim,
 }: {
+  siparis: Siparis
+  aktif: boolean
+  updatingDurum: boolean
+  delivering: boolean
   open: boolean
   onToggle: () => void
   onClose: () => void
   onDetay: () => void
   onAlan: (field: AlanField, title: string) => void
+  onDurumGuncelle: (durum: string) => void
+  onTeslim: () => void
 }) {
   return (
     <div className="relative">
@@ -53,7 +59,32 @@ function ExtraActionsMenu({
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={onClose} />
-          <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-20">
+          <div className="absolute right-0 mt-1 w-52 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-20">
+            {s.durum === 'Atandı' && (
+              <button onClick={() => { onDurumGuncelle('Yolda'); onClose() }} disabled={updatingDurum}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                <Navigation size={13} /> Yola Çıkar
+              </button>
+            )}
+            {(s.durum === 'Atandı' || s.durum === 'Yolda') && (
+              <button onClick={() => { onDurumGuncelle('Beklemede'); onClose() }} disabled={updatingDurum}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                <PauseCircle size={13} /> Beklet
+              </button>
+            )}
+            {s.durum === 'Yolda' && (
+              <button onClick={() => { onTeslim(); onClose() }} disabled={delivering}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                {delivering ? <RefreshCw size={13} className="animate-spin" /> : <CheckCircle2 size={13} />} Teslim Et
+              </button>
+            )}
+            {aktif && (
+              <button onClick={() => { if (confirm('Sipariş iptal edilsin mi?')) onDurumGuncelle('İptal'); onClose() }} disabled={updatingDurum}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50">
+                <Ban size={13} /> İptal Et
+              </button>
+            )}
+            {(s.durum === 'Atandı' || s.durum === 'Yolda' || aktif) && <div className="my-1 border-t border-gray-100" />}
             <button onClick={() => { onDetay(); onClose() }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">
               <Eye size={13} /> Sipariş Detay
             </button>
@@ -197,7 +228,7 @@ export default function SiparisTablosu({
               <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Ödeme</th>
               <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Durum</th>
               <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tarih</th>
-              <th className="w-40" />
+              <th className="w-10" />
             </tr>
           </thead>
           <tbody>
@@ -216,7 +247,23 @@ export default function SiparisTablosu({
                       <p className="text-sm text-gray-800">{s.musteri_ad || 'Müşteri'}</p>
                       <p className="text-xs text-gray-400 truncate max-w-[170px]">{s.teslimat_adresi || s.musteri_telefon || '—'}</p>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{s.kurye_ad || <span className="text-gray-400">Atanmamış</span>}</td>
+                    <td className="px-4 py-3 text-sm">
+                      {aktif ? (
+                        <button
+                          onClick={() => setAtaModal(s)}
+                          title={s.kurye_id ? 'Kurye Değiştir' : 'Kurye Ata'}
+                          className="inline-flex items-center gap-1.5 text-gray-700 hover:text-primary-600 font-medium"
+                        >
+                          <Bike size={13} className="text-gray-400" />
+                          {s.kurye_ad || <span className="text-gray-400">Atanmamış</span>}
+                        </button>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-gray-700">
+                          <Bike size={13} className="text-gray-300" />
+                          {s.kurye_ad || <span className="text-gray-400">—</span>}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-right text-sm font-bold text-gray-800">{s.tutar.toFixed(2)} ₺</td>
                     <td className="px-4 py-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${odemeBadge(s.odeme_yontemi)}`}>{s.odeme_yontemi}</span>
@@ -226,43 +273,19 @@ export default function SiparisTablosu({
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatTarih(s.olusturma_tarihi)}</td>
                     <td className="px-2 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        {aktif && (
-                          <button onClick={() => setAtaModal(s)} title={s.kurye_id ? 'Kurye Değiştir' : 'Kurye Ata'}
-                            className="p-1.5 bg-primary-50 text-primary-600 hover:bg-primary-100 rounded-md transition-colors duration-150">
-                            <Bike size={13} />
-                          </button>
-                        )}
-                        {s.durum === 'Atandı' && (
-                          <button onClick={() => handleDurumGuncelle(s, 'Yolda')} disabled={updatingDurum === s.id} title="Yola Çıkar"
-                            className="p-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-md transition-colors duration-150 disabled:opacity-50">
-                            <Navigation size={13} />
-                          </button>
-                        )}
-                        {(s.durum === 'Atandı' || s.durum === 'Yolda') && (
-                          <button onClick={() => handleDurumGuncelle(s, 'Beklemede')} disabled={updatingDurum === s.id} title="Beklet"
-                            className="p-1.5 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-md transition-colors duration-150 disabled:opacity-50">
-                            <PauseCircle size={13} />
-                          </button>
-                        )}
-                        {s.durum === 'Yolda' && (
-                          <button onClick={() => handleTeslim(s)} disabled={delivering === s.id} title="Teslim Et"
-                            className="p-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-md transition-colors duration-150 disabled:opacity-50">
-                            {delivering === s.id ? <RefreshCw size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
-                          </button>
-                        )}
-                        {aktif && (
-                          <button onClick={() => { if (confirm('Sipariş iptal edilsin mi?')) handleDurumGuncelle(s, 'İptal') }} disabled={updatingDurum === s.id} title="İptal"
-                            className="p-1.5 bg-red-50 text-red-500 hover:bg-red-100 rounded-md transition-colors duration-150 disabled:opacity-50">
-                            <Ban size={13} />
-                          </button>
-                        )}
-                        <ExtraActionsMenu
+                      <div className="flex items-center justify-end">
+                        <RowActionsMenu
+                          siparis={s}
+                          aktif={aktif}
+                          updatingDurum={updatingDurum === s.id}
+                          delivering={delivering === s.id}
                           open={menuFor === s.id}
                           onToggle={() => setMenuFor(menuFor === s.id ? null : s.id)}
                           onClose={() => setMenuFor(null)}
                           onDetay={() => setDetayModal(s)}
                           onAlan={(field, ftitle) => setAlanModal({ siparis: s, field, title: ftitle })}
+                          onDurumGuncelle={durum => handleDurumGuncelle(s, durum)}
+                          onTeslim={() => handleTeslim(s)}
                         />
                       </div>
                     </td>
