@@ -128,9 +128,9 @@ istekle birlikte gönderilir.
 12. **Paketlenmemiş öğe yükle** (Load unpacked) ile
     `paketci-destek-extension/chrome-extension` klasörünü seçme.
 13. Paketçi web panelini açma.
-14. Paket/sipariş satırlarında "Destek Talebi Oluştur" butonunun görünmesini
-    test etme.
-15. Butona tıklayıp sağ panelden destek talebi oluşturma.
+14. Sağ-altta sabit "Destek Talep Et" butonunun görünmesini test etme.
+15. Butona tıklayıp (liste sayfasında paket seçip) sağ panelden destek
+    talebi oluşturma.
 16. Admin mailinin (ops/critical alıcılar) gelip gelmediğini kontrol etme.
 17. Kullanıcı mailinin (talebi oluşturan kişiye onay maili) gelip gelmediğini
     kontrol etme.
@@ -146,9 +146,9 @@ istekle birlikte gönderilir.
 
 | # | Senaryo | Durum |
 |---|---------|-------|
-| 1 | Paketçi ekranı açılınca buton ekleniyor mu? | Eklenti tarafı |
-| 2 | Dinamik yüklenen satırlara buton ekleniyor mu? | Eklenti tarafı |
-| 3 | Aynı satıra iki kez buton eklenmiyor mu? | Eklenti tarafı |
+| 1 | Paketçi ekranı açılınca sağ-alt buton ekleniyor mu? | Eklenti tarafı |
+| 2 | Body yeniden render olsa da buton kalıcı mı (tekrar ekleniyor mu)? | Eklenti tarafı |
+| 3 | Buton iki kez eklenmiyor mu (çift enjeksiyon engeli)? | Eklenti tarafı |
 | 4 | Buton UI düzgün görünüyor mu? | Eklenti tarafı |
 | 5 | Sağ panel açılıyor mu? | Eklenti tarafı |
 | 6 | ESC ile panel kapanıyor mu? | Eklenti tarafı |

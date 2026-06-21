@@ -1,7 +1,8 @@
 /**
- * İçerik script orkestratörü — sayfaya buton enjekte eder, tıklamaları
- * paketciAdapter + supportPanel'e bağlar. manifest.json'da bu dosya EN SON
- * yüklenir; diğer tüm window.PSupport.* modüllerinin hazır olduğunu varsayar.
+ * İçerik script orkestratörü — sayfaya tek bir "Destek Talep Et" butonu
+ * (sağ-altta sabit) enjekte eder, tıklamaları paketciAdapter + supportPanel'e
+ * bağlar. manifest.json'da bu dosya EN SON yüklenir; diğer tüm
+ * window.PSupport.* modüllerinin hazır olduğunu varsayar.
  */
 (function () {
   'use strict';
@@ -10,11 +11,12 @@
   var adapter = window.PSupport.paketciAdapter;
   var panel = window.PSupport.supportPanel;
   var config = window.PSupport.config;
-  var UI = window.PSupport.constants.MESSAGES.ui;
+  var toast = window.PSupport.toast;
+  var MESSAGES = window.PSupport.constants.MESSAGES;
+  var UI = MESSAGES.ui;
 
   var PAGE_STYLE_ID = 'psupport-page-style';
-  var ROW_BUTTON_ATTR = 'data-psupport-row-injected';
-  var DETAIL_BUTTON_ATTR = 'data-psupport-detail-injected';
+  var FAB_ATTR = 'data-psupport-fab-injected';
   var STYLESHEET_URL = chrome.runtime.getURL('src/styles.css');
 
   function isAllowedHost() {
@@ -40,97 +42,64 @@
 
   function openPanelFor(snapshot) {
     if (!snapshot || (!snapshot.paketciPackageId && !snapshot.orderNumber)) {
-      window.PSupport.toast.info(window.PSupport.constants.MESSAGES.errors.packageDataNotRead);
+      toast.info(MESSAGES.errors.packageDataNotRead);
     }
     panel.open(snapshot);
   }
 
   // ─────────────────────────────────────────────────────────────────
-  // Liste sayfası: her satıra buton ekle
+  // Tek akış: detay sayfasındaysa o paket için panel direkt açılır;
+  // liste sayfasındaysa kullanıcı paketi panel içindeki seçiciden seçer.
   // ─────────────────────────────────────────────────────────────────
 
-  function injectRowButtons() {
-    var rows = adapter.findPackageRows(document);
-    rows.forEach(function (row) {
-      if (row.getAttribute(ROW_BUTTON_ATTR)) return;
+  function openSupportFlow() {
+    if (adapter.isDetailPage()) {
+      openPanelFor(adapter.extractFromDetail());
+      return;
+    }
 
-      var slot = adapter.findRowActionSlot(row) || row;
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'psupport-row-action-btn';
-      btn.appendChild(buildIcon());
-      btn.appendChild(document.createTextNode(UI.rowButtonLabelFull));
-      btn.setAttribute('aria-label', UI.rowButtonLabelFull);
-
-      btn.addEventListener('click', function (evt) {
-        evt.preventDefault();
-        evt.stopPropagation();
-        openPanelFor(adapter.extractFromRow(row));
-      });
-
-      slot.appendChild(btn);
-      row.setAttribute(ROW_BUTTON_ATTR, '1');
-    });
+    var packages = adapter.listPackages();
+    if (packages.length === 0) {
+      toast.info(UI.noPackagesFoundHint);
+      panel.open({});
+      return;
+    }
+    if (packages.length === 1) {
+      openPanelFor(packages[0]);
+      return;
+    }
+    panel.open(null, packages);
   }
 
   // ─────────────────────────────────────────────────────────────────
-  // Detay sayfası: üst aksiyon alanına veya floating action button olarak ekle
+  // Sağ-altta sabit, tek "Destek Talep Et" butonu
   // ─────────────────────────────────────────────────────────────────
 
-  function injectDetailButton() {
-    if (!adapter.isDetailPage()) {
-      removeFloatingButton();
-      return;
-    }
-    if (document.querySelector('[' + DETAIL_BUTTON_ATTR + ']')) return;
+  function ensureFloatingButton() {
+    if (document.querySelector('[' + FAB_ATTR + ']')) return;
 
-    var actionBar = adapter.findDetailActionBar(document);
     var btn = document.createElement('button');
     btn.type = 'button';
+    btn.className = 'psupport-fab-btn';
     btn.appendChild(buildIcon());
-    btn.appendChild(document.createTextNode(UI.detailButtonLabel));
-    btn.setAttribute(DETAIL_BUTTON_ATTR, '1');
-    btn.setAttribute('aria-label', UI.detailButtonLabel);
+    btn.appendChild(document.createTextNode(UI.fabButtonLabel));
+    btn.setAttribute(FAB_ATTR, '1');
+    btn.setAttribute('aria-label', UI.fabButtonLabel);
 
     btn.addEventListener('click', function (evt) {
       evt.preventDefault();
       evt.stopPropagation();
-      openPanelFor(adapter.extractFromDetail());
+      openSupportFlow();
     });
 
-    if (actionBar) {
-      btn.className = 'psupport-detail-action-btn';
-      actionBar.appendChild(btn);
-    } else {
-      btn.className = 'psupport-detail-action-btn psupport-fab';
-      btn.style.position = 'fixed';
-      btn.style.right = '24px';
-      btn.style.bottom = '24px';
-      btn.style.zIndex = '2147482999';
-      btn.style.boxShadow = '0 6px 16px rgba(0,0,0,0.25)';
-      document.body.appendChild(btn);
-    }
+    document.body.appendChild(btn);
   }
 
-  function removeFloatingButton() {
-    var existing = document.querySelector('[' + DETAIL_BUTTON_ATTR + ']');
-    if (existing) existing.remove();
-  }
-
-  // ─────────────────────────────────────────────────────────────────
-  // Çalıştırma döngüsü
-  // ─────────────────────────────────────────────────────────────────
-
-  function runInjection() {
-    injectRowButtons();
-    injectDetailButton();
-  }
-
-  // popup.js'in "Yeni Destek Talebi" hızlı aksiyonundan gelen, pakete bağlı
-  // olmayan manuel panel açma isteğini dinler.
+  // popup.js'in "Yeni Destek Talebi" hızlı aksiyonundan gelen, butona
+  // tıklanmadan manuel panel açma isteğini dinler.
   chrome.runtime.onMessage.addListener(function (message) {
     if (message && message.type === 'PSUPPORT_OPEN_MANUAL') {
-      openPanelFor(adapter.isDetailPage() ? adapter.extractFromDetail() : {});
+      openSupportFlow();
     }
   });
 
@@ -138,17 +107,11 @@
     if (!isAllowedHost()) return;
 
     injectPageStylesheet();
-    runInjection();
+    ensureFloatingButton();
 
-    domUtils.observeMutations(document.body, runInjection, 200);
-
-    domUtils.watchUrlChange(function () {
-      // SPA route değişiminde detay/liste durumu değişebilir; önceki
-      // detay butonunu (varsa) sıfırlamak için tag'i temizleyip yeniden dene.
-      var oldDetailBtn = document.querySelector('[' + DETAIL_BUTTON_ATTR + ']');
-      if (oldDetailBtn && !adapter.isDetailPage()) oldDetailBtn.remove();
-      runInjection();
-    });
+    // Bazı SPA'lar `document.body` içeriğini tamamen yeniden render eder;
+    // bu durumda buton DOM'dan düşer, MutationObserver ile geri eklenir.
+    domUtils.observeMutations(document.body, ensureFloatingButton, 200);
   }
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') {

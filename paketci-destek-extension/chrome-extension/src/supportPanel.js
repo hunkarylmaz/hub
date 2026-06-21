@@ -94,12 +94,22 @@
   // Public API
   // ───────────────────────────────────────────────────────────────────
 
-  function open(snapshot) {
+  /**
+   * @param {object|null} snapshot - Tek paket bağlamı (satır/detaydan). Paket
+   *   seçici modunda (packageOptions doluyken) null geçilir.
+   * @param {object[]|null} packageOptions - Liste sayfasında birden fazla
+   *   paket görünüyorsa, kullanıcının panel içinden seçebileceği paketler.
+   */
+  function open(snapshot, packageOptions) {
     ensureHost();
     mountEl.innerHTML = '';
 
+    var hasPicker = Array.isArray(packageOptions) && packageOptions.length > 0;
+
     var state = {
-      snapshot: snapshot || {},
+      snapshot: hasPicker ? {} : (snapshot || {}),
+      packageOptions: hasPicker ? packageOptions : null,
+      packageSelected: !hasPicker,
       manualOverrides: {},
       selectedFile: null,
       userTouchedPriority: false,
@@ -244,11 +254,17 @@
     var body = el('div', 'psupport-drawer-body');
     var footer = el('div', 'psupport-drawer-footer');
 
-    body.appendChild(buildSummarySection(state));
-
-    if (hasMissingCoreFields(state.snapshot)) {
-      body.appendChild(el('div', 'psupport-manual-hint', { text: UI.manualEditHint }));
+    if (state.packageOptions) {
+      var pickerRefs = buildPackagePicker(state);
+      body.appendChild(pickerRefs.wrapper);
+      state.packagePickerSelect = pickerRefs.select;
+      state.packagePickerError = pickerRefs.errorEl;
     }
+
+    var summaryWrap = el('div', 'psupport-summary-wrap');
+    renderSummaryInto(summaryWrap, state);
+    body.appendChild(summaryWrap);
+    state.summaryWrapEl = summaryWrap;
 
     var formRefs = buildFormFields(body, state);
 
@@ -287,6 +303,58 @@
 
   function hasMissingCoreFields(snapshot) {
     return !snapshot.paketciPackageId && !snapshot.orderNumber;
+  }
+
+  function shouldShowManualHint(state) {
+    // Paket seçici modunda, kullanıcı henüz bir paket seçmediyse "otomatik
+    // okunamadı" uyarısı yanıltıcı olur — seçim yapılana kadar gösterilmez.
+    if (state.packageOptions && !state.packageSelected) return false;
+    return hasMissingCoreFields(state.snapshot);
+  }
+
+  function renderSummaryInto(container, state) {
+    container.innerHTML = '';
+    container.appendChild(buildSummarySection(state));
+    if (shouldShowManualHint(state)) {
+      container.appendChild(el('div', 'psupport-manual-hint', { text: UI.manualEditHint }));
+    }
+  }
+
+  function packageOptionLabel(pkg) {
+    var parts = [];
+    if (pkg.paketciPackageId) parts.push(pkg.paketciPackageId);
+    else if (pkg.orderNumber) parts.push(pkg.orderNumber);
+    if (pkg.restaurantName) parts.push(pkg.restaurantName);
+    if (pkg.courierName) parts.push(pkg.courierName);
+    return parts.length ? parts.join(' — ') : 'Paket';
+  }
+
+  function buildPackagePicker(state) {
+    var field = buildFieldWrapper(UI.packagePickerLabel, true);
+    var select = el('select', 'psupport-select psupport-field-input', { 'aria-label': UI.packagePickerLabel });
+
+    var placeholder = el('option', null, { value: '' });
+    placeholder.textContent = UI.packagePickerPlaceholder;
+    select.appendChild(placeholder);
+
+    state.packageOptions.forEach(function (pkg, index) {
+      var option = el('option', null, { value: String(index) });
+      // pkg alanları paketciAdapter.js içinde zaten escapeHtml ile
+      // kaçışlanmış; innerHTML ataması buildSummaryItem ile aynı kuralı izler.
+      option.innerHTML = packageOptionLabel(pkg);
+      select.appendChild(option);
+    });
+
+    select.addEventListener('change', function () {
+      var idx = select.value;
+      state.snapshot = idx !== '' ? state.packageOptions[Number(idx)] : {};
+      state.packageSelected = idx !== '';
+      if (state.packageSelected) setFieldError(select, field.errorEl, null);
+      renderSummaryInto(state.summaryWrapEl, state);
+    });
+
+    field.input.appendChild(select);
+    return { wrapper: field.wrapper, select: select, errorEl: field.errorEl };
   }
 
   function buildSummarySection(state) {
@@ -567,6 +635,12 @@
   function handleSubmit(drawer, state, refs, submitBtn) {
     if (state.submitting) return;
 
+    var pickerValid = true;
+    if (state.packageOptions) {
+      pickerValid = !!state.packageSelected;
+      setFieldError(state.packagePickerSelect, state.packagePickerError, pickerValid ? null : ERRORS.missingPackageSelection);
+    }
+
     var formData = {
       issueType: refs.issueType.value,
       title: refs.title.value,
@@ -586,7 +660,7 @@
     if (result.errors.file) refs.fileError.textContent = result.errors.file;
     refs.fileError.style.display = result.errors.file ? 'block' : 'none';
 
-    if (!result.valid) {
+    if (!result.valid || !pickerValid) {
       refs.requestErrorBanner.style.display = 'none';
       return;
     }

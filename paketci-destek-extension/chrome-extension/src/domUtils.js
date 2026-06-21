@@ -85,39 +85,6 @@
     return observer;
   }
 
-  /**
-   * SPA route değişikliklerini izler (Paketçi pushState/replaceState ile
-   * sayfa değiştirebilir, klasik 'load' eventi tetiklenmeyebilir).
-   */
-  function watchUrlChange(callback) {
-    var lastUrl = location.href;
-    var check = debounce(function () {
-      if (location.href !== lastUrl) {
-        lastUrl = location.href;
-        callback(lastUrl);
-      }
-    }, 200);
-
-    var originalPushState = history.pushState;
-    var originalReplaceState = history.replaceState;
-
-    history.pushState = function () {
-      var result = originalPushState.apply(this, arguments);
-      check();
-      return result;
-    };
-    history.replaceState = function () {
-      var result = originalReplaceState.apply(this, arguments);
-      check();
-      return result;
-    };
-
-    window.addEventListener('popstate', check);
-    // Bazı SPA'lar history API'yi farklı şekillerde tetikler; yedek olarak
-    // düşük frekanslı bir interval de kullanılır (performans etkisi ihmal edilebilir).
-    setInterval(check, 1000);
-  }
-
   /** Aynı stylesheet metnini birden çok hedefe (page head + shadow root) enjekte etmek için cache'li fetch. */
   var stylesheetCache = null;
   function loadStylesheetText(url) {
@@ -148,7 +115,6 @@
     escapeHtml: escapeHtml,
     debounce: debounce,
     observeMutations: observeMutations,
-    watchUrlChange: watchUrlChange,
     loadStylesheetText: loadStylesheetText,
     injectStyleTagOnce: injectStyleTagOnce
   };

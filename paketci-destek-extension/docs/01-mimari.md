@@ -97,8 +97,8 @@
 | `config.js` | Backend base URL, extension version, ortam (dev/prod) ayarı, izinli domain — **tek değişiklik noktası** |
 | `constants.js` | Sorun tipi listesi, öncelik listesi + renk/etiket eşlemesi, dosya türü/boyut limiti, tüm kullanıcı mesajları (başarı/hata metinleri) |
 | `domUtils.js` | Genel DOM yardımcıları: `qs`/`qsa`, metin çıkarma+trim, `MutationObserver` sarmalayıcı, debounce, basit `escapeHtml` |
-| `paketciAdapter.js` | **Adapter pattern.** Tüm Paketçi selector'ları tek bir `SELECTORS` haritasında; her alan için `extractX()` fonksiyonu, bulunamazsa `null` döner, hiçbir zaman exception fırlatmaz |
-| `content.js` | Orkestratör: adapter'ı çağırır, satırlara/detay sayfasına buton enjekte eder, `data-psupport-injected` ile tekrar enjeksiyonu engeller, `MutationObserver` + SPA navigasyon izleme kurar |
+| `paketciAdapter.js` | **Adapter pattern.** Tüm Paketçi selector'ları tek bir `SELECTORS` haritasında; her alan için `extractX()` fonksiyonu, bulunamazsa `null` döner, hiçbir zaman exception fırlatmaz; `listPackages()` ile sayfada görünen tüm paketleri toplar (paket seçici için) |
+| `content.js` | Orkestratör: sayfaya tek bir sağ-alt "Destek Talep Et" butonu enjekte eder (`data-psupport-fab-injected` ile tekrar enjeksiyonu engeller), tıklamada detay sayfasındaysa ilgili paketi, liste sayfasındaysa paket seçiciyi açar; `MutationObserver` ile butonun SPA re-render'larında kalıcılığını sağlar |
 | `supportPanel.js` | Shadow DOM içinde drawer oluşturma/yönetme, form state, validasyon entegrasyonu, gönderim orkestrasyonu, başarı/hata ekranları, focus trap + ESC |
 | `supportFormValidator.js` | Saf (DOM'a bağımsız) validasyon fonksiyonları — birim test edilebilir |
 | `apiClient.js` | `fetch` sarmalayıcı: `FormData` oluşturma (`payload` JSON alanı + opsiyonel `attachment` dosyası), timeout, HTTP/network hata eşlemesi → `constants.js` hata mesajları |
@@ -109,18 +109,20 @@
 
 ### 2.3 Enjeksiyon stratejisi
 
-- **Idempotency:** Her satıra/detay alanına buton eklenmeden önce
-  `el.dataset.psupportInjected` kontrol edilir; varsa atlanır.
-- **Dinamik içerik:** Liste konteynerine `MutationObserver` bağlanır
-  (`childList: true, subtree: true`), yeni satırlar geldiğinde debounce'lu
-  (örn. 150ms) yeniden tarama yapılır.
-- **SPA navigasyon:** Paketçi route değiştirdiğinde content script yeniden
-  çalışmayabileceği için `history.pushState`/`replaceState` sarmalanır veya
-  `location.href` periyodik kontrol edilir (`domUtils.watchUrlChange`); URL
-  değiştiğinde adapter + enjeksiyon yeniden tetiklenir.
-- **Detay sayfası buton yerleşimi:** Önce `paketciAdapter.findDetailActionBar()`
-  ile üst aksiyon alanı aranır; bulunamazsa sağ-alt **floating action button**
-  fallback'i devreye girer (`psupport-fab`).
+- **Tek buton, tek yer:** Satır başına buton YOK — sayfaya sağ-altta sabit
+  konumlu tek bir `psupport-fab-btn` enjekte edilir (`content.js`).
+  Idempotency için `data-psupport-fab-injected` kontrol edilir.
+- **Dinamik içerik:** `document.body`'ye `MutationObserver` bağlanır
+  (`childList: true, subtree: true`); bazı SPA'lar body içeriğini tamamen
+  yeniden render edip butonu DOM'dan düşürebileceği için debounce'lu
+  (200ms) yeniden ekleme tetiklenir.
+- **Tıklama anında dallanma:** Butona tıklandığında route/SPA durumu o anda
+  okunur — `paketciAdapter.isDetailPage()` true ise o paket için panel direkt
+  açılır; değilse `paketciAdapter.listPackages()` ile sayfadaki paketler
+  toplanır ve panel içinde **paket seçici** (`<select>`) gösterilir (tek paket
+  varsa seçici atlanıp direkt o paket açılır, hiç paket yoksa manuel giriş
+  moduna düşülür). Bu sayede ayrıca bir SPA route-izleme mekanizmasına
+  gerek kalmaz.
 
 ---
 
@@ -154,16 +156,19 @@
   input için `<label>`/`aria-label`, öncelik bilgisi sadece renkle değil
   ikon+metinle de iletilir.
 
-### 3.2 Sayfa üstü butonlar
+### 3.2 Sayfa üstü buton ve paket seçici
 
-- Satır butonu: küçük pill buton, ikon+"Destek Talebi Oluştur" (dar
-  alanlarda "Destek Aç"), hover elevation, loading/disabled state.
-- Detay sayfası butonu: "Bu Paket İçin Destek Talebi Oluştur", üst aksiyon
-  alanında birincil buton görünümü; fallback floating action button sağ-altta.
+- Tek buton: sağ-altta sabit, pill/yuvarlak buton, ikon+"Destek Talep Et",
+  hover elevation. Tüm sayfalarda (liste/detay) aynı buton kullanılır.
+- **Paket seçici:** Liste sayfasında ve birden fazla paket görünüyorsa, panel
+  açıldığında en üstte zorunlu bir "Paket Seçin" `<select>` gösterilir;
+  kullanıcı paket seçince paket özeti aynı panelde anında güncellenir (form
+  alanları sıfırlanmaz). Tek paket görünüyorsa seçici atlanır, paket hiç
+  bulunamazsa manuel giriş moduna düşülür.
 - **Z-index stratejisi:** Shadow DOM host'u çok yüksek bir z-index'te
-  (örn. `2147483000`) sayfanın en üstünde sabit konumlanır; sayfa-içi butonlar
-  satırın/aksiyon alanının doğal akışında kaldığı için orta seviye bir
-  z-index yeterlidir, herhangi bir Paketçi elemanıyla çakışma riski taşımaz.
+  (örn. `2147483000`) sayfanın en üstünde sabit konumlanır; sağ-alt buton da
+  yüksek bir z-index'te (`2147482999`) sabit konumlanır, herhangi bir
+  Paketçi elemanıyla çakışma riski taşımaz.
 
 ---
 
@@ -397,7 +402,7 @@ arasında gelecekte ortak admin ekranı paylaşılabilir):
 11. Geliştirici Modu'nu açma
 12. "Paketi Yükle" (Load unpacked) ile klasörü seçme
 13. Paketçi panelini açma
-14. Paket satırlarında butonun göründüğünü doğrulama
+14. Sağ-altta sabit "Destek Talep Et" butonunun göründüğünü doğrulama
 15. Bir destek talebi oluşturma (uçtan uca test)
 16. Admin mailinin geldiğini kontrol etme
 17. Kullanıcı mailinin geldiğini kontrol etme
@@ -412,7 +417,7 @@ Kullanıcının verdiği 27 senaryo, aşağıdaki gruplarla eşleştirilip uygul
 
 | Grup | Senaryolar | Araç |
 |---|---|---|
-| Enjeksiyon davranışı | Buton ekleme, dinamik satır, çift enjeksiyon engeli, UI görünümü | Manuel QA + (mümkünse) Playwright ile fixture HTML üzerinde otomasyon |
+| Enjeksiyon davranışı | Buton ekleme, body yeniden render sonrası kalıcılık, çift enjeksiyon engeli, UI görünümü | Manuel QA + (mümkünse) Playwright ile fixture HTML üzerinde otomasyon |
 | Panel davranışı | Açılma, ESC, focus trap | Manuel QA + Playwright |
 | Veri okuma | Paket verisi doğru okuma, eksik veri → manuel giriş | Jest unit test (adapter saf fonksiyonlar, JSDOM fixture) |
 | Form validasyonu | Geçersiz e-posta, boş açıklama, sorun tipi zorunluluğu | Jest unit test (`supportFormValidator.js`, DOM'dan bağımsız) |

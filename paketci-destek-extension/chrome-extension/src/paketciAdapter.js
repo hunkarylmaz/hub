@@ -32,22 +32,6 @@
       '.siparis-satiri'
     ],
 
-    // Bir satır içinde "Destek Talebi Oluştur" butonunun ekleneceği slot.
-    // Bulunamazsa satırın son hücresi/eleman sonu kullanılır (content.js'te fallback).
-    rowActionSlotCandidates: [
-      '.row-actions',
-      'td.actions',
-      '.package-row-actions'
-    ],
-
-    // Paket detay sayfasında üst aksiyon alanı (buton birincil olarak buraya eklenir).
-    detailActionBarCandidates: [
-      '[data-testid="package-detail-actions"]',
-      '.detail-header .actions',
-      '.package-detail-toolbar',
-      '.siparis-detay-baslik .aksiyonlar'
-    ],
-
     // Detay sayfasında geniş bilgi okumak için kök konteyner (bulunamazsa document kullanılır).
     detailRootCandidates: [
       '[data-testid="package-detail-root"]',
@@ -187,14 +171,6 @@
     return findAllMatches(root || document, SELECTORS.listRowCandidates);
   }
 
-  function findRowActionSlot(rowEl) {
-    return findFirstMatch(rowEl, SELECTORS.rowActionSlotCandidates);
-  }
-
-  function findDetailActionBar(root) {
-    return findFirstMatch(root || document, SELECTORS.detailActionBarCandidates);
-  }
-
   function findDetailRoot() {
     return findFirstMatch(document, SELECTORS.detailRootCandidates) || document;
   }
@@ -206,6 +182,15 @@
   /** Bir satırdan paket bilgisi okur (liste sayfası bağlamı). */
   function extractFromRow(rowEl) {
     return buildSnapshot(rowEl, 'row');
+  }
+
+  /** Sayfada şu an görünen tüm paketleri okur (paket seçici için). */
+  function listPackages() {
+    return findPackageRows(document)
+      .map(extractFromRow)
+      .filter(function (snapshot) {
+        return !!(snapshot.paketciPackageId || snapshot.orderNumber);
+      });
   }
 
   /** Detay sayfasından daha geniş paket bilgisi okur. */
@@ -258,11 +243,10 @@
   global.PSupport.paketciAdapter = {
     SELECTORS: SELECTORS,
     findPackageRows: findPackageRows,
-    findRowActionSlot: findRowActionSlot,
-    findDetailActionBar: findDetailActionBar,
     findDetailRoot: findDetailRoot,
     isDetailPage: isDetailPage,
     extractFromRow: extractFromRow,
-    extractFromDetail: extractFromDetail
+    extractFromDetail: extractFromDetail,
+    listPackages: listPackages
   };
 })(typeof window !== 'undefined' ? window : self);

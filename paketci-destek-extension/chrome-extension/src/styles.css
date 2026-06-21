@@ -1,6 +1,6 @@
 /**
  * Paketçi Destek Talebi eklentisi — TÜM görsel stiller burada toplanır.
- * Bu dosya hem Paketçi sayfasının <head>'ine (satır/detay butonları için)
+ * Bu dosya hem Paketçi sayfasının <head>'ine (sağ-alt sabit buton için)
  * hem de paneli/toast'ı barındıran Shadow DOM köklerine enjekte edilir.
  *
  * KURAL: Paketçi'nin kendi CSS'iyle çakışmayı önlemek için TÜM seçiciler
@@ -31,52 +31,47 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────
-   1) Sayfa içine enjekte edilen "Destek Talebi Oluştur" butonları
+   1) Sayfaya enjekte edilen tek "Destek Talep Et" butonu (sağ altta sabit)
    ───────────────────────────────────────────────────────────────────── */
-.psupport-row-action-btn,
-.psupport-detail-action-btn {
+.psupport-fab-btn {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 2147482999;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-family: var(--psupport-font);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1;
   color: #ffffff;
   background-color: var(--psupport-primary);
   border: none;
-  border-radius: 6px;
-  padding: 7px 12px;
+  border-radius: 999px;
+  padding: 12px 18px;
   cursor: pointer;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
   transition: background-color 0.15s ease, transform 0.05s ease;
   white-space: nowrap;
 }
 
-.psupport-row-action-btn:hover,
-.psupport-detail-action-btn:hover {
+.psupport-fab-btn:hover {
   background-color: var(--psupport-primary-dark);
 }
 
-.psupport-row-action-btn:active,
-.psupport-detail-action-btn:active {
-  transform: scale(0.98);
+.psupport-fab-btn:active {
+  transform: scale(0.97);
 }
 
-.psupport-row-action-btn:focus-visible,
-.psupport-detail-action-btn:focus-visible {
+.psupport-fab-btn:focus-visible {
   outline: 2px solid var(--psupport-primary-dark);
   outline-offset: 2px;
 }
 
-.psupport-detail-action-btn {
-  font-size: 14px;
-  padding: 9px 16px;
-}
-
-.psupport-row-action-btn .psupport-icon,
-.psupport-detail-action-btn .psupport-icon {
-  width: 14px;
-  height: 14px;
+.psupport-fab-btn .psupport-icon {
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
 }
 
