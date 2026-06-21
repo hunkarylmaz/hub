@@ -180,12 +180,13 @@ function HazirlanmaModal({ restoran, onClose, onSave }: { restoran: Restoran; on
 // ── Konum Modal ────────────────────────────────────────────────────────────────
 function KonumModal({ restoran, onClose, onSave }: { restoran: Restoran; onClose: () => void; onSave: () => void }) {
   const [konum, setKonum] = useState<{ lat: number | null; lon: number | null }>({ lat: restoran.lat ?? null, lon: restoran.lon ?? null })
+  const [adres, setAdres] = useState({ adres: restoran.adres || '', ilce: restoran.ilce || '' })
   const [saving, setSaving] = useState(false)
 
   async function handleSave() {
     setSaving(true)
     try {
-      await api.restoranlar.update(restoran.id, { lat: konum.lat, lon: konum.lon })
+      await api.restoranlar.update(restoran.id, { lat: konum.lat, lon: konum.lon, adres: adres.adres || null, ilce: adres.ilce || null })
       onSave(); onClose()
     } finally { setSaving(false) }
   }
@@ -200,8 +201,26 @@ function KonumModal({ restoran, onClose, onSave }: { restoran: Restoran; onClose
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
         </div>
-        <div className="p-6">
-          <KonumSecici lat={konum.lat} lon={konum.lon} onChange={(lat, lon) => setKonum({ lat, lon })} height={320} />
+        <div className="p-6 space-y-3">
+          <KonumSecici
+            lat={konum.lat}
+            lon={konum.lon}
+            onChange={(lat, lon) => setKonum({ lat, lon })}
+            onAdresBulundu={s => setAdres(a => ({ adres: s.display_name, ilce: s.ilce || a.ilce }))}
+            height={320}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Açık Adres</label>
+              <input value={adres.adres} onChange={e => setAdres(a => ({ ...a, adres: e.target.value }))}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">İlçe</label>
+              <input value={adres.ilce} onChange={e => setAdres(a => ({ ...a, ilce: e.target.value }))}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
+            </div>
+          </div>
         </div>
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
           <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-200 rounded-lg text-gray-600">İptal</button>
@@ -400,7 +419,8 @@ function YonetimPaneliModal({ restoran, onClose, onSave }: { restoran: Restoran;
 
 // ── Yeni / Düzenle Modal ──────────────────────────────────────────────────────
 function RestoranModal({ restoran, onClose, onSave }: { restoran?: Restoran; onClose: () => void; onSave: () => void }) {
-  const [form, setForm] = useState({ ad: restoran?.ad || '', adres: restoran?.adres || '', telefon: restoran?.telefon || '' })
+  const [form, setForm] = useState({ ad: restoran?.ad || '', adres: restoran?.adres || '', telefon: restoran?.telefon || '', ilce: restoran?.ilce || '' })
+  const [konum, setKonum] = useState<{ lat: number | null; lon: number | null }>({ lat: restoran?.lat ?? null, lon: restoran?.lon ?? null })
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
@@ -408,15 +428,16 @@ function RestoranModal({ restoran, onClose, onSave }: { restoran?: Restoran; onC
     if (!form.ad.trim()) { setErr('Restoran adı zorunlu'); return }
     setSaving(true)
     try {
-      if (restoran) await api.restoranlar.update(restoran.id, form)
-      else await api.restoranlar.create(form)
+      const data = { ...form, lat: konum.lat, lon: konum.lon }
+      if (restoran) await api.restoranlar.update(restoran.id, data)
+      else await api.restoranlar.create(data)
       onSave(); onClose()
     } catch (e) { setErr(e instanceof Error ? e.message : 'Hata') } finally { setSaving(false) }
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h3 className="font-semibold text-gray-800">{restoran ? 'Restoran Düzenle' : 'Yeni Restoran'}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
@@ -429,14 +450,31 @@ function RestoranModal({ restoran, onClose, onSave }: { restoran?: Restoran; onC
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Adres</label>
-            <input value={form.adres} onChange={e => setForm(f => ({ ...f, adres: e.target.value }))}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
-          </div>
-          <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Telefon</label>
             <input value={form.telefon} onChange={e => setForm(f => ({ ...f, telefon: e.target.value }))}
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Adres / Konum</label>
+            <KonumSecici
+              lat={konum.lat}
+              lon={konum.lon}
+              onChange={(lat, lon) => setKonum({ lat, lon })}
+              onAdresBulundu={s => setForm(f => ({ ...f, adres: s.display_name, ilce: s.ilce || f.ilce }))}
+              height={260}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Açık Adres</label>
+              <input value={form.adres} onChange={e => setForm(f => ({ ...f, adres: e.target.value }))}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">İlçe</label>
+              <input value={form.ilce} onChange={e => setForm(f => ({ ...f, ilce: e.target.value }))}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
+            </div>
           </div>
         </div>
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">

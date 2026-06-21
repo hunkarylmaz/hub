@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet'
 import { LocateFixed } from 'lucide-react'
 import { createKonumIcon } from '../lib/mapUtils'
+import AdresArama from './AdresArama'
+import { AdresSonucu } from '../lib/api'
 
 const TURKIYE_MERKEZ: [number, number] = [39.9334, 32.8597]
 
@@ -9,6 +11,7 @@ interface KonumSeciciProps {
   lat: number | null
   lon: number | null
   onChange: (lat: number, lon: number) => void
+  onAdresBulundu?: (sonuc: AdresSonucu) => void
   center?: [number, number]
   height?: number
 }
@@ -22,7 +25,7 @@ function ClickHandler({ onPick }: { onPick: (lat: number, lon: number) => void }
   return null
 }
 
-export default function KonumSecici({ lat, lon, onChange, center, height = 240 }: KonumSeciciProps) {
+export default function KonumSecici({ lat, lon, onChange, onAdresBulundu, center, height = 240 }: KonumSeciciProps) {
   const [locating, setLocating] = useState(false)
   const secili = lat != null && lon != null
   const initialCenter: [number, number] = secili ? [lat, lon] : (center ?? TURKIYE_MERKEZ)
@@ -39,6 +42,9 @@ export default function KonumSecici({ lat, lon, onChange, center, height = 240 }
 
   return (
     <div>
+      <div className="mb-2">
+        <AdresArama onSecim={s => { onChange(s.lat, s.lon); onAdresBulundu?.(s) }} />
+      </div>
       <div className="rounded-lg overflow-hidden border border-gray-200" style={{ height }}>
         <MapContainer
           key={secili ? 'secili' : `oneri-${initialCenter[0]}-${initialCenter[1]}`}

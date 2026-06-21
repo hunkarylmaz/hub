@@ -864,10 +864,41 @@ app.get('/api/bayi/restoranlar', bayiAuthMiddleware, wrap(async (req, res) => {
 }))
 
 app.post('/api/bayi/restoranlar', bayiAuthMiddleware, wrap(async (req, res) => {
-  const { ad, adres, telefon } = req.body || {}
+  const { ad, adres, telefon, ilce, lat, lon } = req.body || {}
   if (!ad) return res.status(400).json({ message: 'Restoran adı gerekli' })
-  const { lastID } = await run('INSERT INTO bayi_restoranlar (bayilik_id,ad,adres,telefon) VALUES (?,?,?,?)', [req.bayi.bayilikId, ad, adres||null, telefon||null])
+  const { lastID } = await run(
+    'INSERT INTO bayi_restoranlar (bayilik_id,ad,adres,telefon,ilce,lat,lon) VALUES (?,?,?,?,?,?,?)',
+    [req.bayi.bayilikId, ad, adres||null, telefon||null, ilce||null, lat??null, lon??null]
+  )
   res.status(201).json(await get('SELECT * FROM bayi_restoranlar WHERE id=?', [lastID]))
+}))
+
+function adresDetayCikar(address) {
+  if (!address) return { mahalle: null, ilce: null, il: null }
+  return {
+    mahalle: address.suburb || address.neighbourhood || address.quarter || address.village || null,
+    ilce: address.town || address.county || address.city_district || address.district || address.city || null,
+    il: address.province || address.state || null,
+  }
+}
+
+app.get('/api/bayi/geocode/ara', bayiAuthMiddleware, wrap(async (req, res) => {
+  const q = String(req.query.q || '').trim()
+  if (q.length < 3) return res.json([])
+  const params = new URLSearchParams({
+    q, format: 'jsonv2', addressdetails: '1', limit: '6', countrycodes: 'tr', 'accept-language': 'tr',
+  })
+  const r = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+    headers: { 'User-Agent': 'PaketciBayiPaneli/1.0 (https://paketci.app; destek@paketci.app)' },
+  })
+  if (!r.ok) return res.json([])
+  const data = await r.json()
+  res.json(data.map(d => ({
+    lat: Number(d.lat),
+    lon: Number(d.lon),
+    display_name: d.display_name,
+    ...adresDetayCikar(d.address),
+  })))
 }))
 
 app.put('/api/bayi/restoranlar/:id', bayiAuthMiddleware, wrap(async (req, res) => {

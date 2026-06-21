@@ -1,3 +1,12 @@
+export interface AdresSonucu {
+  lat: number
+  lon: number
+  display_name: string
+  mahalle: string | null
+  ilce: string | null
+  il: string | null
+}
+
 export interface Bayilik {
   id: number
   ad: string
@@ -329,6 +338,11 @@ export const api = {
     get: () => request<DashboardData>('/api/bayi/dashboard', { headers: authHeaders() }),
   },
 
+  geocode: {
+    ara: (q: string) =>
+      request<AdresSonucu[]>(`/api/bayi/geocode/ara?q=${encodeURIComponent(q)}`, { headers: authHeaders() }),
+  },
+
   kuryeler: {
     list: () => request<Kurye[]>('/api/bayi/kuryeler', { headers: authHeaders() }),
     create: (data: { ad: string; telefon?: string }) =>
@@ -346,7 +360,7 @@ export const api = {
 
   restoranlar: {
     list: () => request<Restoran[]>('/api/bayi/restoranlar', { headers: authHeaders() }),
-    create: (data: { ad: string; adres?: string; telefon?: string }) =>
+    create: (data: { ad: string; adres?: string; telefon?: string; ilce?: string; lat?: number | null; lon?: number | null }) =>
       request<Restoran>('/api/bayi/restoranlar', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
     update: (id: number, data: Record<string, unknown>) =>
       request<Restoran>(`/api/bayi/restoranlar/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),

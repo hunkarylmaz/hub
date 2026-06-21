@@ -107,7 +107,13 @@ export function YeniSiparisModal({ restoranlar, onClose, onSave }: YeniSiparisMo
               Müşteri Konumu {konumZorunlu && <span className="text-red-500">*</span>}
               {!konumZorunlu && <span className="text-gray-400 font-normal"> (opsiyonel)</span>}
             </label>
-            <KonumSecici lat={konum.lat} lon={konum.lon} onChange={(lat, lon) => setKonum({ lat, lon })} center={haritaMerkezi} />
+            <KonumSecici
+              lat={konum.lat}
+              lon={konum.lon}
+              onChange={(lat, lon) => setKonum({ lat, lon })}
+              onAdresBulundu={s => setForm(f => ({ ...f, teslimat_adresi: s.display_name }))}
+              center={haritaMerkezi}
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
