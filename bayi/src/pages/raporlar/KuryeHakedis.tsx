@@ -18,6 +18,7 @@ export default function KuryeHakedis() {
   const [baslangic, setBaslangic] = useState(defaultStart)
   const [bitis, setBitis] = useState(defaultEnd)
   const [expanded, setExpanded] = useState<number | null>(null)
+  const [search, setSearch] = useState('')
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -29,7 +30,7 @@ export default function KuryeHakedis() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  const kuryeler = data?.kuryeler || []
+  const kuryeler = (data?.kuryeler || []).filter(k => !search || k.ad.toLowerCase().includes(search.toLowerCase()))
 
   return (
     <div className="flex flex-col lg:flex-row gap-5">
@@ -80,7 +81,7 @@ export default function KuryeHakedis() {
       <div className="flex-1">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-gray-700">Kurye Kazançları ({kuryeler.length})</h3>
-          <input placeholder="Kurye ara..." className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg w-40 focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
+          <input placeholder="Kurye ara..." value={search} onChange={e => setSearch(e.target.value)} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg w-40 focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
         </div>
 
         {loading ? (

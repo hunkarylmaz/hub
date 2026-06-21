@@ -117,7 +117,7 @@ async function initDb() {
       run('INSERT INTO bayilikler (ad,bayilik_id,durum,sehir,token,ozel_fiyat,user_id) VALUES (?,?,?,?,?,?,?)',
         [ad, bid, durum, sehir, token, fiyat, uid])
 
-    const { lastID: b1 } = await insertB('TEST JET',            '0FNA19SWUL88F6E', 'Aktif', 'İzmir',         0,    2.80)
+    const { lastID: b1 } = await insertB('Paketçiniz',          '0FNA19SWUL88F6E', 'Aktif', 'İzmir',         0,    2.80)
     const { lastID: b2 } = await insertB('Paketçiniz Afyon',    'Afyonkarahisar002','Aktif','Afyonkarahisar', 216,  2.80)
     const { lastID: b3 } = await insertB('Moon Courie',         'Bursa009',        'Pasif', 'Bursa',          0,    3.00)
                            await insertB('Paketçiniz Kütahya',  'KUTAHYA003',      'Pasif', 'KÜTAHYA',        0,    3.00)
@@ -412,73 +412,6 @@ app.use((err, req, res, _next) => {
 
 // ── BAYİ PANEL TABLES & MIGRATIONS ───────────────────────────────────────────
 async function initBayiDb() {
-  // Migrations: add columns if not exist
-  try { await run('ALTER TABLE bayilikler ADD COLUMN bayi_email TEXT') } catch {}
-  try { await run('ALTER TABLE bayilikler ADD COLUMN bayi_sifre TEXT') } catch {}
-  // Restoran extended fields
-  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN ilce TEXT') } catch {}
-  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN email TEXT') } catch {}
-  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN iban TEXT') } catch {}
-  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN iban_sahibi TEXT') } catch {}
-  try { await run("ALTER TABLE bayi_restoranlar ADD COLUMN calisma_tipi TEXT DEFAULT 'Paket Başı'") } catch {}
-  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN paket_basi_ucret REAL DEFAULT 0') } catch {}
-  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN km_baslangic REAL DEFAULT 0') } catch {}
-  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN km_ucret REAL DEFAULT 0') } catch {}
-  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN komisyon_yuzdesi REAL DEFAULT 0') } catch {}
-  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN saatlik_ucret REAL DEFAULT 0') } catch {}
-  try { await run("ALTER TABLE bayi_restoranlar ADD COLUMN coklu_paket TEXT DEFAULT '[]'") } catch {}
-  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN hazirlanma_suresi INTEGER DEFAULT 30') } catch {}
-  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN otomatik_yazdir INTEGER DEFAULT 1') } catch {}
-  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN kurye_konum_takip INTEGER DEFAULT 0') } catch {}
-  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN kurye_numara_goruntu INTEGER DEFAULT 1') } catch {}
-  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN restoran_teslimat INTEGER DEFAULT 1') } catch {}
-  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN siparis_hazir INTEGER DEFAULT 0') } catch {}
-  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN pos_kullanim INTEGER DEFAULT 0') } catch {}
-  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN odeme_duzenleme INTEGER DEFAULT 1') } catch {}
-  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN harita_konum INTEGER DEFAULT 1') } catch {}
-  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN plaka TEXT') } catch {}
-  try { await run("ALTER TABLE bayi_kuryeler ADD COLUMN paket_limiti INTEGER DEFAULT 5") } catch {}
-  try { await run(`ALTER TABLE bayi_kuryeler ADD COLUMN odeme_tipleri TEXT DEFAULT '["Nakit","Kredi Kartı"]'`) } catch {}
-  try { await run("ALTER TABLE bayi_kuryeler ADD COLUMN calisma_tipi TEXT DEFAULT 'Paket Başı'") } catch {}
-  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN paket_basi_ucret REAL DEFAULT 0') } catch {}
-  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN km_baslangic REAL DEFAULT 0') } catch {}
-  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN km_ucret REAL DEFAULT 0') } catch {}
-  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN komisyon_yuzdesi REAL DEFAULT 0') } catch {}
-  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN saatlik_ucret REAL DEFAULT 0') } catch {}
-  try { await run("ALTER TABLE bayi_kuryeler ADD COLUMN coklu_paket TEXT DEFAULT '[]'") } catch {}
-  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN paket_iptali INTEGER DEFAULT 0') } catch {}
-  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN odeme_duzenleme INTEGER DEFAULT 1') } catch {}
-  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN lat REAL') } catch {}
-  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN lon REAL') } catch {}
-  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN son_konum_tarihi TEXT') } catch {}
-
-  // Genel Ayarlar extensions for bayi_ayarlar
-  try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN calisma_acilis TEXT DEFAULT '11:00'") } catch {}
-  try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN calisma_kapanis TEXT DEFAULT '05:00'") } catch {}
-  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN lat REAL') } catch {}
-  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN lon REAL') } catch {}
-  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN ilce TEXT') } catch {}
-  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN siparis_tutar_gorunu INTEGER DEFAULT 1') } catch {}
-  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN isletmeye_vardim INTEGER DEFAULT 1') } catch {}
-  try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN siparis_onay_modu TEXT DEFAULT 'Manuel'") } catch {}
-  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bildirim_gecikmesi INTEGER DEFAULT 6') } catch {}
-  try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN bildirim_mesaji TEXT DEFAULT 'Siparişi henüz görmediniz! Lütfen kontrol edin.'") } catch {}
-  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN gecmis_kazanc_duzenleme INTEGER DEFAULT 1') } catch {}
-
-  // Bonus periyot columns
-  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_gunluk_aktif INTEGER DEFAULT 0') } catch {}
-  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_gunluk_min INTEGER DEFAULT 10') } catch {}
-  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_gunluk_tutar REAL DEFAULT 50') } catch {}
-  try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN bonus_gunluk_tip TEXT DEFAULT 'Tutar'") } catch {}
-  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_haftalik_aktif INTEGER DEFAULT 0') } catch {}
-  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_haftalik_min INTEGER DEFAULT 50') } catch {}
-  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_haftalik_tutar REAL DEFAULT 200') } catch {}
-  try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN bonus_haftalik_tip TEXT DEFAULT 'Tutar'") } catch {}
-  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_aylik_aktif INTEGER DEFAULT 0') } catch {}
-  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_aylik_min INTEGER DEFAULT 200') } catch {}
-  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_aylik_tutar REAL DEFAULT 5') } catch {}
-  try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN bonus_aylik_tip TEXT DEFAULT 'Yüzde'") } catch {}
-
   // Bildirimler (bayi → kuryeler)
   await exec(`
     CREATE TABLE IF NOT EXISTS bayi_bildirimler (
@@ -639,22 +572,91 @@ async function initBayiDb() {
     );
   `)
 
+  // Migrations: add columns if not exist (must run after CREATE TABLE above)
+  try { await run('ALTER TABLE bayilikler ADD COLUMN bayi_email TEXT') } catch {}
+  try { await run('ALTER TABLE bayilikler ADD COLUMN bayi_sifre TEXT') } catch {}
+  // Restoran extended fields
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN ilce TEXT') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN email TEXT') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN iban TEXT') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN iban_sahibi TEXT') } catch {}
+  try { await run("ALTER TABLE bayi_restoranlar ADD COLUMN calisma_tipi TEXT DEFAULT 'Paket Başı'") } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN paket_basi_ucret REAL DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN km_baslangic REAL DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN km_ucret REAL DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN komisyon_yuzdesi REAL DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN saatlik_ucret REAL DEFAULT 0') } catch {}
+  try { await run("ALTER TABLE bayi_restoranlar ADD COLUMN coklu_paket TEXT DEFAULT '[]'") } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN hazirlanma_suresi INTEGER DEFAULT 30') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN otomatik_yazdir INTEGER DEFAULT 1') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN kurye_konum_takip INTEGER DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN kurye_numara_goruntu INTEGER DEFAULT 1') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN restoran_teslimat INTEGER DEFAULT 1') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN siparis_hazir INTEGER DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN pos_kullanim INTEGER DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN odeme_duzenleme INTEGER DEFAULT 1') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN harita_konum INTEGER DEFAULT 1') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN lat REAL') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN lon REAL') } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN plaka TEXT') } catch {}
+  try { await run("ALTER TABLE bayi_kuryeler ADD COLUMN paket_limiti INTEGER DEFAULT 5") } catch {}
+  try { await run(`ALTER TABLE bayi_kuryeler ADD COLUMN odeme_tipleri TEXT DEFAULT '["Nakit","Kredi Kartı"]'`) } catch {}
+  try { await run("ALTER TABLE bayi_kuryeler ADD COLUMN calisma_tipi TEXT DEFAULT 'Paket Başı'") } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN paket_basi_ucret REAL DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN km_baslangic REAL DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN km_ucret REAL DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN komisyon_yuzdesi REAL DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN saatlik_ucret REAL DEFAULT 0') } catch {}
+  try { await run("ALTER TABLE bayi_kuryeler ADD COLUMN coklu_paket TEXT DEFAULT '[]'") } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN paket_iptali INTEGER DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN odeme_duzenleme INTEGER DEFAULT 1') } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN lat REAL') } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN lon REAL') } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN son_konum_tarihi TEXT') } catch {}
+
+  // Genel Ayarlar extensions for bayi_ayarlar
+  try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN calisma_acilis TEXT DEFAULT '11:00'") } catch {}
+  try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN calisma_kapanis TEXT DEFAULT '05:00'") } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN lat REAL') } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN lon REAL') } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN ilce TEXT') } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN siparis_tutar_gorunu INTEGER DEFAULT 1') } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN isletmeye_vardim INTEGER DEFAULT 1') } catch {}
+  try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN siparis_onay_modu TEXT DEFAULT 'Manuel'") } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bildirim_gecikmesi INTEGER DEFAULT 6') } catch {}
+  try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN bildirim_mesaji TEXT DEFAULT 'Siparişi henüz görmediniz! Lütfen kontrol edin.'") } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN gecmis_kazanc_duzenleme INTEGER DEFAULT 1') } catch {}
+
+  // Bonus periyot columns
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_gunluk_aktif INTEGER DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_gunluk_min INTEGER DEFAULT 10') } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_gunluk_tutar REAL DEFAULT 50') } catch {}
+  try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN bonus_gunluk_tip TEXT DEFAULT 'Tutar'") } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_haftalik_aktif INTEGER DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_haftalik_min INTEGER DEFAULT 50') } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_haftalik_tutar REAL DEFAULT 200') } catch {}
+  try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN bonus_haftalik_tip TEXT DEFAULT 'Tutar'") } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_aylik_aktif INTEGER DEFAULT 0') } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_aylik_min INTEGER DEFAULT 200') } catch {}
+  try { await run('ALTER TABLE bayi_ayarlar ADD COLUMN bonus_aylik_tutar REAL DEFAULT 5') } catch {}
+  try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN bonus_aylik_tip TEXT DEFAULT 'Yüzde'") } catch {}
+
   const bankCount = await get('SELECT COUNT(*) as c FROM banka_hesaplari')
   if (bankCount.c === 0) {
     await run("INSERT INTO banka_hesaplari (banka_adi,ad_soyad,iban) VALUES (?,?,?)",
       ['Yapıkredi', 'Hünkar Yılmaz', 'TR700006701000000079431847'])
   }
 
-  // Seed demo data for TEST JET bayilik
+  // Seed demo data for Paketçiniz bayilik
   const tj = await get("SELECT id FROM bayilikler WHERE bayilik_id='0FNA19SWUL88F6E'")
   if (!tj) return
 
   const existingK = await get('SELECT COUNT(*) as c FROM bayi_kuryeler WHERE bayilik_id=?', [tj.id])
   if (existingK.c > 0) return
 
-  // Seed bayi credentials for TEST JET
-  const bayiHash = bcrypt.hashSync('bayi123', 10)
-  await run('UPDATE bayilikler SET bayi_email=?,bayi_sifre=? WHERE id=?', ['testjet@paketci.app', bayiHash, tj.id])
+  // Seed bayi credentials for Paketçiniz demo bayilik
+  const bayiHash = bcrypt.hashSync('12345678', 10)
+  await run('UPDATE bayilikler SET bayi_email=?,bayi_sifre=? WHERE id=?', ['paketciniz@paketci.app', bayiHash, tj.id])
 
   // Seed couriers
   const insertK = (ad, tel, durum, gunluk, toplam) =>
@@ -872,7 +874,8 @@ app.put('/api/bayi/restoranlar/:id', bayiAuthMiddleware, wrap(async (req, res) =
     calisma_tipi, paket_basi_ucret, km_baslangic, km_ucret,
     komisyon_yuzdesi, saatlik_ucret, coklu_paket, hazirlanma_suresi,
     otomatik_yazdir, kurye_konum_takip, kurye_numara_goruntu,
-    restoran_teslimat, siparis_hazir, pos_kullanim, odeme_duzenleme, harita_konum
+    restoran_teslimat, siparis_hazir, pos_kullanim, odeme_duzenleme, harita_konum,
+    lat, lon
   } = req.body || {}
   const n = (v) => v != null ? v : null
   const j = (v) => v != null ? (Array.isArray(v) ? JSON.stringify(v) : v) : null
@@ -886,7 +889,8 @@ app.put('/api/bayi/restoranlar/:id', bayiAuthMiddleware, wrap(async (req, res) =
     otomatik_yazdir=COALESCE(?,otomatik_yazdir), kurye_konum_takip=COALESCE(?,kurye_konum_takip),
     kurye_numara_goruntu=COALESCE(?,kurye_numara_goruntu), restoran_teslimat=COALESCE(?,restoran_teslimat),
     siparis_hazir=COALESCE(?,siparis_hazir), pos_kullanim=COALESCE(?,pos_kullanim),
-    odeme_duzenleme=COALESCE(?,odeme_duzenleme), harita_konum=COALESCE(?,harita_konum)
+    odeme_duzenleme=COALESCE(?,odeme_duzenleme), harita_konum=COALESCE(?,harita_konum),
+    lat=COALESCE(?,lat), lon=COALESCE(?,lon)
     WHERE id=?`,
     [ad||null, adres||null, telefon||null, n(aktif),
      ilce||null, email||null, iban||null, iban_sahibi||null,
@@ -894,6 +898,7 @@ app.put('/api/bayi/restoranlar/:id', bayiAuthMiddleware, wrap(async (req, res) =
      n(komisyon_yuzdesi), n(saatlik_ucret), j(coklu_paket), n(hazirlanma_suresi),
      n(otomatik_yazdir), n(kurye_konum_takip), n(kurye_numara_goruntu), n(restoran_teslimat),
      n(siparis_hazir), n(pos_kullanim), n(odeme_duzenleme), n(harita_konum),
+     n(lat), n(lon),
      req.params.id])
   res.json(await get('SELECT * FROM bayi_restoranlar WHERE id=?', [req.params.id]))
 }))

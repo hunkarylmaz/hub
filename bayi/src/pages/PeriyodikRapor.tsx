@@ -60,7 +60,7 @@ interface BHModalProps {
   entity_ad: string
   onClose: () => void
 }
-function BakiyeHareketiModal({ entity_type, entity_id, entity_ad, onClose }: BHModalProps) {
+export function BakiyeHareketiModal({ entity_type, entity_id, entity_ad, onClose }: BHModalProps) {
   const [tur, setTur] = useState<'Aldım' | 'Verdim'>('Aldım')
   const [tutar, setTutar] = useState('')
   const [tarih, setTarih] = useState(fmtDateTimeLocal(new Date().toISOString()))

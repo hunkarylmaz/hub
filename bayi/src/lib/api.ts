@@ -74,6 +74,8 @@ export interface Restoran {
   pos_kullanim: number
   odeme_duzenleme: number
   harita_konum: number
+  lat?: number | null
+  lon?: number | null
   olusturma_tarihi: string
 }
 

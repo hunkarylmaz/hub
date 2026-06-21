@@ -25,6 +25,7 @@ export default function RestoranHakedis() {
   const [baslangic, setBaslangic] = useState(defaultStart)
   const [bitis, setBitis] = useState(defaultEnd)
   const [sayfa, setSayfa] = useState(1)
+  const [search, setSearch] = useState('')
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -35,7 +36,7 @@ export default function RestoranHakedis() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  const restoranlar = data?.restoranlar || []
+  const restoranlar = (data?.restoranlar || []).filter(r => !search || r.ad.toLowerCase().includes(search.toLowerCase()))
 
   return (
     <div className="flex flex-col lg:flex-row gap-5">
@@ -55,12 +56,6 @@ export default function RestoranHakedis() {
             <label className="block text-xs font-medium text-gray-500 mb-1">Bitiş</label>
             <input type="datetime-local" value={bitis} onChange={e => setBitis(e.target.value)}
               className="w-full px-2 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Sayfa Başına Kayıt</label>
-            <select className="w-full px-2 py-2 text-xs border border-gray-200 rounded-lg">
-              <option>10 kayıt</option><option>25 kayıt</option><option>50 kayıt</option>
-            </select>
           </div>
           <button onClick={() => { setSayfa(1); fetchData() }} className="w-full py-2 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700">
             Filtrele
@@ -91,7 +86,7 @@ export default function RestoranHakedis() {
       <div className="flex-1">
         <h3 className="text-sm font-semibold text-gray-700 mb-3">
           Restoran Listesi ({restoranlar.length})
-          <input placeholder="Restoran ara..." className="ml-3 px-3 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20 font-normal" />
+          <input placeholder="Restoran ara..." value={search} onChange={e => setSearch(e.target.value)} className="ml-3 px-3 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20 font-normal" />
         </h3>
         <div className="bg-white rounded-xl border border-gray-100 overflow-x-auto">
           {loading ? (

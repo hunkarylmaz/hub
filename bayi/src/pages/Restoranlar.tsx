@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Search, Loader2, AlertCircle, X, MoreVertical, ChevronRight, Check } from 'lucide-react'
 import { api, Restoran } from '../lib/api'
+import { BakiyeHareketiModal } from './PeriyodikRapor'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const CALISMA_TIPLERI = ['Paket Başı', 'Km Aralığı', 'Komisyon', 'Paket + Km', 'Saatlik Ücret', 'Çoklu Paket']
@@ -175,6 +176,58 @@ function HazirlanmaModal({ restoran, onClose, onSave }: { restoran: Restoran; on
   )
 }
 
+// ── Konum Modal ────────────────────────────────────────────────────────────────
+function KonumModal({ restoran, onClose, onSave }: { restoran: Restoran; onClose: () => void; onSave: () => void }) {
+  const [lat, setLat] = useState(restoran.lat ?? '')
+  const [lon, setLon] = useState(restoran.lon ?? '')
+  const [saving, setSaving] = useState(false)
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      await api.restoranlar.update(restoran.id, {
+        lat: lat === '' ? null : Number(lat),
+        lon: lon === '' ? null : Number(lon),
+      })
+      onSave(); onClose()
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase">Konum Düzenle</p>
+            <p className="text-sm font-semibold text-gray-800">{restoran.ad}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Enlem (lat)</label>
+            <input type="number" step="0.000001" value={lat} onChange={e => setLat(e.target.value === '' ? '' : Number(e.target.value))}
+              placeholder="38.4192"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Boylam (lon)</label>
+            <input type="number" step="0.000001" value={lon} onChange={e => setLon(e.target.value === '' ? '' : Number(e.target.value))}
+              placeholder="27.1287"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
+          <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-200 rounded-lg text-gray-600">İptal</button>
+          <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-60 font-medium">
+            {saving ? 'Kaydediliyor...' : 'Kaydet'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Yönetim Paneli Modal ──────────────────────────────────────────────────────
 type YonetimTab = 'ayarlar' | 'yonetim' | 'bilgiler'
 
@@ -199,6 +252,8 @@ function YonetimPaneliModal({ restoran, onClose, onSave }: { restoran: Restoran;
   })
   const [showCalisma, setShowCalisma] = useState(false)
   const [showHazirlanma, setShowHazirlanma] = useState(false)
+  const [showKonum, setShowKonum] = useState(false)
+  const [showMuhasebe, setShowMuhasebe] = useState(false)
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState('')
 
@@ -234,18 +289,20 @@ function YonetimPaneliModal({ restoran, onClose, onSave }: { restoran: Restoran;
   ] as const
 
   const yonetimList = [
-    { key: 'calisma', label: 'Çalışma Tipi', desc: 'Komisyon ve ödeme ayarları', onClick: () => setShowCalisma(true) },
-    { key: 'hazirlanma', label: 'Hazırlanma Süresi', desc: 'Sipariş hazırlama süresi ayarı', onClick: () => setShowHazirlanma(true) },
-    { key: 'konum', label: 'Konum Düzenle', desc: 'Harita üzerinde konum ayarla', onClick: () => {} },
-    { key: 'engelli', label: 'Engelli Kuryeler', desc: 'Kurye engelleme listesi', onClick: () => {} },
-    { key: 'kullanici', label: 'İşletme Kullanıcıları', desc: 'Restoran kullanıcı yönetimi', onClick: () => {} },
-    { key: 'muhasebe', label: 'Muhasebe Yönetim', desc: 'Ödeme ve finans kayıtları', onClick: () => {} },
+    { key: 'calisma', label: 'Çalışma Tipi', desc: 'Komisyon ve ödeme ayarları', onClick: () => setShowCalisma(true), disabled: false },
+    { key: 'hazirlanma', label: 'Hazırlanma Süresi', desc: 'Sipariş hazırlama süresi ayarı', onClick: () => setShowHazirlanma(true), disabled: false },
+    { key: 'konum', label: 'Konum Düzenle', desc: 'Harita üzerinde konum ayarla', onClick: () => setShowKonum(true), disabled: false },
+    { key: 'muhasebe', label: 'Muhasebe Yönetim', desc: 'Ödeme ve finans kayıtları', onClick: () => setShowMuhasebe(true), disabled: false },
+    { key: 'engelli', label: 'Engelli Kuryeler', desc: 'Kurye engelleme listesi', onClick: () => {}, disabled: true },
+    { key: 'kullanici', label: 'İşletme Kullanıcıları', desc: 'Restoran kullanıcı yönetimi', onClick: () => {}, disabled: true },
   ]
 
   return (
     <>
       {showCalisma && <CalismaModal label="Çalışma Tipi" restoran={restoran} onClose={() => setShowCalisma(false)} onSave={onSave} />}
       {showHazirlanma && <HazirlanmaModal restoran={restoran} onClose={() => setShowHazirlanma(false)} onSave={onSave} />}
+      {showKonum && <KonumModal restoran={restoran} onClose={() => setShowKonum(false)} onSave={onSave} />}
+      {showMuhasebe && <BakiyeHareketiModal entity_type="restoran" entity_id={restoran.id} entity_ad={restoran.ad} onClose={() => setShowMuhasebe(false)} />}
 
       <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
         <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
@@ -309,13 +366,15 @@ function YonetimPaneliModal({ restoran, onClose, onSave }: { restoran: Restoran;
                     <span>ⓘ</span><span>Restoran yönetim işlemlerini buradan yapabilirsiniz.</span>
                   </div>
                   {yonetimList.map(item => (
-                    <button key={item.key} onClick={item.onClick}
-                      className="w-full flex items-center justify-between py-3.5 px-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors mb-2">
+                    <button key={item.key} onClick={item.onClick} disabled={item.disabled}
+                      className={`w-full flex items-center justify-between py-3.5 px-3 border border-gray-100 rounded-xl transition-colors mb-2 ${item.disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}>
                       <div className="text-left">
                         <p className="text-sm font-medium text-gray-800">{item.label}</p>
                         <p className="text-xs text-gray-400">{item.desc}</p>
                       </div>
-                      <ChevronRight size={16} className="text-gray-400" />
+                      {item.disabled
+                        ? <span className="text-[10px] font-semibold text-gray-400 bg-gray-100 px-2 py-1 rounded-full">Yakında</span>
+                        : <ChevronRight size={16} className="text-gray-400" />}
                     </button>
                   ))}
                 </div>
@@ -417,8 +476,8 @@ function RowMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => voi
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
           <div className="absolute right-0 top-8 z-40 bg-white rounded-xl shadow-lg border border-gray-100 py-1 w-36">
-            <button onClick={() => { setOpen(false) }} className="w-full px-3 py-2 text-sm text-left text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-              <span className="text-gray-400">📄</span> Belgeler
+            <button disabled title="Yakında" className="w-full px-3 py-2 text-sm text-left text-gray-400 opacity-50 cursor-not-allowed flex items-center gap-2">
+              <span className="text-gray-400">📄</span> Belgeler <span className="ml-auto text-[10px] font-semibold bg-gray-100 px-1.5 py-0.5 rounded-full">Yakında</span>
             </button>
             <button onClick={() => { setOpen(false); onEdit() }} className="w-full px-3 py-2 text-sm text-left text-gray-700 hover:bg-gray-50 flex items-center gap-2">
               <span className="text-gray-400">✏️</span> Düzenle
@@ -491,7 +550,8 @@ export default function Restoranlar() {
           <p className="text-sm text-gray-500 mt-0.5">Toplam {filtered.length} restoran</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="px-4 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
+          <button disabled title="Yakında"
+            className="px-4 py-2 text-sm border border-gray-200 rounded-lg text-gray-400 opacity-50 cursor-not-allowed transition-colors flex items-center gap-1.5">
             <Check size={14} /> Çapraz Ödeme
           </button>
           <button onClick={() => setModal({ type: 'yeni' })}
