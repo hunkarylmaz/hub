@@ -1,6 +1,6 @@
 import { useState, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Package } from 'lucide-react'
+import { Eye, EyeOff, Package, Loader2, AlertCircle } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -29,19 +29,23 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 relative overflow-hidden">
+      <div className="absolute -top-32 -left-32 w-96 h-96 bg-primary-200/40 rounded-full blur-3xl" />
+      <div className="absolute -bottom-40 -right-20 w-[28rem] h-[28rem] bg-primary-100/60 rounded-full blur-3xl" />
+
+      <div className="w-full max-w-md relative z-10 px-4">
+        <div className="bg-white rounded-2xl shadow-popover border border-gray-100 p-8">
           <div className="flex flex-col items-center mb-8">
-            <div className="w-14 h-14 rounded-2xl bg-primary-600 flex items-center justify-center mb-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-600 to-primary-700 flex items-center justify-center mb-4 shadow-card-hover">
               <Package size={28} className="text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">Paketçi Bayi Paneli</h1>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Paketçi Bayi Paneli</h1>
             <p className="text-sm text-gray-500 mt-1">Bayilik hesabınızla giriş yapın</p>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-lg text-sm text-red-600">
+            <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-lg text-sm text-red-600 flex items-center gap-2">
+              <AlertCircle size={15} className="shrink-0" />
               {error}
             </div>
           )}
@@ -55,7 +59,7 @@ export default function Login() {
                 onChange={e => setEmail(e.target.value)}
                 required
                 placeholder="bayi@paketci.app"
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm transition-shadow duration-150 focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600"
               />
             </div>
             <div>
@@ -67,12 +71,12 @@ export default function Login() {
                   onChange={e => setSifre(e.target.value)}
                   required
                   placeholder="••••••••"
-                  className="w-full px-4 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600"
+                  className="w-full px-4 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm transition-shadow duration-150 focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPass(p => !p)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -81,8 +85,9 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg text-sm transition-colors disabled:opacity-60 mt-2"
+              className="btn-primary w-full py-2.5 text-sm mt-2"
             >
+              {loading && <Loader2 size={15} className="animate-spin" />}
               {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
             </button>
           </form>

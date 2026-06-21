@@ -20,7 +20,7 @@ function PercentBar({ value, max }: { value: number; max: number }) {
 export default function Performanslar() {
   const [tab, setTab] = useState<Tab>('kurye')
   const [data, setData] = useState<{
-    kurye_perf: { id: number; ad: string; durum: string; toplam_teslimat: number; gunluk_teslimat: number; basarili: number; ort_sure: number | null }[]
+    kurye_perf: { id: number; ad: string; durum: string; toplam_teslimat: number; gunluk_teslimat: number; toplam: number; basarili: number; ort_sure: number | null }[]
     isletme_perf: { ad: string; toplam: number; teslim: number; ciro: number }[]
   } | null>(null)
   const [loading, setLoading] = useState(true)
@@ -61,9 +61,9 @@ export default function Performanslar() {
       {tab === 'kurye' && (
         <div className="grid grid-cols-3 gap-4">
           {data?.kurye_perf.map((k, i) => {
-            const basariOrani = k.toplam_teslimat > 0 ? Math.round((k.basarili / k.toplam_teslimat) * 100) : 0
+            const basariOrani = k.toplam > 0 ? Math.round((k.basarili / k.toplam) * 100) : null
             return (
-              <div key={k.id} className="bg-white rounded-xl border border-gray-100 p-5">
+              <div key={k.id} className="card p-5">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-bold text-sm">
                     {k.ad.split(' ').map(n => n[0]).join('').slice(0, 2)}
@@ -92,8 +92,8 @@ export default function Performanslar() {
                   </div>
                   <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                     <span className="text-xs text-gray-500">Başarı Oranı</span>
-                    <span className={`text-sm font-bold ${basariOrani >= 80 ? 'text-emerald-600' : basariOrani >= 60 ? 'text-amber-500' : 'text-red-500'}`}>
-                      {basariOrani}%
+                    <span className={`text-sm font-bold ${basariOrani === null ? 'text-gray-400' : basariOrani >= 80 ? 'text-emerald-600' : basariOrani >= 60 ? 'text-amber-500' : 'text-red-500'}`}>
+                      {basariOrani === null ? '—' : `${basariOrani}%`}
                     </span>
                   </div>
                   {k.ort_sure !== null && (
@@ -115,7 +115,7 @@ export default function Performanslar() {
             {data?.isletme_perf.map((i, idx) => {
               const teslimOrani = i.toplam > 0 ? Math.round((i.teslim / i.toplam) * 100) : 0
               return (
-                <div key={idx} className="bg-white rounded-xl border border-gray-100 p-5">
+                <div key={idx} className="card p-5">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold text-gray-800">{i.ad}</h3>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${teslimOrani >= 80 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
@@ -143,7 +143,7 @@ export default function Performanslar() {
               )
             })}
           </div>
-          <div className="bg-white rounded-xl border border-gray-100 p-5">
+          <div className="card p-5">
             <div className="flex items-center gap-2 mb-4">
               <TrendingUp size={16} className="text-primary-600" />
               <h3 className="text-sm font-semibold text-gray-700">Ciro Karşılaştırma</h3>

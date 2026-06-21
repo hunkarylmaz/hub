@@ -496,7 +496,7 @@ export const api = {
   performans: {
     get: () =>
       request<{
-        kurye_perf: { id: number; ad: string; durum: string; toplam_teslimat: number; gunluk_teslimat: number; basarili: number; ort_sure: number | null }[]
+        kurye_perf: { id: number; ad: string; durum: string; toplam_teslimat: number; gunluk_teslimat: number; toplam: number; basarili: number; ort_sure: number | null }[]
         isletme_perf: { ad: string; toplam: number; teslim: number; ciro: number }[]
       }>('/api/bayi/performans', { headers: authHeaders() }),
   },

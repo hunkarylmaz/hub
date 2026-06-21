@@ -518,13 +518,11 @@ export default function Kuryeler() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         <button onClick={() => setModal({ type: 'limit', kurye: k })}
-                          className="text-xs text-primary-600 hover:underline font-medium">Limit</button>
-                        <span className="text-gray-300">·</span>
+                          className="text-xs font-medium px-2 py-1 bg-primary-50 text-primary-600 ring-1 ring-inset ring-primary-100 hover:bg-primary-100 rounded-md transition-colors duration-150">Limit</button>
                         <button onClick={() => setModal({ type: 'odeme', kurye: k })}
-                          className="text-xs text-primary-600 hover:underline font-medium">Ödeme</button>
-                        <span className="text-gray-300">·</span>
+                          className="text-xs font-medium px-2 py-1 bg-indigo-50 text-indigo-600 ring-1 ring-inset ring-indigo-100 hover:bg-indigo-100 rounded-md transition-colors duration-150">Ödeme</button>
                         <button onClick={() => setModal({ type: 'finans', kurye: k })}
-                          className="text-xs text-primary-600 hover:underline font-medium">Finans</button>
+                          className="text-xs font-medium px-2 py-1 bg-amber-50 text-amber-600 ring-1 ring-inset ring-amber-100 hover:bg-amber-100 rounded-md transition-colors duration-150">Finans</button>
                       </div>
                       <div className="flex flex-wrap gap-0.5 mt-1">
                         {odTipleri.slice(0, 2).map(t => (
@@ -554,16 +552,16 @@ export default function Kuryeler() {
             {total === 0 ? '0' : `${(page - 1) * PER_PAGE + 1}–${Math.min(page * PER_PAGE, total)}`} / {total}
           </span>
           <div className="flex items-center gap-1">
-            <button onClick={() => setPage(1)} disabled={page === 1} className="px-2 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-40">İlk</button>
-            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-2 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-40">‹</button>
+            <button onClick={() => setPage(1)} disabled={page === 1} className="px-2 py-1 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-md transition-colors duration-150 disabled:opacity-40 disabled:pointer-events-none">İlk</button>
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-2 py-1 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-md transition-colors duration-150 disabled:opacity-40 disabled:pointer-events-none">‹</button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
               <button key={p} onClick={() => setPage(p)}
-                className={`w-8 h-8 rounded-full text-sm font-medium ${page === p ? 'bg-primary-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
+                className={`w-8 h-8 rounded-full text-sm font-medium transition-all duration-150 ${page === p ? 'bg-primary-600 text-white shadow-card' : 'text-gray-500 hover:bg-gray-100'}`}>
                 {p}
               </button>
             ))}
-            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages || totalPages === 0} className="px-2 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-40">›</button>
-            <button onClick={() => setPage(totalPages)} disabled={page === totalPages || totalPages === 0} className="px-2 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-40">Son</button>
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages || totalPages === 0} className="px-2 py-1 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-md transition-colors duration-150 disabled:opacity-40 disabled:pointer-events-none">›</button>
+            <button onClick={() => setPage(totalPages)} disabled={page === totalPages || totalPages === 0} className="px-2 py-1 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-md transition-colors duration-150 disabled:opacity-40 disabled:pointer-events-none">Son</button>
           </div>
         </div>
       </div>

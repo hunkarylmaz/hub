@@ -203,7 +203,7 @@ export default function Siparisler() {
           <h1 className="text-2xl font-semibold text-gray-800">Siparişler</h1>
           <p className="text-sm text-gray-500 mt-0.5">{filtered.length} sipariş</p>
         </div>
-        <button onClick={() => setShowYeni(true)} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors">
+        <button onClick={() => setShowYeni(true)} className="btn-primary text-sm">
           <Plus size={16} /> Yeni Sipariş
         </button>
       </div>
@@ -265,35 +265,35 @@ export default function Siparisler() {
                     <div className="flex gap-1 flex-wrap">
                       {/* Ata veya Kurye Değiştir */}
                       {s.durum !== 'Teslim Edildi' && s.durum !== 'İptal' && (
-                        <button onClick={() => setAtaModal(s)} className="text-xs px-2 py-1 bg-primary-50 text-primary-600 hover:bg-primary-100 rounded-md flex items-center gap-1">
+                        <button onClick={() => setAtaModal(s)} className="text-xs font-medium px-2 py-1 bg-primary-50 text-primary-600 ring-1 ring-inset ring-primary-100 hover:bg-primary-100 rounded-md flex items-center gap-1 transition-colors duration-150">
                           {s.kurye_id ? <><RefreshCw size={11} /> Kurye Değiştir</> : <><Bike size={11} /> Ata</>}
                         </button>
                       )}
                       {/* Yola Çıkar: sadece Atandı */}
                       {s.durum === 'Atandı' && (
                         <button onClick={() => handleDurumGuncelle(s, 'Yolda')} disabled={updatingDurum === s.id}
-                          className="text-xs px-2 py-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-md flex items-center gap-1 disabled:opacity-50">
+                          className="text-xs font-medium px-2 py-1 bg-indigo-50 text-indigo-600 ring-1 ring-inset ring-indigo-100 hover:bg-indigo-100 rounded-md flex items-center gap-1 transition-colors duration-150 disabled:opacity-50">
                           <Navigation size={11} /> Yola Çıkar
                         </button>
                       )}
                       {/* Beklet: Atandı veya Yolda */}
                       {(s.durum === 'Atandı' || s.durum === 'Yolda') && (
                         <button onClick={() => handleDurumGuncelle(s, 'Beklemede')} disabled={updatingDurum === s.id}
-                          className="text-xs px-2 py-1 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-md flex items-center gap-1 disabled:opacity-50">
+                          className="text-xs font-medium px-2 py-1 bg-amber-50 text-amber-600 ring-1 ring-inset ring-amber-100 hover:bg-amber-100 rounded-md flex items-center gap-1 transition-colors duration-150 disabled:opacity-50">
                           <PauseCircle size={11} /> Beklet
                         </button>
                       )}
                       {/* Teslim Et: Yolda */}
                       {s.durum === 'Yolda' && (
                         <button onClick={() => handleTeslim(s)} disabled={delivering === s.id}
-                          className="text-xs px-2 py-1 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-md flex items-center gap-1 disabled:opacity-50">
+                          className="text-xs font-medium px-2 py-1 bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-emerald-100 hover:bg-emerald-100 rounded-md flex items-center gap-1 transition-colors duration-150 disabled:opacity-50">
                           <CheckCircle2 size={11} /> {delivering === s.id ? '...' : 'Teslim'}
                         </button>
                       )}
                       {/* İptal: herhangi aktif durum */}
                       {s.durum !== 'Teslim Edildi' && s.durum !== 'İptal' && (
                         <button onClick={() => { if (confirm('Sipariş iptal edilsin mi?')) handleDurumGuncelle(s, 'İptal') }} disabled={updatingDurum === s.id}
-                          className="text-xs px-2 py-1 bg-red-50 text-red-500 hover:bg-red-100 rounded-md flex items-center gap-1 disabled:opacity-50">
+                          className="text-xs font-medium px-2 py-1 bg-red-50 text-red-500 ring-1 ring-inset ring-red-100 hover:bg-red-100 rounded-md flex items-center gap-1 transition-colors duration-150 disabled:opacity-50">
                           <Ban size={11} /> İptal
                         </button>
                       )}

@@ -602,17 +602,15 @@ export default function Restoranlar() {
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-1 flex-wrap">
                       <button onClick={() => setModal({ type: 'panel', restoran: r })}
-                        className="text-xs text-primary-600 hover:underline font-medium whitespace-nowrap">
+                        className="text-xs font-medium px-2 py-1 bg-primary-50 text-primary-600 ring-1 ring-inset ring-primary-100 hover:bg-primary-100 rounded-md transition-colors duration-150 whitespace-nowrap">
                         Yönetim Paneli
                       </button>
-                      <span className="text-gray-300">·</span>
                       <button onClick={() => setModal({ type: 'calisma', restoran: r })}
-                        className="text-xs text-primary-600 hover:underline font-medium whitespace-nowrap">
+                        className="text-xs font-medium px-2 py-1 bg-indigo-50 text-indigo-600 ring-1 ring-inset ring-indigo-100 hover:bg-indigo-100 rounded-md transition-colors duration-150 whitespace-nowrap">
                         {r.calisma_tipi || 'Paket Başı'}
                       </button>
-                      <span className="text-gray-300">·</span>
                       <button onClick={() => setModal({ type: 'hazirlanma', restoran: r })}
-                        className="text-xs text-primary-600 hover:underline font-medium whitespace-nowrap">
+                        className="text-xs font-medium px-2 py-1 bg-amber-50 text-amber-600 ring-1 ring-inset ring-amber-100 hover:bg-amber-100 rounded-md transition-colors duration-150 whitespace-nowrap">
                         {r.hazirlanma_suresi || 30} dk Hazırlanma
                       </button>
                     </div>

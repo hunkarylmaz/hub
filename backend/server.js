@@ -1252,6 +1252,7 @@ app.get('/api/bayi/performans', bayiAuthMiddleware, wrap(async (req, res) => {
 
   const kurye_perf = await all(
     `SELECT bk.id, bk.ad, bk.durum, bk.toplam_teslimat, bk.gunluk_teslimat,
+     COUNT(bs.id) as toplam,
      COUNT(CASE WHEN bs.durum='Teslim Edildi' THEN 1 END) as basarili,
      AVG(CASE WHEN bs.teslim_zamani IS NOT NULL
        THEN (julianday(bs.teslim_zamani) - julianday(bs.atama_zamani)) * 24 * 60 END) as ort_sure
