@@ -337,7 +337,7 @@ export const api = {
       request<Kurye>(`/api/bayi/kuryeler/${id}/durum`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ durum }) }),
     delete: (id: number) =>
       request<{ success: boolean }>(`/api/bayi/kuryeler/${id}`, { method: 'DELETE', headers: authHeaders() }),
-    konumlar: () => request<{ kuryeler: KuryeKonum[]; merkez: { lat: number | null; lon: number | null; sehir: string | null } }>('/api/bayi/kuryeler/konumlar', { headers: authHeaders() }),
+    konumlar: () => request<{ kuryeler: KuryeKonum[]; merkez: { lat: number | null; lon: number | null; sehir: string | null; ilce: string | null } }>('/api/bayi/kuryeler/konumlar', { headers: authHeaders() }),
     updateKonum: (id: number, lat: number, lon: number) =>
       request<{ id: number; lat: number; lon: number }>(`/api/bayi/kuryeler/${id}/konum`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ lat, lon }) }),
   },
@@ -369,6 +369,8 @@ export const api = {
       request<{ success: boolean; yeni_token: number }>(`/api/bayi/siparisler/${id}/teslim`, { method: 'PUT', headers: authHeaders() }),
     setDurum: (id: number, durum: string) =>
       request<Siparis>(`/api/bayi/siparisler/${id}/durum`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ durum }) }),
+    duzenle: (id: number, data: { musteri_telefon?: string; teslimat_adresi?: string; odeme_yontemi?: string }) =>
+      request<Siparis>(`/api/bayi/siparisler/${id}/duzenle`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
   },
 
   raporlar: {

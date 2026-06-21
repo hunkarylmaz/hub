@@ -1,47 +1,8 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
-import L from 'leaflet'
-import { Loader2, Navigation, RefreshCw, Users, Bike, Coffee, WifiOff, Clock } from 'lucide-react'
+import { useRef, useState, useCallback, useEffect } from 'react'
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
+import { Loader2, Navigation, RefreshCw, Clock } from 'lucide-react'
 import { api, KuryeKonum } from '../lib/api'
-
-// Fix leaflet default icon issue with Vite
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-delete (L.Icon.Default.prototype as any)._getIconUrl
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-})
-
-const DURUM_COLORS: Record<string, { bg: string; text: string; border: string; icon: typeof Bike; label: string }> = {
-  'Dağıtımda':  { bg: '#3B82F6', text: '#fff', border: '#2563EB', icon: Bike,    label: 'Dağıtımda' },
-  'Müsait':     { bg: '#10B981', text: '#fff', border: '#059669', icon: Users,   label: 'Müsait' },
-  'Mola':       { bg: '#F59E0B', text: '#fff', border: '#D97706', icon: Coffee,  label: 'Mola' },
-  'Çevrimdışı': { bg: '#9CA3AF', text: '#fff', border: '#6B7280', icon: WifiOff, label: 'Çevrimdışı' },
-}
-
-function createCourierIcon(durum: string, initial: string) {
-  const color = DURUM_COLORS[durum]?.bg || '#9CA3AF'
-  const border = DURUM_COLORS[durum]?.border || '#6B7280'
-  const svg = `
-    <svg width="36" height="44" viewBox="0 0 36 44" xmlns="http://www.w3.org/2000/svg">
-      <filter id="shadow">
-        <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.25"/>
-      </filter>
-      <path d="M18 2C10.268 2 4 8.268 4 16c0 10.5 14 26 14 26S32 26.5 32 16c0-7.732-6.268-14-14-14z"
-            fill="${color}" stroke="${border}" stroke-width="1.5" filter="url(#shadow)"/>
-      <circle cx="18" cy="16" r="10" fill="white" opacity="0.95"/>
-      <text x="18" y="20" text-anchor="middle" font-size="10" font-weight="700"
-            fill="${color}" font-family="system-ui,sans-serif">${initial}</text>
-    </svg>`
-  return L.divIcon({
-    className: '',
-    html: svg,
-    iconSize: [36, 44],
-    iconAnchor: [18, 44],
-    popupAnchor: [0, -46],
-  })
-}
+import { DURUM_COLORS, createCourierIcon, FitBounds } from '../lib/mapUtils'
 
 function formatSure(dt: string | null) {
   if (!dt) return 'Bilinmiyor'
@@ -51,19 +12,9 @@ function formatSure(dt: string | null) {
   return `${Math.floor(diff / 3600)} saat önce`
 }
 
-function FitBounds({ kuryeler }: { kuryeler: KuryeKonum[] }) {
-  const map = useMap()
-  useEffect(() => {
-    if (kuryeler.length === 0) return
-    const bounds = L.latLngBounds(kuryeler.map(k => [k.lat, k.lon]))
-    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 })
-  }, [map, kuryeler])
-  return null
-}
-
 export default function KuryeHarita() {
   const [kuryeler, setKuryeler] = useState<KuryeKonum[]>([])
-  const [merkez, setMerkez] = useState<{ lat: number | null; lon: number | null; sehir: string | null }>({ lat: null, lon: null, sehir: null })
+  const [merkez, setMerkez] = useState<{ lat: number | null; lon: number | null; sehir: string | null; ilce: string | null }>({ lat: null, lon: null, sehir: null, ilce: null })
   const [loading, setLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
   const [filter, setFilter] = useState<string>('Tümü')
@@ -116,7 +67,7 @@ export default function KuryeHarita() {
         <div>
           <h1 className="text-2xl font-semibold text-gray-800">Kurye Haritası</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {merkez.sehir ? `${merkez.sehir} bölgesi · ` : ''}Kuryelerin anlık konumları{lastUpdate ? ` · Son güncelleme: ${lastUpdate.toLocaleTimeString('tr-TR')}` : ''}
+            {merkez.ilce || merkez.sehir ? `${merkez.ilce || merkez.sehir} bölgesi · ` : ''}Kuryelerin anlık konumları{lastUpdate ? ` · Son güncelleme: ${lastUpdate.toLocaleTimeString('tr-TR')}` : ''}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -172,7 +123,7 @@ export default function KuryeHarita() {
               maxZoom={19}
             />
 
-            {filtered.length > 0 && <FitBounds kuryeler={filtered} />}
+            {filtered.length > 0 && <FitBounds points={filtered.map(k => [k.lat, k.lon])} />}
 
             {filtered.map(k => {
               const initials = k.ad.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()

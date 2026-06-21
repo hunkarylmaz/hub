@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Search, Plus, Loader2, AlertCircle, Bike, CheckCircle2, X, Navigation, PauseCircle, RefreshCw, Ban } from 'lucide-react'
 import { api, Siparis, Kurye, Restoran } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
+import { KuryeAtaModal } from '../components/SiparisModals'
 
 function durumBadge(durum: Siparis['durum']) {
   const map: Record<string, string> = {
@@ -105,68 +106,6 @@ function YeniSiparisModal({ restoranlar, onClose, onSave }: YeniSiparisModalProp
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">İptal</button>
           <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-60">
             {saving ? 'Kaydediliyor...' : 'Sipariş Oluştur'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-interface KuryeAtaModalProps {
-  siparis: Siparis
-  kuryeler: Kurye[]
-  onClose: () => void
-  onSave: () => void
-}
-
-function KuryeAtaModal({ siparis, kuryeler, onClose, onSave }: KuryeAtaModalProps) {
-  const [kurye_id, setKuryeId] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [err, setErr] = useState('')
-
-  async function handleSave() {
-    if (!kurye_id) { setErr('Kurye seçin'); return }
-    setSaving(true)
-    try {
-      await api.siparisler.kurye_ata(siparis.id, Number(kurye_id))
-      onSave()
-      onClose()
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Hata')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h3 className="font-semibold text-gray-800">Kurye Ata — {siparis.siparis_no}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-        </div>
-        <div className="p-6 space-y-3">
-          {err && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{err}</p>}
-          <div className="space-y-2">
-            {kuryeler.filter(k => k.aktif && k.durum !== 'Çevrimdışı').map(k => (
-              <label key={k.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${kurye_id === String(k.id) ? 'border-primary-600 bg-primary-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                <input type="radio" name="kurye" value={k.id} checked={kurye_id === String(k.id)} onChange={() => setKuryeId(String(k.id))} className="sr-only" />
-                <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-xs font-bold">
-                  {k.ad.split(' ').map(n => n[0]).join('').slice(0,2)}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-800">{k.ad}</p>
-                  <p className="text-xs text-gray-400">{k.durum} · {k.gunluk_teslimat} teslimat</p>
-                </div>
-                {k.durum === 'Müsait' && <span className="text-xs text-emerald-600 font-medium">Müsait</span>}
-              </label>
-            ))}
-          </div>
-        </div>
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">İptal</button>
-          <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-60">
-            {saving ? '...' : 'Ata'}
           </button>
         </div>
       </div>

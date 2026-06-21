@@ -677,16 +677,16 @@ async function initBayiDb() {
   await run('UPDATE bayi_kuryeler SET lat=?,lon=?,son_konum_tarihi=datetime("now","localtime") WHERE id=?', [37.0298, 27.4187, k4])
   await run('UPDATE bayi_kuryeler SET lat=?,lon=?,son_konum_tarihi=datetime("now","localtime") WHERE id=?', [37.0421, 27.4355, k5])
 
-  // Seed restaurants
-  const insertR = (ad, adres, tel, gunluk) =>
-    run('INSERT INTO bayi_restoranlar (bayilik_id,ad,adres,telefon,gunluk_siparis) VALUES (?,?,?,?,?)',
-      [tj.id, ad, adres, tel, gunluk])
+  // Seed restaurants (Bodrum area, matching seeded courier GPS positions)
+  const insertR = (ad, adres, tel, gunluk, lat, lon) =>
+    run('INSERT INTO bayi_restoranlar (bayilik_id,ad,adres,telefon,gunluk_siparis,lat,lon) VALUES (?,?,?,?,?,?,?)',
+      [tj.id, ad, adres, tel, gunluk, lat, lon])
 
-  const { lastID: r1 } = await insertR('Burger Palace',    'Konak Mah. Atatürk Cad. No:12', '02321234567', 45)
-  const { lastID: r2 } = await insertR('Pizza House',      'Alsancak Mah. Kıbrıs Şeh. Cad.', '02329876543', 32)
-  const { lastID: r3 } = await insertR('Döner Express',    'Bornova Mah. İzmir Cad. No:5',   '02325556677', 67)
-  const { lastID: r4 } = await insertR('Sushi Corner',     'Karşıyaka Mah. Cumhuriyet Bul.', '02322223344', 18)
-  const { lastID: r5 } = await insertR('Çorba Evi',        'Buca Mah. Zafer Cad. No:22',     '02327778899', 28)
+  const { lastID: r1 } = await insertR('Burger Palace',    'Konak Mah. Atatürk Cad. No:12', '02321234567', 45, 37.0335, 27.4280)
+  const { lastID: r2 } = await insertR('Pizza House',      'Alsancak Mah. Kıbrıs Şeh. Cad.', '02329876543', 32, 37.0295, 27.4340)
+  const { lastID: r3 } = await insertR('Döner Express',    'Bornova Mah. İzmir Cad. No:5',   '02325556677', 67, 37.0415, 27.4205)
+  const { lastID: r4 } = await insertR('Sushi Corner',     'Karşıyaka Mah. Cumhuriyet Bul.', '02322223344', 18, 37.0370, 27.4430)
+  const { lastID: r5 } = await insertR('Çorba Evi',        'Buca Mah. Zafer Cad. No:22',     '02327778899', 28, 37.0260, 27.4160)
 
   // Seed orders
   const orders = [
@@ -708,6 +708,8 @@ async function initBayiDb() {
   }
 
   await run('INSERT OR IGNORE INTO bayi_ayarlar (bayilik_id) VALUES (?)', [tj.id])
+  // Register the dealer's actual service region (Bodrum) as the map center
+  await run('UPDATE bayi_ayarlar SET lat=?, lon=?, ilce=? WHERE bayilik_id=?', [37.0344, 27.4305, 'Bodrum', tj.id])
 }
 
 // ── BAYİ AUTH MIDDLEWARE ─────────────────────────────────────────────────────
@@ -991,6 +993,20 @@ app.put('/api/bayi/siparisler/:id/durum', bayiAuthMiddleware, wrap(async (req, r
   const { durum } = req.body || {}
   await run('UPDATE bayi_siparisler SET durum=? WHERE id=?', [durum, req.params.id])
   res.json({ ...s, durum })
+}))
+
+app.put('/api/bayi/siparisler/:id/duzenle', bayiAuthMiddleware, wrap(async (req, res) => {
+  const s = await get('SELECT * FROM bayi_siparisler WHERE id=? AND bayilik_id=?', [req.params.id, req.bayi.bayilikId])
+  if (!s) return res.status(404).json({ message: 'Sipariş bulunamadı' })
+  const musteri_telefon = req.body?.musteri_telefon ?? s.musteri_telefon
+  const teslimat_adresi = req.body?.teslimat_adresi ?? s.teslimat_adresi
+  const odeme_yontemi = req.body?.odeme_yontemi ?? s.odeme_yontemi
+  await run('UPDATE bayi_siparisler SET musteri_telefon=?,teslimat_adresi=?,odeme_yontemi=? WHERE id=?',
+    [musteri_telefon, teslimat_adresi, odeme_yontemi, req.params.id])
+  res.json(await get(
+    `SELECT bs.*, br.ad as restoran_ad, bk.ad as kurye_ad FROM bayi_siparisler bs LEFT JOIN bayi_restoranlar br ON br.id=bs.restoran_id LEFT JOIN bayi_kuryeler bk ON bk.id=bs.kurye_id WHERE bs.id=?`,
+    [req.params.id]
+  ))
 }))
 
 // ── BAYİ RAPORLAR ────────────────────────────────────────────────────────────
@@ -2214,7 +2230,7 @@ app.get('/api/bayi/kuryeler/konumlar', bayiAuthMiddleware, wrap(async (req, res)
   )
 
   // Return bayilik's registered location as fallback map center
-  const ayarlar = await get('SELECT lat, lon FROM bayi_ayarlar WHERE bayilik_id=?', [bid])
+  const ayarlar = await get('SELECT lat, lon, ilce FROM bayi_ayarlar WHERE bayilik_id=?', [bid])
   const b = await get('SELECT sehir FROM bayilikler WHERE id=?', [bid])
 
   res.json({
@@ -2223,6 +2239,7 @@ app.get('/api/bayi/kuryeler/konumlar', bayiAuthMiddleware, wrap(async (req, res)
       lat: ayarlar?.lat || null,
       lon: ayarlar?.lon || null,
       sehir: b?.sehir || null,
+      ilce: ayarlar?.ilce || null,
     }
   })
 }))
