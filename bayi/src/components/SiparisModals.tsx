@@ -1,6 +1,9 @@
 import { useState } from 'react'
+import { MapContainer, TileLayer, Marker } from 'react-leaflet'
 import { X, Phone, MapPin, Store, User, CreditCard, Bike, Clock } from 'lucide-react'
-import { api, Siparis, Kurye } from '../lib/api'
+import { api, Siparis, Kurye, Restoran } from '../lib/api'
+import { createKonumIcon } from '../lib/mapUtils'
+import KonumSecici from './KonumSecici'
 
 function durumBadge(durum: Siparis['durum']) {
   const map: Record<string, string> = {
@@ -18,6 +21,116 @@ function formatTarih(dt: string | null) {
   const d = new Date(dt)
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+const ODEME_YONTEMLERI = ['Nakit', 'Kredi Kartı', 'Yemek Kartı', 'Online']
+
+interface YeniSiparisModalProps {
+  restoranlar: Restoran[]
+  onClose: () => void
+  onSave: () => void
+}
+
+export function YeniSiparisModal({ restoranlar, onClose, onSave }: YeniSiparisModalProps) {
+  const [form, setForm] = useState({ restoran_id: '', musteri_ad: '', musteri_telefon: '', teslimat_adresi: '', tutar: '', odeme_yontemi: 'Nakit' })
+  const [konum, setKonum] = useState<{ lat: number | null; lon: number | null }>({ lat: null, lon: null })
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+
+  const secilenRestoran = restoranlar.find(r => String(r.id) === form.restoran_id)
+  const konumZorunlu = !!secilenRestoran?.harita_konum
+  const haritaMerkezi: [number, number] | undefined = secilenRestoran?.lat != null && secilenRestoran?.lon != null
+    ? [secilenRestoran.lat, secilenRestoran.lon]
+    : undefined
+
+  async function handleSave() {
+    if (!form.restoran_id) { setErr('Restoran seçin'); return }
+    if (konumZorunlu && (konum.lat == null || konum.lon == null)) { setErr('Bu restoran için haritadan müşteri konumu seçilmesi zorunlu'); return }
+    setSaving(true)
+    setErr('')
+    try {
+      await api.siparisler.create({
+        restoran_id: Number(form.restoran_id),
+        musteri_ad: form.musteri_ad || undefined,
+        musteri_telefon: form.musteri_telefon || undefined,
+        teslimat_adresi: form.teslimat_adresi || undefined,
+        musteri_lat: konum.lat ?? undefined,
+        musteri_lon: konum.lon ?? undefined,
+        tutar: form.tutar ? Number(form.tutar) : undefined,
+        odeme_yontemi: form.odeme_yontemi,
+      })
+      onSave()
+      onClose()
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Hata')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+          <h3 className="font-semibold text-gray-800">Yeni Sipariş</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+        </div>
+        <div className="p-6 space-y-4 overflow-y-auto">
+          {err && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{err}</p>}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Restoran *</label>
+            <select
+              value={form.restoran_id}
+              onChange={e => setForm(f => ({ ...f, restoran_id: e.target.value }))}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20"
+            >
+              <option value="">Restoran seçin</option>
+              {restoranlar.filter(r => r.aktif).map(r => <option key={r.id} value={r.id}>{r.ad}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Müşteri Adı</label>
+              <input value={form.musteri_ad} onChange={e => setForm(f => ({ ...f, musteri_ad: e.target.value }))} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Telefon</label>
+              <input value={form.musteri_telefon} onChange={e => setForm(f => ({ ...f, musteri_telefon: e.target.value }))} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Teslimat Adresi</label>
+            <input value={form.teslimat_adresi} onChange={e => setForm(f => ({ ...f, teslimat_adresi: e.target.value }))} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Müşteri Konumu {konumZorunlu && <span className="text-red-500">*</span>}
+              {!konumZorunlu && <span className="text-gray-400 font-normal"> (opsiyonel)</span>}
+            </label>
+            <KonumSecici lat={konum.lat} lon={konum.lon} onChange={(lat, lon) => setKonum({ lat, lon })} center={haritaMerkezi} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Tutar (₺)</label>
+              <input type="number" value={form.tutar} onChange={e => setForm(f => ({ ...f, tutar: e.target.value }))} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Ödeme Yöntemi</label>
+              <select value={form.odeme_yontemi} onChange={e => setForm(f => ({ ...f, odeme_yontemi: e.target.value }))} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20">
+                {ODEME_YONTEMLERI.map(o => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 shrink-0">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">İptal</button>
+          <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-60">
+            {saving ? 'Kaydediliyor...' : 'Sipariş Oluştur'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 interface KuryeAtaModalProps {
@@ -144,6 +257,14 @@ export function SiparisDetayModal({ siparis, onClose }: { siparis: Siparis; onCl
                 <p className="text-xs text-gray-400">Ödeme Yöntemi</p>
               </div>
             </div>
+            {siparis.musteri_lat != null && siparis.musteri_lon != null && (
+              <div className="rounded-lg overflow-hidden border border-gray-200" style={{ height: 160 }}>
+                <MapContainer center={[siparis.musteri_lat, siparis.musteri_lon]} zoom={15} style={{ height: '100%', width: '100%' }} zoomControl={false} dragging={false} scrollWheelZoom={false} doubleClickZoom={false}>
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} />
+                  <Marker position={[siparis.musteri_lat, siparis.musteri_lon]} icon={createKonumIcon()} />
+                </MapContainer>
+              </div>
+            )}
             <div className="flex items-start gap-3">
               <Clock size={15} className="text-gray-400 mt-0.5 shrink-0" />
               <div>

@@ -38,7 +38,7 @@ export default function KuryeHarita() {
 
   useEffect(() => {
     if (autoRefresh) {
-      intervalRef.current = setInterval(fetchKonumlar, 30000)
+      intervalRef.current = setInterval(fetchKonumlar, 2000)
     } else {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
@@ -74,7 +74,7 @@ export default function KuryeHarita() {
           <button
             onClick={() => setAutoRefresh(a => !a)}
             className={`flex items-center gap-1.5 px-3 py-2 text-xs rounded-lg border transition-colors ${autoRefresh ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white text-gray-500 border-gray-200'}`}>
-            <Clock size={13} /> {autoRefresh ? 'Otomatik (30s)' : 'Durduruldu'}
+            <Clock size={13} /> {autoRefresh ? 'Canlı (2s)' : 'Durduruldu'}
           </button>
           <button onClick={fetchKonumlar}
             className="flex items-center gap-1.5 px-3 py-2 text-xs bg-primary-600 text-white rounded-lg hover:bg-primary-700">

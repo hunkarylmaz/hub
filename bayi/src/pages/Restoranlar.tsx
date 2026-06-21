@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Plus, Search, Loader2, AlertCircle, X, MoreVertical, ChevronRight, Check } from 'lucide-react'
 import { api, Restoran } from '../lib/api'
 import { BakiyeHareketiModal } from './PeriyodikRapor'
+import KonumSecici from '../components/KonumSecici'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const CALISMA_TIPLERI = ['Paket Başı', 'Km Aralığı', 'Komisyon', 'Paket + Km', 'Saatlik Ücret', 'Çoklu Paket']
@@ -178,24 +179,20 @@ function HazirlanmaModal({ restoran, onClose, onSave }: { restoran: Restoran; on
 
 // ── Konum Modal ────────────────────────────────────────────────────────────────
 function KonumModal({ restoran, onClose, onSave }: { restoran: Restoran; onClose: () => void; onSave: () => void }) {
-  const [lat, setLat] = useState(restoran.lat ?? '')
-  const [lon, setLon] = useState(restoran.lon ?? '')
+  const [konum, setKonum] = useState<{ lat: number | null; lon: number | null }>({ lat: restoran.lat ?? null, lon: restoran.lon ?? null })
   const [saving, setSaving] = useState(false)
 
   async function handleSave() {
     setSaving(true)
     try {
-      await api.restoranlar.update(restoran.id, {
-        lat: lat === '' ? null : Number(lat),
-        lon: lon === '' ? null : Number(lon),
-      })
+      await api.restoranlar.update(restoran.id, { lat: konum.lat, lon: konum.lon })
       onSave(); onClose()
     } finally { setSaving(false) }
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
             <p className="text-xs font-semibold text-gray-400 uppercase">Konum Düzenle</p>
@@ -203,19 +200,8 @@ function KonumModal({ restoran, onClose, onSave }: { restoran: Restoran; onClose
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
         </div>
-        <div className="p-6 space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Enlem (lat)</label>
-            <input type="number" step="0.000001" value={lat} onChange={e => setLat(e.target.value === '' ? '' : Number(e.target.value))}
-              placeholder="38.4192"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Boylam (lon)</label>
-            <input type="number" step="0.000001" value={lon} onChange={e => setLon(e.target.value === '' ? '' : Number(e.target.value))}
-              placeholder="27.1287"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
-          </div>
+        <div className="p-6">
+          <KonumSecici lat={konum.lat} lon={konum.lon} onChange={(lat, lon) => setKonum({ lat, lon })} height={320} />
         </div>
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
           <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-200 rounded-lg text-gray-600">İptal</button>

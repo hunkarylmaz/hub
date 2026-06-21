@@ -101,6 +101,8 @@ export interface Siparis {
   musteri_ad: string | null
   musteri_telefon: string | null
   teslimat_adresi: string | null
+  musteri_lat?: number | null
+  musteri_lon?: number | null
   tutar: number
   odeme_yontemi: string
   durum: 'Beklemede' | 'Atandı' | 'Yolda' | 'Teslim Edildi' | 'İptal'
@@ -359,7 +361,7 @@ export const api = {
       if (params?.tarih) q.set('tarih', params.tarih)
       return request<Siparis[]>(`/api/bayi/siparisler?${q}`, { headers: authHeaders() })
     },
-    create: (data: { restoran_id: number; musteri_ad?: string; musteri_telefon?: string; teslimat_adresi?: string; tutar?: number; odeme_yontemi?: string }) =>
+    create: (data: { restoran_id: number; musteri_ad?: string; musteri_telefon?: string; teslimat_adresi?: string; musteri_lat?: number; musteri_lon?: number; tutar?: number; odeme_yontemi?: string }) =>
       request<Siparis>('/api/bayi/siparisler', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
     kurye_ata: (id: number, kurye_id: number) =>
       request<Siparis>(`/api/bayi/siparisler/${id}/kurye-ata`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ kurye_id }) }),

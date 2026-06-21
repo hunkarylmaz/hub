@@ -613,6 +613,8 @@ async function initBayiDb() {
   try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN lat REAL') } catch {}
   try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN lon REAL') } catch {}
   try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN son_konum_tarihi TEXT') } catch {}
+  try { await run('ALTER TABLE bayi_siparisler ADD COLUMN musteri_lat REAL') } catch {}
+  try { await run('ALTER TABLE bayi_siparisler ADD COLUMN musteri_lon REAL') } catch {}
 
   // Genel Ayarlar extensions for bayi_ayarlar
   try { await run("ALTER TABLE bayi_ayarlar ADD COLUMN calisma_acilis TEXT DEFAULT '11:00'") } catch {}
@@ -926,12 +928,16 @@ app.get('/api/bayi/siparisler', bayiAuthMiddleware, wrap(async (req, res) => {
 }))
 
 app.post('/api/bayi/siparisler', bayiAuthMiddleware, wrap(async (req, res) => {
-  const { restoran_id, musteri_ad, musteri_telefon, teslimat_adresi, tutar, odeme_yontemi } = req.body || {}
+  const { restoran_id, musteri_ad, musteri_telefon, teslimat_adresi, musteri_lat, musteri_lon, tutar, odeme_yontemi } = req.body || {}
   if (!restoran_id) return res.status(400).json({ message: 'Restoran seçilmeli' })
+  const restoran = await get('SELECT harita_konum FROM bayi_restoranlar WHERE id=? AND bayilik_id=?', [restoran_id, req.bayi.bayilikId])
+  if (restoran?.harita_konum && (musteri_lat == null || musteri_lon == null)) {
+    return res.status(400).json({ message: 'Bu restoran için haritadan müşteri konumu seçilmesi zorunlu' })
+  }
   const siparis_no = `SIP-${Date.now()}`
   const { lastID } = await run(
-    'INSERT INTO bayi_siparisler (bayilik_id,siparis_no,restoran_id,musteri_ad,musteri_telefon,teslimat_adresi,tutar,odeme_yontemi) VALUES (?,?,?,?,?,?,?,?)',
-    [req.bayi.bayilikId, siparis_no, restoran_id, musteri_ad||null, musteri_telefon||null, teslimat_adresi||null, tutar||0, odeme_yontemi||'Nakit']
+    'INSERT INTO bayi_siparisler (bayilik_id,siparis_no,restoran_id,musteri_ad,musteri_telefon,teslimat_adresi,musteri_lat,musteri_lon,tutar,odeme_yontemi) VALUES (?,?,?,?,?,?,?,?,?,?)',
+    [req.bayi.bayilikId, siparis_no, restoran_id, musteri_ad||null, musteri_telefon||null, teslimat_adresi||null, musteri_lat??null, musteri_lon??null, tutar||0, odeme_yontemi||'Nakit']
   )
   res.status(201).json(await get(
     `SELECT bs.*, br.ad as restoran_ad, bk.ad as kurye_ad FROM bayi_siparisler bs LEFT JOIN bayi_restoranlar br ON br.id=bs.restoran_id LEFT JOIN bayi_kuryeler bk ON bk.id=bs.kurye_id WHERE bs.id=?`,
@@ -2259,6 +2265,61 @@ app.put('/api/bayi/kuryeler/:id/konum', bayiAuthMiddleware, wrap(async (req, res
   res.json({ id: Number(req.params.id), lat, lon })
 }))
 
+// ── Kurye canlı konum simülasyonu ────────────────────────────────────────────
+// Gerçek kurye mobil uygulaması her saniye GPS konumu gönderir; bu demo ortamında
+// böyle bir istemci olmadığından, aktif kuryelerin konumu sunucu tarafında
+// her saniye güncellenir (teslimat hedefine doğru ilerleme + boştaki kuryeler için hafif gezinme).
+async function kuryeKonumTick() {
+  try {
+    const kuryeler = await all('SELECT id, lat, lon, bayilik_id FROM bayi_kuryeler WHERE aktif = 1')
+    if (kuryeler.length === 0) return
+
+    const aktifSiparisler = await all(`
+      SELECT bs.id, bs.kurye_id, bs.durum,
+             br.lat as restoran_lat, br.lon as restoran_lon,
+             bs.musteri_lat, bs.musteri_lon
+      FROM bayi_siparisler bs
+      LEFT JOIN bayi_restoranlar br ON br.id = bs.restoran_id
+      WHERE bs.kurye_id IS NOT NULL AND bs.durum IN ('Atandı','Yolda')
+      ORDER BY bs.id ASC
+    `)
+    // Bir kuryenin birden fazla aktif paketi olabilir (çoklu paket); 'Yolda' olanı,
+    // yoksa en eski 'Atandı' siparişi hedef seçilir — tek bir hedefe doğru tutarlı hareket için.
+    const hedefByKurye = new Map()
+    for (const s of aktifSiparisler) {
+      const mevcut = hedefByKurye.get(s.kurye_id)
+      if (!mevcut || (s.durum === 'Yolda' && mevcut.durum !== 'Yolda')) hedefByKurye.set(s.kurye_id, s)
+    }
+
+    const ayarlarByBayilik = new Map()
+    for (const b of await all('SELECT bayilik_id, lat, lon FROM bayi_ayarlar')) ayarlarByBayilik.set(b.bayilik_id, b)
+
+    for (const k of kuryeler) {
+      const s = hedefByKurye.get(k.id)
+      const hedef = s && s.durum === 'Yolda' && s.musteri_lat != null && s.musteri_lon != null
+        ? { lat: s.musteri_lat, lon: s.musteri_lon }
+        : (s && s.restoran_lat != null && s.restoran_lon != null ? { lat: s.restoran_lat, lon: s.restoran_lon } : null)
+
+      let { lat, lon } = k
+      if (lat == null || lon == null) {
+        const merkez = ayarlarByBayilik.get(k.bayilik_id)
+        const baz = { lat: merkez?.lat ?? hedef?.lat ?? 39.9334, lon: merkez?.lon ?? hedef?.lon ?? 32.8597 }
+        lat = baz.lat + (Math.random() - 0.5) * 0.01
+        lon = baz.lon + (Math.random() - 0.5) * 0.01
+      } else if (hedef) {
+        lat += (hedef.lat - lat) * 0.12 + (Math.random() - 0.5) * 0.00006
+        lon += (hedef.lon - lon) * 0.12 + (Math.random() - 0.5) * 0.00006
+      } else {
+        lat += (Math.random() - 0.5) * 0.0004
+        lon += (Math.random() - 0.5) * 0.0004
+      }
+      await run('UPDATE bayi_kuryeler SET lat=?, lon=?, son_konum_tarihi=datetime("now","localtime") WHERE id=?', [lat, lon, k.id])
+    }
+  } catch (err) {
+    console.error('Kurye konum tick hatası:', err.message)
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // PAKETÇİNİZ PLUS — Partner & Taşıyıcı sistemi
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2750,4 +2811,5 @@ initDb()
   .then(() => initBayiDb())
   .then(() => initPlusDb())
   .then(() => app.listen(PORT, () => console.log(`Paketçi B2B Backend → http://localhost:${PORT}`)))
+  .then(() => setInterval(kuryeKonumTick, 1000))
   .catch((err) => { console.error('DB init hatası:', err); process.exit(1) })

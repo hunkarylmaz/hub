@@ -65,6 +65,28 @@ export function createRestoranIcon() {
   })
 }
 
+const KONUM_COLOR = '#8B5CF6'
+const KONUM_BORDER = '#6D28D9'
+
+export function createKonumIcon() {
+  const svg = `
+    <svg width="32" height="40" viewBox="0 0 36 44" xmlns="http://www.w3.org/2000/svg">
+      <filter id="shadow3">
+        <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.25"/>
+      </filter>
+      <path d="M18 2C10.268 2 4 8.268 4 16c0 10.5 14 26 14 26S32 26.5 32 16c0-7.732-6.268-14-14-14z"
+            fill="${KONUM_COLOR}" stroke="${KONUM_BORDER}" stroke-width="1.5" filter="url(#shadow3)"/>
+      <circle cx="18" cy="16" r="6" fill="white" opacity="0.95"/>
+    </svg>`
+  return L.divIcon({
+    className: '',
+    html: svg,
+    iconSize: [32, 40],
+    iconAnchor: [16, 40],
+    popupAnchor: [0, -42],
+  })
+}
+
 export function FitBounds({ points }: { points: [number, number][] }) {
   const map = useMap()
   useEffect(() => {
