@@ -14,6 +14,7 @@ interface KonumSeciciProps {
   onAdresBulundu?: (sonuc: AdresSonucu) => void
   center?: [number, number]
   height?: number
+  searchFn?: (q: string) => Promise<AdresSonucu[]>
 }
 
 function ClickHandler({ onPick }: { onPick: (lat: number, lon: number) => void }) {
@@ -25,7 +26,7 @@ function ClickHandler({ onPick }: { onPick: (lat: number, lon: number) => void }
   return null
 }
 
-export default function KonumSecici({ lat, lon, onChange, onAdresBulundu, center, height = 240 }: KonumSeciciProps) {
+export default function KonumSecici({ lat, lon, onChange, onAdresBulundu, center, height = 240, searchFn }: KonumSeciciProps) {
   const [locating, setLocating] = useState(false)
   const secili = lat != null && lon != null
   const initialCenter: [number, number] = secili ? [lat, lon] : (center ?? TURKIYE_MERKEZ)
@@ -43,7 +44,7 @@ export default function KonumSecici({ lat, lon, onChange, onAdresBulundu, center
   return (
     <div>
       <div className="mb-2">
-        <AdresArama onSecim={s => { onChange(s.lat, s.lon); onAdresBulundu?.(s) }} />
+        <AdresArama onSecim={s => { onChange(s.lat, s.lon); onAdresBulundu?.(s) }} searchFn={searchFn} />
       </div>
       <div className="rounded-lg overflow-hidden border border-gray-200" style={{ height }}>
         <MapContainer

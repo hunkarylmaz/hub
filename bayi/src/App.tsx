@@ -1,7 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { RestoranAuthProvider, useRestoranAuth } from './contexts/RestoranAuthContext'
 import Layout from './components/Layout'
 import Login from './pages/Login'
+import RestoranGiris from './pages/RestoranGiris'
+import RestoranPortal from './pages/RestoranPortal'
 import Dashboard from './pages/Dashboard'
 import Siparisler from './pages/Siparisler'
 import Kuryeler from './pages/Kuryeler'
@@ -33,6 +36,19 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="w-8 h-8 border-4 border-primary-600/30 border-t-primary-600 rounded-full animate-spin" /></div>
   if (!bayilik) return <Navigate to="/login" replace />
   return <>{children}</>
+}
+
+function RequireRestoranAuth({ children }: { children: React.ReactNode }) {
+  const { restoran, loading } = useRestoranAuth()
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="w-8 h-8 border-4 border-primary-600/30 border-t-primary-600 rounded-full animate-spin" /></div>
+  if (!restoran) return <Navigate to="/restoran-girisi" replace />
+  return <>{children}</>
+}
+
+function RestoranGirisRoute() {
+  const { restoran, loading } = useRestoranAuth()
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="w-8 h-8 border-4 border-primary-600/30 border-t-primary-600 rounded-full animate-spin" /></div>
+  return restoran ? <Navigate to="/restoran" replace /> : <RestoranGiris />
 }
 
 function AppRoutes() {
@@ -73,6 +89,8 @@ function AppRoutes() {
           <Route path="kontor" element={<KontorYonetim />} />
         </Route>
       </Route>
+      <Route path="/restoran-girisi" element={<RestoranGirisRoute />} />
+      <Route path="/restoran" element={<RequireRestoranAuth><RestoranPortal /></RequireRestoranAuth>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
@@ -82,7 +100,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
+        <RestoranAuthProvider>
+          <AppRoutes />
+        </RestoranAuthProvider>
       </AuthProvider>
     </BrowserRouter>
   )

@@ -599,6 +599,7 @@ async function initBayiDb() {
   try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN harita_konum INTEGER DEFAULT 1') } catch {}
   try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN lat REAL') } catch {}
   try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN lon REAL') } catch {}
+  try { await run('ALTER TABLE bayi_restoranlar ADD COLUMN sifre_hash TEXT') } catch {}
   try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN plaka TEXT') } catch {}
   try { await run("ALTER TABLE bayi_kuryeler ADD COLUMN paket_limiti INTEGER DEFAULT 5") } catch {}
   try { await run(`ALTER TABLE bayi_kuryeler ADD COLUMN odeme_tipleri TEXT DEFAULT '["Nakit","Kredi Kartı"]'`) } catch {}
@@ -874,8 +875,17 @@ app.delete('/api/bayi/kuryeler/:id', bayiAuthMiddleware, wrap(async (req, res) =
 }))
 
 // ── BAYİ RESTORANLAR ─────────────────────────────────────────────────────────
+function stripSifre(r) {
+  if (!r) return r
+  const giris_aktif = !!r.sifre_hash
+  const out = { ...r, giris_aktif }
+  delete out.sifre_hash
+  return out
+}
+
 app.get('/api/bayi/restoranlar', bayiAuthMiddleware, wrap(async (req, res) => {
-  res.json(await all('SELECT * FROM bayi_restoranlar WHERE bayilik_id=? ORDER BY id ASC', [req.bayi.bayilikId]))
+  const rows = await all('SELECT * FROM bayi_restoranlar WHERE bayilik_id=? ORDER BY id ASC', [req.bayi.bayilikId])
+  res.json(rows.map(stripSifre))
 }))
 
 app.post('/api/bayi/restoranlar', bayiAuthMiddleware, wrap(async (req, res) => {
@@ -885,7 +895,7 @@ app.post('/api/bayi/restoranlar', bayiAuthMiddleware, wrap(async (req, res) => {
     'INSERT INTO bayi_restoranlar (bayilik_id,ad,adres,telefon,ilce,lat,lon) VALUES (?,?,?,?,?,?,?)',
     [req.bayi.bayilikId, ad, adres||null, telefon||null, ilce||null, lat??null, lon??null]
   )
-  res.status(201).json(await get('SELECT * FROM bayi_restoranlar WHERE id=?', [lastID]))
+  res.status(201).json(stripSifre(await get('SELECT * FROM bayi_restoranlar WHERE id=?', [lastID])))
 }))
 
 function adresDetayCikar(address) {
@@ -950,12 +960,27 @@ app.put('/api/bayi/restoranlar/:id', bayiAuthMiddleware, wrap(async (req, res) =
      n(siparis_hazir), n(pos_kullanim), n(odeme_duzenleme), n(harita_konum),
      n(lat), n(lon),
      req.params.id])
-  res.json(await get('SELECT * FROM bayi_restoranlar WHERE id=?', [req.params.id]))
+  res.json(stripSifre(await get('SELECT * FROM bayi_restoranlar WHERE id=?', [req.params.id])))
 }))
 
 app.delete('/api/bayi/restoranlar/:id', bayiAuthMiddleware, wrap(async (req, res) => {
   await run('UPDATE bayi_restoranlar SET aktif=0 WHERE id=?', [req.params.id])
   res.json({ success: true })
+}))
+
+app.put('/api/bayi/restoranlar/:id/giris-bilgisi', bayiAuthMiddleware, wrap(async (req, res) => {
+  const r = await get('SELECT * FROM bayi_restoranlar WHERE id=? AND bayilik_id=?', [req.params.id, req.bayi.bayilikId])
+  if (!r) return res.status(404).json({ message: 'Restoran bulunamadı' })
+  const { email, sifre } = req.body || {}
+  if (!email) return res.status(400).json({ message: 'E-posta gerekli' })
+  if (sifre) {
+    const sifre_hash = bcrypt.hashSync(sifre, 10)
+    await run('UPDATE bayi_restoranlar SET email=?, sifre_hash=? WHERE id=?', [email, sifre_hash, req.params.id])
+  } else {
+    await run('UPDATE bayi_restoranlar SET email=? WHERE id=?', [email, req.params.id])
+  }
+  const updated = await get('SELECT email,sifre_hash FROM bayi_restoranlar WHERE id=?', [req.params.id])
+  res.json({ email: updated.email, giris_aktif: !!updated.sifre_hash })
 }))
 
 // ── BAYİ SİPARİŞLER ─────────────────────────────────────────────────────────
@@ -1068,6 +1093,87 @@ app.put('/api/bayi/siparisler/:id/duzenle', bayiAuthMiddleware, wrap(async (req,
   res.json(await get(
     `SELECT bs.*, br.ad as restoran_ad, bk.ad as kurye_ad, bk.telefon as kurye_telefon FROM bayi_siparisler bs LEFT JOIN bayi_restoranlar br ON br.id=bs.restoran_id LEFT JOIN bayi_kuryeler bk ON bk.id=bs.kurye_id WHERE bs.id=?`,
     [req.params.id]
+  ))
+}))
+
+// ── RESTORAN PORTALI (restoranın kendi siparişini girdiği panel) ────────────
+function restoranAuthMiddleware(req, res, next) {
+  const token = (req.headers.authorization || '').replace('Bearer ', '')
+  if (!token) return res.status(401).json({ message: 'Yetkisiz erişim' })
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET)
+    if (decoded.type !== 'restoran') return res.status(401).json({ message: 'Geçersiz token tipi' })
+    req.restoran = decoded
+    next()
+  } catch {
+    return res.status(401).json({ message: 'Geçersiz token' })
+  }
+}
+
+app.post('/api/restoran/auth/login', wrap(async (req, res) => {
+  const { email, sifre } = req.body || {}
+  if (!email || !sifre) return res.status(400).json({ message: 'Email ve şifre gerekli' })
+  const r = await get('SELECT * FROM bayi_restoranlar WHERE email=? AND aktif=1', [email])
+  if (!r || !r.sifre_hash || !bcrypt.compareSync(sifre, r.sifre_hash))
+    return res.status(401).json({ message: 'Geçersiz email veya şifre' })
+  const token = jwt.sign(
+    { type: 'restoran', restoranId: r.id, bayilikId: r.bayilik_id, ad: r.ad },
+    JWT_SECRET, { expiresIn: '7d' }
+  )
+  res.json({ token, restoran: { id: r.id, ad: r.ad, email: r.email, adres: r.adres, ilce: r.ilce, harita_konum: r.harita_konum, lat: r.lat, lon: r.lon } })
+}))
+
+app.get('/api/restoran/auth/me', restoranAuthMiddleware, wrap(async (req, res) => {
+  const r = await get('SELECT id,ad,email,adres,ilce,telefon,harita_konum,lat,lon,aktif FROM bayi_restoranlar WHERE id=?', [req.restoran.restoranId])
+  if (!r) return res.status(404).json({ message: 'Restoran bulunamadı' })
+  res.json(r)
+}))
+
+app.get('/api/restoran/geocode/ara', restoranAuthMiddleware, wrap(async (req, res) => {
+  const q = String(req.query.q || '').trim()
+  if (q.length < 3) return res.json([])
+  const params = new URLSearchParams({
+    q, format: 'jsonv2', addressdetails: '1', limit: '6', countrycodes: 'tr', 'accept-language': 'tr',
+  })
+  const r = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+    headers: { 'User-Agent': 'PaketciBayiPaneli/1.0 (https://paketci.app; destek@paketci.app)' },
+  })
+  if (!r.ok) return res.json([])
+  const data = await r.json()
+  res.json(data.map(d => ({
+    lat: Number(d.lat),
+    lon: Number(d.lon),
+    display_name: d.display_name,
+    ...adresDetayCikar(d.address),
+  })))
+}))
+
+app.get('/api/restoran/siparisler', restoranAuthMiddleware, wrap(async (req, res) => {
+  const sql = `SELECT bs.*, br.ad as restoran_ad, bk.ad as kurye_ad, bk.telefon as kurye_telefon
+             FROM bayi_siparisler bs
+             LEFT JOIN bayi_restoranlar br ON br.id=bs.restoran_id
+             LEFT JOIN bayi_kuryeler bk ON bk.id=bs.kurye_id
+             WHERE bs.restoran_id=? ORDER BY bs.id DESC LIMIT 100`
+  res.json(await all(sql, [req.restoran.restoranId]))
+}))
+
+app.post('/api/restoran/siparisler', restoranAuthMiddleware, wrap(async (req, res) => {
+  const { musteri_ad, musteri_telefon, teslimat_adresi, musteri_lat, musteri_lon, tutar, odeme_yontemi, kanal } = req.body || {}
+  if (!kanal || !SIPARIS_KANALLARI.includes(kanal)) {
+    return res.status(400).json({ message: 'Sipariş kanalı seçilmeli' })
+  }
+  const restoran = await get('SELECT harita_konum FROM bayi_restoranlar WHERE id=?', [req.restoran.restoranId])
+  if (restoran?.harita_konum && (musteri_lat == null || musteri_lon == null)) {
+    return res.status(400).json({ message: 'Müşteri konumu haritadan seçilmesi zorunlu' })
+  }
+  const siparis_no = `SIP-${Date.now()}`
+  const { lastID } = await run(
+    'INSERT INTO bayi_siparisler (bayilik_id,siparis_no,restoran_id,musteri_ad,musteri_telefon,teslimat_adresi,musteri_lat,musteri_lon,tutar,odeme_yontemi,kanal) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+    [req.restoran.bayilikId, siparis_no, req.restoran.restoranId, musteri_ad||null, musteri_telefon||null, teslimat_adresi||null, musteri_lat??null, musteri_lon??null, tutar||0, odeme_yontemi||'Nakit', kanal]
+  )
+  res.status(201).json(await get(
+    `SELECT bs.*, br.ad as restoran_ad, bk.ad as kurye_ad, bk.telefon as kurye_telefon FROM bayi_siparisler bs LEFT JOIN bayi_restoranlar br ON br.id=bs.restoran_id LEFT JOIN bayi_kuryeler bk ON bk.id=bs.kurye_id WHERE bs.id=?`,
+    [lastID]
   ))
 }))
 

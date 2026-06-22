@@ -5,9 +5,10 @@ import { api, AdresSonucu } from '../lib/api'
 interface AdresAramaProps {
   onSecim: (sonuc: AdresSonucu) => void
   placeholder?: string
+  searchFn?: (q: string) => Promise<AdresSonucu[]>
 }
 
-export default function AdresArama({ onSecim, placeholder = 'Mahalle, sokak veya açık adres yazın...' }: AdresAramaProps) {
+export default function AdresArama({ onSecim, placeholder = 'Mahalle, sokak veya açık adres yazın...', searchFn = api.geocode.ara }: AdresAramaProps) {
   const [text, setText] = useState('')
   const [sonuclar, setSonuclar] = useState<AdresSonucu[]>([])
   const [loading, setLoading] = useState(false)
@@ -26,7 +27,7 @@ export default function AdresArama({ onSecim, placeholder = 'Mahalle, sokak veya
     const id = ++reqId.current
     timer.current = setTimeout(async () => {
       try {
-        const r = await api.geocode.ara(text)
+        const r = await searchFn(text)
         if (reqId.current === id) {
           setSonuclar(r)
           setOpen(true)

@@ -233,6 +233,73 @@ function KonumModal({ restoran, onClose, onSave }: { restoran: Restoran; onClose
   )
 }
 
+function GirisBilgisiModal({ restoran, onClose, onSave }: { restoran: Restoran; onClose: () => void; onSave: () => void }) {
+  const [email, setEmail] = useState(restoran.email || '')
+  const [sifre, setSifre] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+  const [success, setSuccess] = useState('')
+
+  async function handleSave() {
+    if (!email.trim()) { setErr('E-posta gerekli'); return }
+    setSaving(true)
+    setErr('')
+    try {
+      const res = await api.restoranlar.setGirisBilgisi(restoran.id, { email, sifre: sifre || undefined })
+      setSuccess(res.giris_aktif ? 'Giriş bilgileri kaydedildi' : 'E-posta kaydedildi')
+      setSifre('')
+      onSave()
+      setTimeout(() => setSuccess(''), 2000)
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Hata')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase">İşletme Kullanıcıları</p>
+            <p className="text-sm font-semibold text-gray-800">{restoran.ad}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-lg text-xs text-amber-700">
+            <span>ⓘ</span>
+            <span>Bu bilgilerle restoran <strong>/restoran-girisi</strong> adresinden giriş yapıp kendi siparişini girebilir. Girilen siparişler doğrudan bu panele düşer.</span>
+          </div>
+          {err && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{err}</p>}
+          {success && <p className="text-sm text-emerald-700 bg-emerald-50 px-3 py-2 rounded-lg">{success}</p>}
+          <div className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${restoran.giris_aktif ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+            <p className="text-xs text-gray-500">{restoran.giris_aktif ? 'Sipariş girişi aktif' : 'Sipariş girişi henüz aktif değil'}</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">E-posta *</label>
+            <input value={email} onChange={e => setEmail(e.target.value)} type="email"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">{restoran.giris_aktif ? 'Yeni Şifre (opsiyonel)' : 'Şifre'}</label>
+            <input value={sifre} onChange={e => setSifre(e.target.value)} type="password" placeholder="••••••••"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
+          <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-200 rounded-lg text-gray-600">İptal</button>
+          <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-60 font-medium">
+            {saving ? 'Kaydediliyor...' : 'Kaydet'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Yönetim Paneli Modal ──────────────────────────────────────────────────────
 type YonetimTab = 'ayarlar' | 'yonetim' | 'bilgiler'
 
@@ -259,6 +326,7 @@ function YonetimPaneliModal({ restoran, onClose, onSave }: { restoran: Restoran;
   const [showHazirlanma, setShowHazirlanma] = useState(false)
   const [showKonum, setShowKonum] = useState(false)
   const [showMuhasebe, setShowMuhasebe] = useState(false)
+  const [showGiris, setShowGiris] = useState(false)
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState('')
 
@@ -299,7 +367,7 @@ function YonetimPaneliModal({ restoran, onClose, onSave }: { restoran: Restoran;
     { key: 'konum', label: 'Konum Düzenle', desc: 'Harita üzerinde konum ayarla', onClick: () => setShowKonum(true), disabled: false },
     { key: 'muhasebe', label: 'Muhasebe Yönetim', desc: 'Ödeme ve finans kayıtları', onClick: () => setShowMuhasebe(true), disabled: false },
     { key: 'engelli', label: 'Engelli Kuryeler', desc: 'Kurye engelleme listesi', onClick: () => {}, disabled: true },
-    { key: 'kullanici', label: 'İşletme Kullanıcıları', desc: 'Restoran kullanıcı yönetimi', onClick: () => {}, disabled: true },
+    { key: 'kullanici', label: 'İşletme Kullanıcıları', desc: restoran.giris_aktif ? 'Sipariş girişi aktif' : 'Restoran sipariş girişi için giriş bilgisi tanımla', onClick: () => setShowGiris(true), disabled: false },
   ]
 
   return (
@@ -308,6 +376,7 @@ function YonetimPaneliModal({ restoran, onClose, onSave }: { restoran: Restoran;
       {showHazirlanma && <HazirlanmaModal restoran={restoran} onClose={() => setShowHazirlanma(false)} onSave={onSave} />}
       {showKonum && <KonumModal restoran={restoran} onClose={() => setShowKonum(false)} onSave={onSave} />}
       {showMuhasebe && <BakiyeHareketiModal entity_type="restoran" entity_id={restoran.id} entity_ad={restoran.ad} onClose={() => setShowMuhasebe(false)} />}
+      {showGiris && <GirisBilgisiModal restoran={restoran} onClose={() => setShowGiris(false)} onSave={onSave} />}
 
       <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
         <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">

@@ -86,6 +86,20 @@ export interface Restoran {
   lat?: number | null
   lon?: number | null
   olusturma_tarihi: string
+  giris_aktif?: boolean
+}
+
+export interface RestoranOturum {
+  id: number
+  ad: string
+  email: string | null
+  adres: string | null
+  ilce: string | null
+  telefon: string | null
+  harita_konum: number
+  lat: number | null
+  lon: number | null
+  aktif: number
 }
 
 export interface BakiyeHareketi {
@@ -318,6 +332,17 @@ function authHeaders(): Record<string, string> {
   }
 }
 
+function getRestoranToken(): string {
+  return localStorage.getItem('paketci_restoran_token') || ''
+}
+
+function restoranAuthHeaders(): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${getRestoranToken()}`,
+  }
+}
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, options)
   const data: unknown = await res.json()
@@ -372,6 +397,8 @@ export const api = {
       request<Restoran>(`/api/bayi/restoranlar/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
     delete: (id: number) =>
       request<{ success: boolean }>(`/api/bayi/restoranlar/${id}`, { method: 'DELETE', headers: authHeaders() }),
+    setGirisBilgisi: (id: number, data: { email: string; sifre?: string }) =>
+      request<{ email: string; giris_aktif: boolean }>(`/api/bayi/restoranlar/${id}/giris-bilgisi`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
   },
 
   siparisler: {
@@ -630,6 +657,27 @@ export const api = {
           toplam_satis: number; tasima_ucreti: number; alinan: number; verilen: number; net_fark: number
         }[]
       }>(`/api/bayi/mutabakat/restoranlar?${q}`, { headers: authHeaders() })
+    },
+  },
+
+  restoranPortal: {
+    auth: {
+      login: (email: string, sifre: string) =>
+        request<{ token: string; restoran: RestoranOturum }>('/api/restoran/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, sifre }),
+        }),
+      me: () => request<RestoranOturum>('/api/restoran/auth/me', { headers: restoranAuthHeaders() }),
+    },
+    geocode: {
+      ara: (q: string) =>
+        request<AdresSonucu[]>(`/api/restoran/geocode/ara?q=${encodeURIComponent(q)}`, { headers: restoranAuthHeaders() }),
+    },
+    siparisler: {
+      list: () => request<Siparis[]>('/api/restoran/siparisler', { headers: restoranAuthHeaders() }),
+      create: (data: { musteri_ad?: string; musteri_telefon?: string; teslimat_adresi?: string; musteri_lat?: number; musteri_lon?: number; tutar?: number; odeme_yontemi?: string; kanal: string }) =>
+        request<Siparis>('/api/restoran/siparisler', { method: 'POST', headers: restoranAuthHeaders(), body: JSON.stringify(data) }),
     },
   },
 }
