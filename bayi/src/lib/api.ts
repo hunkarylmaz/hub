@@ -135,6 +135,7 @@ export interface DashboardData {
   mudahale_yuzdesi: number
   kalite_yuzdesi: number
   yogunluk: string
+  aktif_paket_sayisi: number
   kontor_bakiye: number
   kurye_toplam: number
   kurye_musait: number

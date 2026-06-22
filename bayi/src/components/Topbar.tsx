@@ -28,7 +28,7 @@ export default function Topbar() {
         <Stat iconBg="bg-blue-50 text-primary-600" icon={<Package size={13} />} label="Sipariş" value={String(stats?.siparis_toplam ?? 0)} />
         <Stat iconBg="bg-amber-50 text-amber-600" icon={<Percent size={13} />} label="Müdahale" value={`${stats?.mudahale_yuzdesi ?? 0}%`} />
         <Stat iconBg="bg-emerald-50 text-emerald-600" icon={<Star size={13} />} label="Kalite" value={`${stats?.kalite_yuzdesi ?? 100}%`} />
-        <Stat iconBg={yogunlukColor} icon={<Zap size={13} />} label="Yoğunluk" value={stats?.yogunluk ?? 'Düşük'} />
+        <Stat iconBg={yogunlukColor} icon={<Zap size={13} />} label="Yoğunluk" value={stats?.yogunluk ?? 'Düşük'} title={`${stats?.aktif_paket_sayisi ?? 0} aktif paket / ${stats?.kurye_toplam ?? 0} kurye`} />
         <Stat iconBg="bg-indigo-50 text-indigo-600" icon={<Coins size={13} />} label="Kontör" value={String(bayilik?.token ?? stats?.kontor_bakiye ?? 0)} />
       </div>
       <div className="flex items-center gap-3">
@@ -50,9 +50,9 @@ export default function Topbar() {
   )
 }
 
-function Stat({ icon, iconBg, label, value }: { icon: React.ReactNode; iconBg: string; label: string; value: string }) {
+function Stat({ icon, iconBg, label, value, title }: { icon: React.ReactNode; iconBg: string; label: string; value: string; title?: string }) {
   return (
-    <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-gray-50 transition-colors duration-150">
+    <div title={title} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-gray-50 transition-colors duration-150">
       <span className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${iconBg}`}>{icon}</span>
       <span className="text-xs text-gray-400">{label}</span>
       <span className="text-xs font-bold text-gray-800">{value}</span>

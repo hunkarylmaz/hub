@@ -765,6 +765,10 @@ app.get('/api/bayi/dashboard', bayiAuthMiddleware, wrap(async (req, res) => {
     [bid]
   )
   const bakiye = await get('SELECT token FROM bayilikler WHERE id=?', [bid])
+  const aktifPaket = await get(
+    "SELECT COUNT(*) as sayi FROM bayi_siparisler WHERE bayilik_id=? AND durum IN ('Beklemede','Atandı','Yolda')",
+    [bid]
+  )
   const aktifSiparisler = await all(
     `SELECT bs.*, br.ad as restoran_ad, bk.ad as kurye_ad
      FROM bayi_siparisler bs
@@ -779,6 +783,13 @@ app.get('/api/bayi/dashboard', bayiAuthMiddleware, wrap(async (req, res) => {
   const teslim = siparis?.teslim || 0
   const mudahale = toplam > 0 ? Math.round((toplam - teslim) / toplam * 100) : 0
 
+  // Yoğunluk: şu an açık olan paket sayısının mevcut aktif kurye sayısına oranı.
+  // Kurye başına ~1 paket rahat, ~2 paket orta, 2'den fazla yüksek yoğunluk kabul edilir.
+  const aktifPaketSayisi = aktifPaket?.sayi || 0
+  const kuryeSayisi = kurye?.toplam || 0
+  const kuryeBasiPaket = kuryeSayisi > 0 ? aktifPaketSayisi / kuryeSayisi : (aktifPaketSayisi > 0 ? Infinity : 0)
+  const yogunluk = aktifPaketSayisi === 0 ? 'Düşük' : kuryeBasiPaket <= 1 ? 'Düşük' : kuryeBasiPaket <= 2 ? 'Orta' : 'Yüksek'
+
   res.json({
     siparis_toplam: toplam,
     siparis_bekleyen: siparis?.bekleyen || 0,
@@ -786,9 +797,10 @@ app.get('/api/bayi/dashboard', bayiAuthMiddleware, wrap(async (req, res) => {
     siparis_teslim: teslim,
     mudahale_yuzdesi: mudahale,
     kalite_yuzdesi: toplam > 0 ? Math.round(teslim / toplam * 100) : 100,
-    yogunluk: toplam > 0 ? (toplam > 30 ? 'Yüksek' : toplam > 15 ? 'Orta' : 'Düşük') : 'Düşük',
+    yogunluk,
+    aktif_paket_sayisi: aktifPaketSayisi,
     kontor_bakiye: bakiye?.token || 0,
-    kurye_toplam: kurye?.toplam || 0,
+    kurye_toplam: kuryeSayisi,
     kurye_musait: kurye?.musait || 0,
     kurye_dagitimda: kurye?.dagitimda || 0,
     kurye_mola: kurye?.mola || 0,
