@@ -87,6 +87,33 @@ export function createKonumIcon() {
   })
 }
 
+const SIPARIS_DURUM_RENK: Record<string, { fill: string; border: string }> = {
+  'Beklemede': { fill: '#F59E0B', border: '#B45309' },
+  'Atandı': { fill: '#3B82F6', border: '#1D4ED8' },
+  'Yolda': { fill: '#6366F1', border: '#4338CA' },
+}
+
+export function createSiparisIcon(durum: string) {
+  const c = SIPARIS_DURUM_RENK[durum] || { fill: '#9CA3AF', border: '#6B7280' }
+  const svg = `
+    <svg width="28" height="36" viewBox="0 0 36 44" xmlns="http://www.w3.org/2000/svg">
+      <filter id="shadow4">
+        <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.25"/>
+      </filter>
+      <path d="M18 2C10.268 2 4 8.268 4 16c0 10.5 14 26 14 26S32 26.5 32 16c0-7.732-6.268-14-14-14z"
+            fill="${c.fill}" stroke="${c.border}" stroke-width="1.5" filter="url(#shadow4)"/>
+      <circle cx="18" cy="16" r="9" fill="white" opacity="0.95"/>
+      <circle cx="18" cy="16" r="4" fill="${c.fill}"/>
+    </svg>`
+  return L.divIcon({
+    className: '',
+    html: svg,
+    iconSize: [28, 36],
+    iconAnchor: [14, 36],
+    popupAnchor: [0, -38],
+  })
+}
+
 export function FitBounds({ points }: { points: [number, number][] }) {
   const map = useMap()
   useEffect(() => {

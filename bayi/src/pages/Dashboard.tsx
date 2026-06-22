@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
+import { Fragment, useState, useEffect, useCallback } from 'react'
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet'
 import { Loader2, AlertCircle } from 'lucide-react'
 import { api, Siparis, Kurye, KuryeKonum, Restoran } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
-import { createCourierIcon, createRestoranIcon, FitBounds } from '../lib/mapUtils'
+import { createCourierIcon, createRestoranIcon, createSiparisIcon, FitBounds } from '../lib/mapUtils'
 import SiparisTablosu from '../components/SiparisTablosu'
 
 export default function Dashboard() {
@@ -52,6 +52,10 @@ export default function Dashboard() {
   )
 
   const restoranNoktalari = restoranlar.filter((r): r is Restoran & { lat: number; lon: number } => r.lat != null && r.lon != null)
+  const aktifSiparisNoktalari = siparisler.filter(
+    (s): s is Siparis & { musteri_lat: number; musteri_lon: number } =>
+      s.musteri_lat != null && s.musteri_lon != null && (s.durum === 'Beklemede' || s.durum === 'Atandı' || s.durum === 'Yolda')
+  )
 
   // Center priority: 1) bayilik registered location 2) average of courier positions 3) Turkey center
   const merkez = konumlar.merkez
@@ -66,6 +70,7 @@ export default function Dashboard() {
   const mapPoints: [number, number][] = [
     ...konumlar.kuryeler.map(k => [k.lat, k.lon] as [number, number]),
     ...restoranNoktalari.map(r => [r.lat, r.lon] as [number, number]),
+    ...aktifSiparisNoktalari.map(s => [s.musteri_lat, s.musteri_lon] as [number, number]),
   ]
 
   return (
@@ -126,10 +131,39 @@ export default function Dashboard() {
                   </Popup>
                 </Marker>
               ))}
+              {aktifSiparisNoktalari.map(s => {
+                const kurye = s.kurye_id ? konumlar.kuryeler.find(k => k.id === s.kurye_id) : undefined
+                return (
+                  <Fragment key={`s-${s.id}`}>
+                    <Marker position={[s.musteri_lat, s.musteri_lon]} icon={createSiparisIcon(s.durum)}>
+                      <Popup minWidth={180}>
+                        <div className="text-xs">
+                          <p className="font-semibold text-gray-900">{s.siparis_no}</p>
+                          <p className="text-gray-700">{s.musteri_ad || 'Müşteri'} · {s.restoran_ad || '—'}</p>
+                          <p className="text-gray-500">{s.durum} · ₺{s.tutar.toFixed(2)}</p>
+                        </div>
+                      </Popup>
+                    </Marker>
+                    {s.durum === 'Yolda' && kurye && (
+                      <Polyline
+                        positions={[[kurye.lat, kurye.lon], [s.musteri_lat, s.musteri_lon]]}
+                        pathOptions={{ color: '#6366F1', weight: 2, dashArray: '6 6', opacity: 0.7 }}
+                      />
+                    )}
+                  </Fragment>
+                )
+              })}
             </MapContainer>
             <div className="absolute top-3 left-3 bg-white/90 backdrop-blur rounded-lg px-3 py-1.5 text-xs font-medium text-gray-700 shadow-sm pointer-events-none z-[1000]">
               {merkez.ilce || merkez.sehir || bayilik?.sehir || 'Türkiye'} Teslimat Haritası
             </div>
+            {aktifSiparisNoktalari.length > 0 && (
+              <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur rounded-lg px-3 py-2 text-xs text-gray-600 shadow-sm pointer-events-none z-[1000] space-y-1">
+                <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: '#F59E0B' }} />Beklemede</div>
+                <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: '#3B82F6' }} />Atandı</div>
+                <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: '#6366F1' }} />Yolda</div>
+              </div>
+            )}
           </div>
         </div>
       </div>
