@@ -2,12 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Phone, Mail, Globe2, UserSquare2 } from "lucide-react";
+import { Plus, Phone, Mail, Globe2, UserSquare2, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import { Switch } from "@/components/ui/Switch";
+import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { Service, Staff } from "@/lib/types";
+import { COMPENSATION_TYPE_LABELS } from "@/lib/types";
 import { toggleStaffActiveAction } from "./actions";
 import { NewStaffModal } from "./NewStaffModal";
 import { StaffDetailModal } from "./StaffDetailModal";
@@ -80,6 +82,14 @@ export function CalisanlarClient({
                       <p className="flex items-center gap-1.5">
                         <Globe2 className="h-3 w-3" /> {serviceCount} hizmet verebiliyor
                       </p>
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <Badge>{COMPENSATION_TYPE_LABELS[member.compensationType]}</Badge>
+                      {member.userId && (
+                        <Badge className="bg-violet-50 text-violet-700 ring-violet-100">
+                          <KeyRound className="mr-1 h-3 w-3" /> Panel Girişi Var
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </button>

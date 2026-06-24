@@ -12,6 +12,9 @@ import {
 } from "@/lib/db/repo/staff";
 import { listServiceIdsForStaff } from "@/lib/db/repo/services";
 import { recordAuditLog } from "@/lib/db/repo/auditLogs";
+import { createUser, findUserByEmail } from "@/lib/db/repo/users";
+import { addBusinessUser } from "@/lib/db/repo/businesses";
+import { hashPassword, generateTempPassword } from "@/lib/password";
 
 function revalidateStaffViews() {
   revalidatePath("/panel/calisanlar");
@@ -20,12 +23,33 @@ function revalidateStaffViews() {
   revalidatePath("/panel/randevular");
 }
 
-export async function createStaffAction(input: StaffInput) {
+export interface CreateStaffPayload extends StaffInput {
+  createLogin?: boolean;
+}
+
+export async function createStaffAction(input: CreateStaffPayload) {
   const { user, business } = await requireBusinessContext();
   const fullName = input.fullName.trim();
   if (!fullName) throw new Error("Ad Soyad zorunludur.");
 
-  const staff = createStaff(business.id, { ...input, fullName });
+  const { createLogin, ...staffInput } = input;
+
+  let staffUserId: string | null = null;
+  let generatedPassword: string | null = null;
+
+  if (createLogin) {
+    const email = (staffInput.email ?? "").trim();
+    if (!email) throw new Error("Giriş yetkisi için e-posta zorunludur.");
+    if (findUserByEmail(email)) throw new Error("Bu e-posta adresi zaten kullanılıyor.");
+
+    generatedPassword = generateTempPassword();
+    const passwordHash = await hashPassword(generatedPassword);
+    const newUser = createUser({ email, passwordHash, fullName, role: "STAFF" });
+    addBusinessUser(business.id, newUser.id, "STAFF");
+    staffUserId = newUser.id;
+  }
+
+  const staff = createStaff(business.id, { ...staffInput, fullName }, staffUserId);
 
   recordAuditLog({
     businessId: business.id,
@@ -36,7 +60,7 @@ export async function createStaffAction(input: StaffInput) {
   });
 
   revalidateStaffViews();
-  return staff;
+  return { staff, generatedPassword };
 }
 
 export async function updateStaffAction(staffId: string, input: Partial<StaffInput> & { isActive?: boolean }) {
