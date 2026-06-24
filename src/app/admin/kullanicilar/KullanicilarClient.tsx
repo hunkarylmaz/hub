@@ -1,14 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Users } from "lucide-react";
+import { Search, Users, Plus } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/utils";
 import { formatDateShortTR } from "@/lib/date";
 import type { SafeUser } from "@/lib/types";
+import { UserModal } from "./UserModal";
 
 type UserRow = SafeUser & { businessName: string | null };
 
@@ -24,8 +26,15 @@ const ROLE_BADGE_CLASSES: Record<SafeUser["role"], string> = {
   STAFF: "bg-amber-50 text-amber-700 ring-amber-200",
 };
 
-export function KullanicilarClient({ users }: { users: UserRow[] }) {
+export function KullanicilarClient({
+  users,
+  businesses,
+}: {
+  users: UserRow[];
+  businesses: { id: string; name: string }[];
+}) {
   const [search, setSearch] = useState("");
+  const [creating, setCreating] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -40,11 +49,14 @@ export function KullanicilarClient({ users }: { users: UserRow[] }) {
 
   return (
     <div>
-      <div className="mb-4 w-64">
-        <div className="relative">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="relative w-64">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-400" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Ad, e-posta veya işletme ara..." className="pl-9" />
         </div>
+        <Button variant="primary" onClick={() => setCreating(true)}>
+          <Plus className="h-4 w-4" /> Yeni Kullanıcı Ekle
+        </Button>
       </div>
 
       {filtered.length === 0 ? (
@@ -95,6 +107,8 @@ export function KullanicilarClient({ users }: { users: UserRow[] }) {
           </table>
         </div>
       )}
+
+      <UserModal open={creating} onClose={() => setCreating(false)} businesses={businesses} />
     </div>
   );
 }

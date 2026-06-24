@@ -44,13 +44,12 @@ export async function requireBusinessContext(): Promise<BusinessContext> {
   const user = await requireRole(["OWNER", "STAFF"]);
 
   if (user.role === "OWNER") {
-    const business = findBusinessByOwnerId(user.id);
-    if (!business) redirect("/onboarding");
-    return { user, business, membershipRole: "OWNER", permissions: {} };
+    const ownedBusiness = findBusinessByOwnerId(user.id);
+    if (ownedBusiness) return { user, business: ownedBusiness, membershipRole: "OWNER", permissions: {} };
   }
 
   const membership = findBusinessUserForUser(user.id);
-  if (!membership) redirect("/giris");
+  if (!membership) redirect(user.role === "OWNER" ? "/onboarding" : "/giris");
   const business = findBusinessById(membership.businessId);
   if (!business) redirect("/giris");
   return { user, business, membershipRole: membership.role, permissions: membership.permissions };

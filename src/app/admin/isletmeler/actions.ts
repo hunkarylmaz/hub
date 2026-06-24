@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSuperAdmin } from "@/lib/session";
-import { findBusinessById, setBusinessStatus } from "@/lib/db/repo/businesses";
+import { findBusinessById, setBusinessStatus, createBusiness, slugExists } from "@/lib/db/repo/businesses";
+import { findUserByEmail, createUser } from "@/lib/db/repo/users";
+import { hashPassword } from "@/lib/password";
+import { generateUniqueSlug } from "@/lib/slug";
+import { seedDefaultAccountingCategories } from "@/lib/db/repo/accounting";
+import { findPlanById, createSubscription } from "@/lib/db/repo/plans";
 import { recordAuditLog } from "@/lib/db/repo/auditLogs";
 
 export async function setBusinessStatusAction(businessId: string, status: "active" | "inactive") {
@@ -21,4 +26,74 @@ export async function setBusinessStatusAction(businessId: string, status: "activ
 
   revalidatePath("/admin/isletmeler");
   revalidatePath("/admin");
+}
+
+export interface CreateBusinessInput {
+  name: string;
+  sector: string;
+  phone: string;
+  email: string;
+  city: string;
+  ownerFullName: string;
+  ownerEmail: string;
+  ownerPassword: string;
+  planId: string;
+  billingCycle: "monthly" | "yearly";
+  subscriptionStatus: "trial" | "active";
+}
+
+export async function createBusinessAction(input: CreateBusinessInput) {
+  const actor = await requireSuperAdmin();
+
+  const name = input.name.trim();
+  const ownerFullName = input.ownerFullName.trim();
+  const ownerEmail = input.ownerEmail.trim().toLowerCase();
+
+  if (!name) throw new Error("İşletme adı zorunludur.");
+  if (!ownerFullName) throw new Error("İşletme sahibi adı zorunludur.");
+  if (!ownerEmail) throw new Error("İşletme sahibi e-postası zorunludur.");
+  if (input.ownerPassword.length < 6) throw new Error("Şifre en az 6 karakter olmalıdır.");
+  if (findUserByEmail(ownerEmail)) throw new Error("Bu e-posta adresi zaten kullanımda.");
+
+  const plan = findPlanById(input.planId);
+  if (!plan) throw new Error("Plan bulunamadı.");
+
+  const slug = generateUniqueSlug(name, (candidate) => slugExists(candidate));
+  const passwordHash = await hashPassword(input.ownerPassword);
+  const owner = createUser({ email: ownerEmail, passwordHash, fullName: ownerFullName, role: "OWNER" });
+
+  const business = createBusiness({
+    ownerUserId: owner.id,
+    name,
+    slug,
+    sector: input.sector,
+    phone: input.phone.trim() || null,
+    email: input.email.trim() || null,
+    city: input.city.trim() || null,
+  });
+
+  seedDefaultAccountingCategories(business.id);
+
+  const trialEndsAt =
+    input.subscriptionStatus === "trial" ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() : null;
+  createSubscription({
+    businessId: business.id,
+    planId: plan.id,
+    status: input.subscriptionStatus,
+    billingCycle: input.billingCycle,
+    trialEndsAt,
+  });
+
+  recordAuditLog({
+    businessId: business.id,
+    actorUserId: actor.id,
+    action: "business.created",
+    entityType: "business",
+    entityId: business.id,
+    meta: { name: business.name, ownerEmail },
+  });
+
+  revalidatePath("/admin/isletmeler");
+  revalidatePath("/admin");
+  return business;
 }

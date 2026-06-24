@@ -20,7 +20,7 @@ export default async function AdminBusinessesPage() {
   return (
     <div>
       <PageHeader title="İşletmeler" description="Platformdaki tüm işletmeleri görüntüle ve yönet" />
-      <IsletmelerClient rows={rows} />
+      <IsletmelerClient rows={rows} plans={plans} />
     </div>
   );
 }

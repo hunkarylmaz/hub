@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Building2, ExternalLink } from "lucide-react";
+import { Search, Building2, ExternalLink, Plus } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -10,8 +10,11 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { formatDateShortTR } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import type { Business, Plan, Subscription } from "@/lib/types";
-import { SUBSCRIPTION_STATUS_LABELS } from "@/lib/types";
+import { SECTORS, SUBSCRIPTION_STATUS_LABELS } from "@/lib/types";
 import { setBusinessStatusAction } from "./actions";
+import { BusinessModal } from "./BusinessModal";
+
+const SECTOR_LABELS: Record<string, string> = Object.fromEntries(SECTORS.map((s) => [s.value, s.label]));
 
 type Row = {
   business: Business;
@@ -27,11 +30,12 @@ const SUBSCRIPTION_BADGE_CLASSES: Record<Subscription["status"], string> = {
   suspended: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-200",
 };
 
-export function IsletmelerClient({ rows }: { rows: Row[] }) {
+export function IsletmelerClient({ rows, plans }: { rows: Row[]; plans: Plan[] }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [creating, setCreating] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -58,11 +62,14 @@ export function IsletmelerClient({ rows }: { rows: Row[] }) {
 
   return (
     <div>
-      <div className="mb-4 w-64">
-        <div className="relative">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="relative w-64">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-400" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="İşletme, slug veya şehir ara..." className="pl-9" />
         </div>
+        <Button variant="primary" onClick={() => setCreating(true)}>
+          <Plus className="h-4 w-4" /> Yeni İşletme Ekle
+        </Button>
       </div>
 
       {filtered.length === 0 ? (
@@ -104,7 +111,7 @@ export function IsletmelerClient({ rows }: { rows: Row[] }) {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-navy-700">
-                    <p>{business.sector}</p>
+                    <p>{SECTOR_LABELS[business.sector] ?? business.sector}</p>
                     <p className="text-xs text-navy-400">{business.city ?? "—"}</p>
                   </td>
                   <td className="px-4 py-3 text-navy-700">{plan?.name ?? "—"}</td>
@@ -139,6 +146,8 @@ export function IsletmelerClient({ rows }: { rows: Row[] }) {
           </table>
         </div>
       )}
+
+      <BusinessModal open={creating} onClose={() => setCreating(false)} plans={plans} />
     </div>
   );
 }
