@@ -17,26 +17,29 @@ import {
   Bell,
   Settings,
   CreditCard,
+  BadgeDollarSign,
   Menu,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LogoMark } from "@/components/brand/Logo";
+import type { BusinessContext } from "@/lib/session";
 
 const NAV = [
-  { href: "/panel", label: "Genel Bakış", icon: LayoutDashboard },
-  { href: "/panel/takvim", label: "Takvim", icon: CalendarDays },
-  { href: "/panel/randevular", label: "Randevular", icon: ClipboardList },
-  { href: "/panel/musteriler", label: "Müşteriler", icon: Users },
-  { href: "/panel/hizmetler", label: "Hizmetler", icon: Sparkles },
-  { href: "/panel/calisanlar", label: "Çalışanlar", icon: UserCog },
-  { href: "/panel/sayfa-ayarlari", label: "Public Sayfa Ayarları", icon: Globe },
-  { href: "/panel/on-muhasebe", label: "Ön Muhasebe", icon: Wallet },
-  { href: "/panel/gelir-gider", label: "Gelir-Gider", icon: ArrowLeftRight },
-  { href: "/panel/raporlar", label: "Raporlar", icon: BarChart3 },
-  { href: "/panel/bildirimler", label: "Bildirimler", icon: Bell },
-  { href: "/panel/ayarlar", label: "Ayarlar", icon: Settings },
-  { href: "/panel/abonelik", label: "Abonelik", icon: CreditCard },
+  { href: "/panel", label: "Genel Bakış", icon: LayoutDashboard, roles: ["OWNER", "STAFF"] },
+  { href: "/panel/takvim", label: "Takvim", icon: CalendarDays, roles: ["OWNER", "STAFF"] },
+  { href: "/panel/randevular", label: "Randevular", icon: ClipboardList, roles: ["OWNER", "STAFF"] },
+  { href: "/panel/musteriler", label: "Müşteriler", icon: Users, roles: ["OWNER", "STAFF"] },
+  { href: "/panel/kazanclarim", label: "Kazançlarım", icon: BadgeDollarSign, roles: ["STAFF"] },
+  { href: "/panel/hizmetler", label: "Hizmetler", icon: Sparkles, roles: ["OWNER"] },
+  { href: "/panel/calisanlar", label: "Çalışanlar", icon: UserCog, roles: ["OWNER"] },
+  { href: "/panel/sayfa-ayarlari", label: "Public Sayfa Ayarları", icon: Globe, roles: ["OWNER"] },
+  { href: "/panel/on-muhasebe", label: "Ön Muhasebe", icon: Wallet, roles: ["OWNER"] },
+  { href: "/panel/gelir-gider", label: "Gelir-Gider", icon: ArrowLeftRight, roles: ["OWNER"] },
+  { href: "/panel/raporlar", label: "Raporlar", icon: BarChart3, roles: ["OWNER"] },
+  { href: "/panel/bildirimler", label: "Bildirimler", icon: Bell, roles: ["OWNER", "STAFF"] },
+  { href: "/panel/ayarlar", label: "Ayarlar", icon: Settings, roles: ["OWNER", "STAFF"] },
+  { href: "/panel/abonelik", label: "Abonelik", icon: CreditCard, roles: ["OWNER"] },
 ] as const;
 
 function SidebarHeader({ businessName, onClose }: { businessName: string; onClose?: () => void }) {
@@ -55,14 +58,15 @@ function SidebarHeader({ businessName, onClose }: { businessName: string; onClos
   );
 }
 
-export function PanelSidebar({ businessName }: { businessName: string }) {
+export function PanelSidebar({ businessName, membershipRole }: { businessName: string; membershipRole: BusinessContext["membershipRole"] }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const visibleNav = NAV.filter((item) => (item.roles as readonly string[]).includes(membershipRole));
 
   function NavLinks() {
     return (
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4 panel-scrollbar">
-        {NAV.map((item) => {
+        {visibleNav.map((item) => {
           const active = item.href === "/panel" ? pathname === "/panel" : pathname.startsWith(item.href);
           return (
             <Link

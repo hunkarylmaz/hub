@@ -8,6 +8,7 @@ import {
   findStaffById,
   listStaffWorkingHours,
   setStaffWorkingHours,
+  calculateStaffEarnings,
   type StaffInput,
 } from "@/lib/db/repo/staff";
 import { listServiceIdsForStaff } from "@/lib/db/repo/services";
@@ -97,7 +98,8 @@ export async function fetchStaffDetailAction(staffId: string) {
   if (!staff || staff.businessId !== business.id) throw new Error("Çalışan bulunamadı.");
   const workingHours = listStaffWorkingHours(staffId);
   const serviceIds = listServiceIdsForStaff(staffId);
-  return { staff, workingHours, serviceIds };
+  const earnings = calculateStaffEarnings(staffId);
+  return { staff, workingHours, serviceIds, earnings };
 }
 
 export interface WorkingHourInput {

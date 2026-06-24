@@ -1,11 +1,11 @@
-import { requireBusinessContext } from "@/lib/session";
+import { requireOwnerContext } from "@/lib/session";
 import { listStaff } from "@/lib/db/repo/staff";
 import { listServices, listServiceIdsForStaff } from "@/lib/db/repo/services";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { CalisanlarClient } from "./CalisanlarClient";
 
 export default async function CalisanlarPage() {
-  const { business } = await requireBusinessContext();
+  const { business } = await requireOwnerContext();
 
   const staff = listStaff(business.id);
   const services = listServices(business.id);

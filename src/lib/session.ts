@@ -58,3 +58,10 @@ export async function requireBusinessContext(): Promise<BusinessContext> {
 export async function requireSuperAdmin(): Promise<SafeUser> {
   return requireRole(["SUPER_ADMIN"]);
 }
+
+/** Like requireBusinessContext, but redirects STAFF members away from owner-only panel pages. */
+export async function requireOwnerContext(): Promise<BusinessContext> {
+  const ctx = await requireBusinessContext();
+  if (ctx.membershipRole !== "OWNER") redirect("/panel");
+  return ctx;
+}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Pencil, Phone, Mail, Clock } from "lucide-react";
+import { Loader2, Pencil, Phone, Mail, Clock, Wallet } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
@@ -10,7 +10,8 @@ import { Switch } from "@/components/ui/Switch";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import type { Service, Staff, StaffWorkingHour } from "@/lib/types";
-import { WEEKDAY_LABELS } from "@/lib/types";
+import { WEEKDAY_LABELS, COMPENSATION_TYPE_LABELS } from "@/lib/types";
+import { formatCurrencyTRY } from "@/lib/utils";
 import {
   fetchStaffDetailAction,
   updateStaffAction,
@@ -18,11 +19,13 @@ import {
   clearStaffWorkingHoursAction,
   type WorkingHourInput,
 } from "./actions";
+import type { StaffEarnings } from "@/lib/db/repo/staff";
 
 interface Detail {
   staff: Staff;
   workingHours: StaffWorkingHour[];
   serviceIds: string[];
+  earnings: StaffEarnings;
 }
 
 interface HourRow {
@@ -276,6 +279,34 @@ export function StaffDetailModal({
                 ))}
               </div>
             )}
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-navy-100 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-navy-400" />
+                <p className="text-sm font-medium text-navy-900">Kazançlar</p>
+              </div>
+              <Badge>{COMPENSATION_TYPE_LABELS[detail.earnings.compensationType]}</Badge>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-lg bg-surface-subtle p-3">
+                <p className="text-xs text-navy-400">Tamamlanan İşlem</p>
+                <p className="mt-1 text-sm font-semibold text-navy-900">{detail.earnings.completedCount}</p>
+              </div>
+              <div className="rounded-lg bg-surface-subtle p-3">
+                <p className="text-xs text-navy-400">Ciro</p>
+                <p className="mt-1 text-sm font-semibold text-navy-900">{formatCurrencyTRY(detail.earnings.totalRevenue)}</p>
+              </div>
+              <div className="rounded-lg bg-surface-subtle p-3">
+                <p className="text-xs text-navy-400">Komisyon</p>
+                <p className="mt-1 text-sm font-semibold text-navy-900">{formatCurrencyTRY(detail.earnings.commissionEarned)}</p>
+              </div>
+              <div className="rounded-lg bg-violet-50 p-3">
+                <p className="text-xs text-violet-500">Toplam Kazanç</p>
+                <p className="mt-1 text-sm font-semibold text-violet-700">{formatCurrencyTRY(detail.earnings.totalEarnings)}</p>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-3 rounded-xl border border-navy-100 p-4">

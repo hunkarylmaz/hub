@@ -1,4 +1,4 @@
-import { requireBusinessContext } from "@/lib/session";
+import { requireOwnerContext } from "@/lib/session";
 import { listIncomeRecords, listExpenseRecords, listAccountingCategories } from "@/lib/db/repo/accounting";
 import { listCustomers } from "@/lib/db/repo/customers";
 import { listServices } from "@/lib/db/repo/services";
@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { GelirGiderClient } from "./GelirGiderClient";
 
 export default async function GelirGiderPage() {
-  const { business } = await requireBusinessContext();
+  const { business } = await requireOwnerContext();
 
   const income = listIncomeRecords(business.id);
   const expense = listExpenseRecords(business.id);
