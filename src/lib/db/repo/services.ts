@@ -167,3 +167,10 @@ export function setStaffServices(staffId: string, serviceIds: string[]) {
   const ins = db.prepare("INSERT INTO staff_services (id, staff_id, service_id) VALUES (?, ?, ?)");
   for (const serviceId of serviceIds) ins.run(uid(), staffId, serviceId);
 }
+
+export function setServiceStaff(serviceId: string, staffIds: string[]) {
+  const db = getDb();
+  db.prepare("DELETE FROM staff_services WHERE service_id = ?").run(serviceId);
+  const ins = db.prepare("INSERT INTO staff_services (id, staff_id, service_id) VALUES (?, ?, ?)");
+  for (const staffId of staffIds) ins.run(uid(), staffId, serviceId);
+}
