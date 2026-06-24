@@ -72,6 +72,12 @@ export function dateKeyToWeekdayTR(key: string): string {
   return formatWeekdayTR(combineDateTime(key, "12:00"));
 }
 
+/** Formats a "yyyy-MM" month key as a short Turkish label, e.g. "Oca 25". */
+export function monthKeyToShortTR(monthKey: string): string {
+  const [year, month] = monthKey.split("-").map(Number);
+  return `${MONTHS_TR_SHORT[month - 1]} ${String(year).slice(2)}`;
+}
+
 export function formatDateTimeTR(iso: string): string {
   return `${formatDateLongTR(iso)} · ${formatTimeTR(iso)}`;
 }

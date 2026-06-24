@@ -107,6 +107,15 @@ export function listIncomeRecords(businessId: string, from?: string, to?: string
   return getDb().prepare("SELECT * FROM income_records WHERE business_id = ? ORDER BY date DESC, created_at DESC").all(businessId).map(mapIncome);
 }
 
+export function findIncomeRecordById(id: string): IncomeRecord | null {
+  const row = getDb().prepare("SELECT * FROM income_records WHERE id = ?").get(id);
+  return row ? mapIncome(row) : null;
+}
+
+export function deleteIncomeRecord(id: string) {
+  getDb().prepare("DELETE FROM income_records WHERE id = ?").run(id);
+}
+
 function mapExpense(row: any): ExpenseRecord {
   return {
     id: row.id,
@@ -153,6 +162,15 @@ export function listExpenseRecords(businessId: string, from?: string, to?: strin
       .map(mapExpense);
   }
   return getDb().prepare("SELECT * FROM expense_records WHERE business_id = ? ORDER BY date DESC, created_at DESC").all(businessId).map(mapExpense);
+}
+
+export function findExpenseRecordById(id: string): ExpenseRecord | null {
+  const row = getDb().prepare("SELECT * FROM expense_records WHERE id = ?").get(id);
+  return row ? mapExpense(row) : null;
+}
+
+export function deleteExpenseRecord(id: string) {
+  getDb().prepare("DELETE FROM expense_records WHERE id = ?").run(id);
 }
 
 export interface DailySummary {
