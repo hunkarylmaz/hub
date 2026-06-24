@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireBusinessContext } from "@/lib/session";
 import { updateBusiness } from "@/lib/db/repo/businesses";
 import { setWorkingHours } from "@/lib/db/repo/staff";
+import { updatePublicPageSettings } from "@/lib/db/repo/publicPageSettings";
 import { recordAuditLog } from "@/lib/db/repo/auditLogs";
 
 function revalidateSayfaAyarlariViews() {
@@ -39,6 +40,33 @@ export async function updateBusinessProfileAction(input: BusinessProfileInput) {
     businessId: business.id,
     actorUserId: user.id,
     action: "business.profile_updated",
+    entityType: "business",
+    entityId: business.id,
+  });
+
+  revalidateSayfaAyarlariViews();
+  return updated;
+}
+
+export interface BookingSettingsInput {
+  showAddress: boolean;
+  showPhone: boolean;
+  autoConfirm: boolean;
+  depositEnabled: boolean;
+  bookingWindowDays: number;
+  minNoticeHours: number;
+  cancellationPolicy: string | null;
+  kvkkText: string | null;
+}
+
+export async function updateBookingSettingsAction(input: BookingSettingsInput) {
+  const { user, business } = await requireBusinessContext();
+  const updated = updatePublicPageSettings(business.id, input);
+
+  recordAuditLog({
+    businessId: business.id,
+    actorUserId: user.id,
+    action: "business.booking_settings_updated",
     entityType: "business",
     entityId: business.id,
   });

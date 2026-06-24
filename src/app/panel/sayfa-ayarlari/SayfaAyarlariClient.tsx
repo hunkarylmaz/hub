@@ -2,13 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Globe, Image as ImageIcon, MapPin, Clock, Check } from "lucide-react";
+import { Globe, Image as ImageIcon, MapPin, Clock, Check, ShieldCheck } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea, Select, Label } from "@/components/ui/Input";
-import type { Business, WorkingHour } from "@/lib/types";
+import { Switch } from "@/components/ui/Switch";
+import type { Business, WorkingHour, PublicPageSettings } from "@/lib/types";
 import { SECTORS, WEEKDAY_LABELS } from "@/lib/types";
-import { updateBusinessProfileAction, saveBusinessHoursAction, type BusinessHourInput } from "./actions";
+import { updateBusinessProfileAction, saveBusinessHoursAction, updateBookingSettingsAction, type BusinessHourInput, type BookingSettingsInput } from "./actions";
 
 interface HourRow {
   weekday: number;
@@ -41,7 +42,15 @@ function hoursToRows(hours: WorkingHour[]): HourRow[] {
   return rows;
 }
 
-export function SayfaAyarlariClient({ business, workingHours }: { business: Business; workingHours: WorkingHour[] }) {
+export function SayfaAyarlariClient({
+  business,
+  workingHours,
+  pageSettings,
+}: {
+  business: Business;
+  workingHours: WorkingHour[];
+  pageSettings: PublicPageSettings;
+}) {
   const router = useRouter();
   const [form, setForm] = useState({
     name: business.name,
@@ -59,12 +68,47 @@ export function SayfaAyarlariClient({ business, workingHours }: { business: Busi
     themeColor: business.themeColor,
   });
   const [hours, setHours] = useState<HourRow[]>(hoursToRows(workingHours));
+  const [bookingForm, setBookingForm] = useState<BookingSettingsInput>({
+    showAddress: pageSettings.showAddress,
+    showPhone: pageSettings.showPhone,
+    autoConfirm: pageSettings.autoConfirm,
+    depositEnabled: pageSettings.depositEnabled,
+    bookingWindowDays: pageSettings.bookingWindowDays,
+    minNoticeHours: pageSettings.minNoticeHours,
+    cancellationPolicy: pageSettings.cancellationPolicy ?? "",
+    kvkkText: pageSettings.kvkkText ?? "",
+  });
   const [error, setError] = useState<string | null>(null);
   const [hoursError, setHoursError] = useState<string | null>(null);
+  const [bookingError, setBookingError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [hoursSaved, setHoursSaved] = useState(false);
+  const [bookingSaved, setBookingSaved] = useState(false);
   const [submitting, startSubmit] = useTransition();
   const [savingHours, startSaveHours] = useTransition();
+  const [savingBooking, startSaveBooking] = useTransition();
+
+  function updateBookingForm(patch: Partial<BookingSettingsInput>) {
+    setBookingForm((f) => ({ ...f, ...patch }));
+  }
+
+  function handleSaveBooking() {
+    setBookingError(null);
+    setBookingSaved(false);
+    startSaveBooking(async () => {
+      try {
+        await updateBookingSettingsAction({
+          ...bookingForm,
+          cancellationPolicy: bookingForm.cancellationPolicy || null,
+          kvkkText: bookingForm.kvkkText || null,
+        });
+        router.refresh();
+        setBookingSaved(true);
+      } catch (e) {
+        setBookingError(e instanceof Error ? e.message : "Randevu kuralları kaydedilemedi.");
+      }
+    });
+  }
 
   function updateForm(patch: Partial<typeof form>) {
     setForm((f) => ({ ...f, ...patch }));
@@ -270,6 +314,96 @@ export function SayfaAyarlariClient({ business, workingHours }: { business: Busi
           Bilgileri Kaydet
         </Button>
       </div>
+
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>Randevu Kuralları & Gizlilik</CardTitle>
+            <CardDescription>Online randevu sayfasındaki rezervasyon davranışı ve KVKK metni</CardDescription>
+          </div>
+          <ShieldCheck className="h-5 w-5 shrink-0 text-navy-400" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between rounded-lg border border-navy-50 px-3.5 py-3">
+            <div>
+              <p className="text-sm font-medium text-navy-900">Randevuları Otomatik Onayla</p>
+              <p className="text-xs text-navy-400">Kapalıysa yeni randevular "beklemede" olarak oluşturulur, onayı sen verirsin.</p>
+            </div>
+            <Switch checked={bookingForm.autoConfirm} onChange={(v) => updateBookingForm({ autoConfirm: v })} />
+          </div>
+          <div className="flex items-center justify-between rounded-lg border border-navy-50 px-3.5 py-3">
+            <div>
+              <p className="text-sm font-medium text-navy-900">Depozito İste</p>
+              <p className="text-xs text-navy-400">Randevu sırasında müşteriden ön ödeme talep edildiğini belirtir.</p>
+            </div>
+            <Switch checked={bookingForm.depositEnabled} onChange={(v) => updateBookingForm({ depositEnabled: v })} />
+          </div>
+          <div className="flex items-center justify-between rounded-lg border border-navy-50 px-3.5 py-3">
+            <div>
+              <p className="text-sm font-medium text-navy-900">Adresi Göster</p>
+              <p className="text-xs text-navy-400">Randevu sayfasında işletme adresini görünür yapar.</p>
+            </div>
+            <Switch checked={bookingForm.showAddress} onChange={(v) => updateBookingForm({ showAddress: v })} />
+          </div>
+          <div className="flex items-center justify-between rounded-lg border border-navy-50 px-3.5 py-3">
+            <div>
+              <p className="text-sm font-medium text-navy-900">Telefonu Göster</p>
+              <p className="text-xs text-navy-400">Randevu sayfasında işletme telefon numarasını görünür yapar.</p>
+            </div>
+            <Switch checked={bookingForm.showPhone} onChange={(v) => updateBookingForm({ showPhone: v })} />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label>Randevu Penceresi (gün)</Label>
+              <Input
+                type="number"
+                min="1"
+                value={bookingForm.bookingWindowDays}
+                onChange={(e) => updateBookingForm({ bookingWindowDays: Number(e.target.value) || 1 })}
+              />
+              <p className="mt-1 text-xs text-navy-400">Müşteriler en fazla kaç gün ileriye randevu alabilir.</p>
+            </div>
+            <div>
+              <Label>Minimum Bildirim Süresi (saat)</Label>
+              <Input
+                type="number"
+                min="0"
+                value={bookingForm.minNoticeHours}
+                onChange={(e) => updateBookingForm({ minNoticeHours: Number(e.target.value) || 0 })}
+              />
+              <p className="mt-1 text-xs text-navy-400">Randevu saatine en az kaç saat kala rezervasyon yapılabilir.</p>
+            </div>
+          </div>
+          <div>
+            <Label>İptal Politikası</Label>
+            <Textarea
+              rows={2}
+              value={bookingForm.cancellationPolicy ?? ""}
+              onChange={(e) => updateBookingForm({ cancellationPolicy: e.target.value })}
+              placeholder="Örn. Randevular en az 4 saat öncesine kadar ücretsiz iptal edilebilir."
+            />
+          </div>
+          <div>
+            <Label>KVKK Metni</Label>
+            <Textarea
+              rows={3}
+              value={bookingForm.kvkkText ?? ""}
+              onChange={(e) => updateBookingForm({ kvkkText: e.target.value })}
+            />
+          </div>
+          <div className="flex items-center justify-end gap-3 pt-2">
+            {bookingError && <p className="text-sm font-medium text-red-600">{bookingError}</p>}
+            {bookingSaved && !bookingError && (
+              <p className="flex items-center gap-1 text-sm font-medium text-emerald-600">
+                <Check className="h-4 w-4" /> Kaydedildi
+              </p>
+            )}
+            <Button loading={savingBooking} onClick={handleSaveBooking}>
+              Randevu Kurallarını Kaydet
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
