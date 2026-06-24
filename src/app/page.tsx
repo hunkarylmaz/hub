@@ -9,7 +9,6 @@ import {
   Building2,
   BarChart3,
   ShieldCheck,
-  Check,
   ArrowRight,
   Quote,
   Star,
@@ -23,10 +22,14 @@ import {
   GraduationCap,
   Footprints,
   Plus,
+  Gem,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { cn, formatCurrencyTRY } from "@/lib/utils";
+import { LogoMark } from "@/components/brand/Logo";
+import { PricingSection } from "@/components/marketing/PricingSection";
+import { HeroPreview } from "@/components/marketing/HeroPreview";
+import { Reveal } from "@/components/marketing/Reveal";
 import { listPlans } from "@/lib/db/repo/plans";
 import { SECTORS } from "@/lib/types";
 
@@ -101,6 +104,7 @@ const SECTOR_ICONS: Record<string, typeof Scissors> = {
   klinik: Stethoscope,
   diyetisyen: HeartPulse,
   ayak_bakim: Footprints,
+  tirnak_estetik: Gem,
   spa_masaj: SparklesIcon,
   dugun_salonu: CalendarCheck2,
   etkinlik_mekani: Building2,
@@ -158,9 +162,7 @@ export default async function LandingPage() {
       <header className="sticky top-0 z-50 border-b border-navy-100 bg-white/80 backdrop-blur-md">
         <div className="container flex h-16 items-center justify-between">
           <Link href="/" className="flex items-center gap-2 text-base font-semibold text-navy-900">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-navy-900 text-white">
-              <CalendarCheck2 className="h-4.5 w-4.5" />
-            </span>
+            <LogoMark className="h-8 w-8" />
             Rezervasyo
           </Link>
           <nav className="hidden items-center gap-8 text-sm font-medium text-navy-600 md:flex">
@@ -210,49 +212,55 @@ export default async function LandingPage() {
               </div>
               <p className="mt-5 text-sm text-white/50">Kredi kartı gerekmez · 14 gün ücretsiz deneme</p>
             </div>
+            <HeroPreview />
           </div>
         </section>
 
         {/* Sectors strip */}
         <section className="border-b border-navy-100 bg-surface-subtle py-10">
           <div className="container">
-            <p className="text-center text-sm font-medium text-navy-400">
-              Yüzlerce işletme türü için uyarlanabilir
-            </p>
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-              {SECTORS.map((sector) => {
-                const Icon = SECTOR_ICONS[sector.value] ?? Briefcase;
-                return (
-                  <span
-                    key={sector.value}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-navy-100 bg-white px-3.5 py-1.5 text-sm text-navy-600"
-                  >
-                    <Icon className="h-3.5 w-3.5 text-violet-500" /> {sector.label}
-                  </span>
-                );
-              })}
-            </div>
+            <Reveal>
+              <p className="text-center text-sm font-medium text-navy-400">
+                Yüzlerce işletme türü için uyarlanabilir
+              </p>
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                {SECTORS.map((sector, i) => {
+                  const Icon = SECTOR_ICONS[sector.value] ?? Briefcase;
+                  return (
+                    <span
+                      key={sector.value}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-navy-100 bg-white px-3.5 py-1.5 text-sm text-navy-600 transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-card"
+                      style={{ transitionDelay: `${i * 25}ms` }}
+                    >
+                      <Icon className="h-3.5 w-3.5 text-violet-500" /> {sector.label}
+                    </span>
+                  );
+                })}
+              </div>
+            </Reveal>
           </div>
         </section>
 
         {/* Features */}
         <section id="ozellikler" className="py-20 sm:py-28">
           <div className="container">
-            <div className="mx-auto max-w-2xl text-center">
+            <Reveal className="mx-auto max-w-2xl text-center">
               <h2 className="text-3xl font-semibold text-navy-900 sm:text-4xl">Tüm işletme operasyonunuz tek yerde</h2>
               <p className="mt-4 text-navy-500">
                 Randevudan ön muhasebeye, müşteri ilişkilerinden raporlamaya kadar her şey Rezervasyo'da.
               </p>
-            </div>
+            </Reveal>
             <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {FEATURES.map((feature) => (
-                <div key={feature.title} className="rounded-2xl border border-navy-100 bg-white p-6 shadow-card">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
-                    <feature.icon className="h-5 w-5" />
-                  </span>
-                  <h3 className="mt-4 text-base font-semibold text-navy-900">{feature.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-navy-500">{feature.description}</p>
-                </div>
+              {FEATURES.map((feature, i) => (
+                <Reveal key={feature.title} delay={i * 60}>
+                  <div className="group h-full rounded-2xl border border-navy-100 bg-white p-6 shadow-card transition-all duration-300 hover:-translate-y-1 hover:shadow-soft">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50 text-violet-600 transition-colors group-hover:bg-violet-600 group-hover:text-white">
+                      <feature.icon className="h-5 w-5" />
+                    </span>
+                    <h3 className="mt-4 text-base font-semibold text-navy-900">{feature.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-navy-500">{feature.description}</p>
+                  </div>
+                </Reveal>
               ))}
             </div>
           </div>
@@ -261,19 +269,19 @@ export default async function LandingPage() {
         {/* How it works */}
         <section id="nasil-calisir" className="bg-surface-subtle py-20 sm:py-28">
           <div className="container">
-            <div className="mx-auto max-w-2xl text-center">
+            <Reveal className="mx-auto max-w-2xl text-center">
               <h2 className="text-3xl font-semibold text-navy-900 sm:text-4xl">3 adımda yayında olun</h2>
               <p className="mt-4 text-navy-500">Karmaşık kurulum yok. Dakikalar içinde randevu almaya başlayın.</p>
-            </div>
+            </Reveal>
             <div className="mt-14 grid gap-8 sm:grid-cols-3">
               {STEPS.map((step, i) => (
-                <div key={step.title} className="relative text-center">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-navy-900 text-lg font-semibold text-white">
+                <Reveal key={step.title} delay={i * 100} className="relative text-center">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-navy-900 text-lg font-semibold text-white shadow-glow">
                     {i + 1}
                   </div>
                   <h3 className="mt-5 text-base font-semibold text-navy-900">{step.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-navy-500">{step.description}</p>
-                </div>
+                </Reveal>
               ))}
             </div>
           </div>
@@ -282,121 +290,68 @@ export default async function LandingPage() {
         {/* Testimonials */}
         <section className="py-20 sm:py-28">
           <div className="container">
-            <div className="mx-auto max-w-2xl text-center">
+            <Reveal className="mx-auto max-w-2xl text-center">
               <h2 className="text-3xl font-semibold text-navy-900 sm:text-4xl">İşletmeler Rezervasyo'yu seviyor</h2>
-            </div>
+            </Reveal>
             <div className="mt-14 grid gap-6 lg:grid-cols-3">
-              {TESTIMONIALS.map((t) => (
-                <div key={t.name} className="rounded-2xl border border-navy-100 bg-white p-6 shadow-card">
-                  <div className="flex items-center gap-1 text-amber-400">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star key={i} className="h-4 w-4 fill-current" />
-                    ))}
+              {TESTIMONIALS.map((t, i) => (
+                <Reveal key={t.name} delay={i * 80}>
+                  <div className="h-full rounded-2xl border border-navy-100 bg-white p-6 shadow-card transition-all duration-300 hover:-translate-y-1 hover:shadow-soft">
+                    <div className="flex items-center gap-1 text-amber-400">
+                      {Array.from({ length: 5 }).map((_, j) => (
+                        <Star key={j} className="h-4 w-4 fill-current" />
+                      ))}
+                    </div>
+                    <Quote className="mt-4 h-5 w-5 text-violet-300" />
+                    <p className="mt-2 text-sm leading-relaxed text-navy-700">{t.quote}</p>
+                    <p className="mt-5 text-sm font-semibold text-navy-900">{t.name}</p>
+                    <p className="text-xs text-navy-400">{t.business}</p>
                   </div>
-                  <Quote className="mt-4 h-5 w-5 text-violet-300" />
-                  <p className="mt-2 text-sm leading-relaxed text-navy-700">{t.quote}</p>
-                  <p className="mt-5 text-sm font-semibold text-navy-900">{t.name}</p>
-                  <p className="text-xs text-navy-400">{t.business}</p>
-                </div>
+                </Reveal>
               ))}
             </div>
           </div>
         </section>
 
         {/* Pricing */}
-        <section id="fiyatlandirma" className="bg-surface-subtle py-20 sm:py-28">
-          <div className="container">
-            <div className="mx-auto max-w-2xl text-center">
-              <h2 className="text-3xl font-semibold text-navy-900 sm:text-4xl">Size uygun planı seçin</h2>
-              <p className="mt-4 text-navy-500">İşletmenizin büyüklüğüne göre ölçeklenen, şeffaf fiyatlandırma.</p>
-            </div>
-            <div className="mx-auto mt-14 grid max-w-5xl gap-6 sm:grid-cols-3">
-              {plans.map((plan, i) => {
-                const popular = i === 1;
-                return (
-                  <div
-                    key={plan.id}
-                    className={cn(
-                      "relative rounded-2xl border bg-white p-6",
-                      popular ? "border-violet-300 shadow-glow" : "border-navy-100 shadow-card"
-                    )}
-                  >
-                    {popular && (
-                      <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-violet-600 text-white ring-violet-600">
-                        En Popüler
-                      </Badge>
-                    )}
-                    <p className="text-base font-semibold text-navy-900">{plan.name}</p>
-                    <p className="mt-3 text-3xl font-bold text-navy-900">
-                      {formatCurrencyTRY(plan.monthlyPrice)}
-                      <span className="text-sm font-medium text-navy-400">/ay</span>
-                    </p>
-                    <p className="text-xs text-navy-400">{formatCurrencyTRY(plan.yearlyPrice)}/yıl ödemede</p>
-                    <div className="mt-5 space-y-2 border-t border-navy-50 pt-5 text-sm">
-                      <div className="flex items-center gap-2 text-navy-700">
-                        <Check className="h-4 w-4 shrink-0 text-emerald-600" />
-                        {plan.maxStaff === null ? "Sınırsız personel" : `${plan.maxStaff} personel`}
-                      </div>
-                      <div className="flex items-center gap-2 text-navy-700">
-                        <Check className="h-4 w-4 shrink-0 text-emerald-600" />
-                        {plan.maxBranches === null ? "Sınırsız şube" : `${plan.maxBranches} şube`}
-                      </div>
-                      <div className="flex items-center gap-2 text-navy-700">
-                        <Check className="h-4 w-4 shrink-0 text-emerald-600" />
-                        {plan.maxMonthlyAppointments === null ? "Sınırsız aylık randevu" : `${plan.maxMonthlyAppointments} aylık randevu`}
-                      </div>
-                      {plan.hasAccounting && (
-                        <div className="flex items-center gap-2 text-navy-700">
-                          <Check className="h-4 w-4 shrink-0 text-emerald-600" /> Ön muhasebe
-                        </div>
-                      )}
-                      {plan.hasAdvancedReports && (
-                        <div className="flex items-center gap-2 text-navy-700">
-                          <Check className="h-4 w-4 shrink-0 text-emerald-600" /> Gelişmiş raporlar
-                        </div>
-                      )}
-                      {plan.hasSmsWhatsapp && (
-                        <div className="flex items-center gap-2 text-navy-700">
-                          <Check className="h-4 w-4 shrink-0 text-emerald-600" /> SMS / WhatsApp bildirimleri
-                        </div>
-                      )}
-                    </div>
-                    <Link href="/kayit" className="mt-6 block">
-                      <Button variant={popular ? "secondary" : "outline"} className="w-full">
-                        Ücretsiz Dene
-                      </Button>
-                    </Link>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
+        <PricingSection plans={plans} />
 
         {/* FAQ */}
         <section id="sss" className="py-20 sm:py-28">
           <div className="container max-w-2xl">
-            <h2 className="text-center text-3xl font-semibold text-navy-900 sm:text-4xl">Sıkça Sorulan Sorular</h2>
-            <div className="mt-12 divide-y divide-navy-100 rounded-2xl border border-navy-100 bg-white shadow-card">
-              {FAQS.map((faq) => (
-                <details key={faq.question} className="group px-6 py-4">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-navy-900">
-                    {faq.question}
-                    <span className="shrink-0 text-navy-400 transition-transform group-open:rotate-45">
-                      <Plus className="h-4 w-4" />
-                    </span>
-                  </summary>
-                  <p className="mt-3 text-sm leading-relaxed text-navy-500">{faq.answer}</p>
-                </details>
-              ))}
-            </div>
+            <Reveal>
+              <h2 className="text-center text-3xl font-semibold text-navy-900 sm:text-4xl">Sıkça Sorulan Sorular</h2>
+            </Reveal>
+            <Reveal delay={100} className="mt-12 divide-y divide-navy-100 rounded-2xl border border-navy-100 bg-white shadow-card">
+              <>
+                {FAQS.map((faq) => (
+                  <details key={faq.question} className="group px-6 py-4">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-navy-900">
+                      {faq.question}
+                      <span className="shrink-0 text-navy-400 transition-transform group-open:rotate-45">
+                        <Plus className="h-4 w-4" />
+                      </span>
+                    </summary>
+                    <p className="mt-3 text-sm leading-relaxed text-navy-500">{faq.answer}</p>
+                  </details>
+                ))}
+              </>
+            </Reveal>
           </div>
         </section>
 
         {/* Final CTA */}
         <section className="relative overflow-hidden bg-brand-gradient py-20 text-center text-white sm:py-24">
           <div className="absolute inset-0 bg-hero-grid opacity-30" />
-          <div className="container relative z-10">
+          <div
+            className="absolute -left-16 top-1/2 h-56 w-56 -translate-y-1/2 rounded-full bg-violet-500/20 blur-3xl animate-float-slow"
+            aria-hidden
+          />
+          <div
+            className="absolute -right-16 top-1/2 h-56 w-56 -translate-y-1/2 rounded-full bg-navy-300/10 blur-3xl animate-float"
+            aria-hidden
+          />
+          <Reveal className="container relative z-10">
             <h2 className="text-3xl font-semibold sm:text-4xl">İşletmenizi büyütmeye bugün başlayın</h2>
             <p className="mx-auto mt-4 max-w-xl text-white/70">
               Kurulum birkaç dakika sürer, kredi kartı gerekmez. Hemen ücretsiz hesabınızı oluşturun.
@@ -406,7 +361,7 @@ export default async function LandingPage() {
                 Ücretsiz Hesap Oluştur <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
-          </div>
+          </Reveal>
         </section>
       </main>
 
@@ -415,9 +370,7 @@ export default async function LandingPage() {
           <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <Link href="/" className="flex items-center gap-2 text-base font-semibold text-navy-900">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-navy-900 text-white">
-                  <CalendarCheck2 className="h-4.5 w-4.5" />
-                </span>
+                <LogoMark className="h-8 w-8" />
                 Rezervasyo
               </Link>
               <p className="mt-3 text-sm text-navy-500">

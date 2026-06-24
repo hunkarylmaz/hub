@@ -304,6 +304,8 @@ export interface Plan {
   slug: string;
   monthlyPrice: number;
   yearlyPrice: number;
+  originalMonthlyPrice: number | null;
+  originalYearlyPrice: number | null;
   maxStaff: number | null;
   maxBranches: number | null;
   maxMonthlyAppointments: number | null;
@@ -361,7 +363,8 @@ export const SECTORS = [
   { value: "psikolog", label: "Psikolog" },
   { value: "klinik", label: "Özel Klinik / Diş Kliniği" },
   { value: "diyetisyen", label: "Diyetisyen" },
-  { value: "ayak_bakim", label: "Ayak Bakım Merkezi" },
+  { value: "ayak_bakim", label: "Ayak Sağlığı Bakım Merkezi" },
+  { value: "tirnak_estetik", label: "Tırnak & Estetik Center" },
   { value: "spa_masaj", label: "Spa & Masaj Salonu" },
   { value: "dugun_salonu", label: "Düğün Salonu" },
   { value: "etkinlik_mekani", label: "Etkinlik Mekanı" },

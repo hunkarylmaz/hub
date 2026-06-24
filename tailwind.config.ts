@@ -100,6 +100,7 @@ const config: Config = {
         "fade-up": "fade-up 0.7s cubic-bezier(0.16,1,0.3,1) forwards",
         "fade-in": "fade-in 0.5s ease forwards",
         float: "float 6s ease-in-out infinite",
+        "float-slow": "float 9s ease-in-out infinite",
       },
     },
   },
