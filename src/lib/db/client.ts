@@ -28,6 +28,9 @@ function runMigrations(db: DatabaseSync) {
   const statements = [
     "ALTER TABLE plans ADD COLUMN original_monthly_price REAL",
     "ALTER TABLE plans ADD COLUMN original_yearly_price REAL",
+    "ALTER TABLE staff ADD COLUMN compensation_type TEXT NOT NULL DEFAULT 'FIXED'",
+    "ALTER TABLE staff ADD COLUMN base_salary REAL NOT NULL DEFAULT 0",
+    "ALTER TABLE staff ADD COLUMN commission_rate REAL NOT NULL DEFAULT 0",
   ];
   for (const sql of statements) {
     try {

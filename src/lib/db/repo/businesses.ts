@@ -178,3 +178,47 @@ export function countBusinesses(): number {
   const row: any = getDb().prepare("SELECT COUNT(*) as c FROM businesses").get();
   return row.c as number;
 }
+
+// ---------- Public directory ----------
+
+export interface DirectoryFilters {
+  city?: string;
+  sector?: string;
+  query?: string;
+}
+
+/** Lists businesses with an active subscription, optionally filtered by city/sector/name-or-service search. Powers the public /isletmeler directory. */
+export function listDirectoryBusinesses(filters: DirectoryFilters = {}): Business[] {
+  let sql = `
+    SELECT DISTINCT b.* FROM businesses b
+    JOIN subscriptions s ON s.business_id = b.id
+    LEFT JOIN services sv ON sv.business_id = b.id AND sv.is_active = 1
+    WHERE b.status = 'active' AND s.status = 'active'`;
+  const params: any[] = [];
+  if (filters.city) {
+    sql += " AND b.city = ?";
+    params.push(filters.city);
+  }
+  if (filters.sector) {
+    sql += " AND b.sector = ?";
+    params.push(filters.sector);
+  }
+  if (filters.query) {
+    sql += " AND (b.name LIKE ? OR sv.name LIKE ?)";
+    params.push(`%${filters.query}%`, `%${filters.query}%`);
+  }
+  sql += " ORDER BY b.created_at DESC";
+  return getDb().prepare(sql).all(...params).map(mapBusiness);
+}
+
+export function listDirectoryCities(): string[] {
+  const rows = getDb()
+    .prepare(
+      `SELECT DISTINCT b.city as city FROM businesses b
+       JOIN subscriptions s ON s.business_id = b.id
+       WHERE b.status = 'active' AND s.status = 'active' AND b.city IS NOT NULL
+       ORDER BY b.city ASC`
+    )
+    .all();
+  return rows.map((r: any) => r.city as string);
+}

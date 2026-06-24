@@ -23,6 +23,7 @@ import {
   Footprints,
   Plus,
   Gem,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -31,7 +32,10 @@ import { PricingSection } from "@/components/marketing/PricingSection";
 import { HeroPreview } from "@/components/marketing/HeroPreview";
 import { Reveal } from "@/components/marketing/Reveal";
 import { listPlans } from "@/lib/db/repo/plans";
+import { listDirectoryBusinesses } from "@/lib/db/repo/businesses";
+import { getReviewStats } from "@/lib/db/repo/reviews";
 import { SECTORS } from "@/lib/types";
+import { initials } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Randevu, Müşteri ve Ön Muhasebe Yönetimi",
@@ -154,8 +158,11 @@ const FAQS = [
   },
 ];
 
+const SECTOR_LABELS: Record<string, string> = Object.fromEntries(SECTORS.map((s) => [s.value, s.label]));
+
 export default async function LandingPage() {
   const plans = listPlans().filter((p) => p.isActive);
+  const featuredBusinesses = listDirectoryBusinesses().slice(0, 6);
 
   return (
     <div className="bg-white">
@@ -166,6 +173,7 @@ export default async function LandingPage() {
             Rezervasyo
           </Link>
           <nav className="hidden items-center gap-8 text-sm font-medium text-navy-600 md:flex">
+            <Link href="/isletmeler" className="hover:text-navy-900">İşletmeler</Link>
             <a href="#ozellikler" className="hover:text-navy-900">Özellikler</a>
             <a href="#nasil-calisir" className="hover:text-navy-900">Nasıl Çalışır</a>
             <a href="#fiyatlandirma" className="hover:text-navy-900">Fiyatlandırma</a>
@@ -313,6 +321,82 @@ export default async function LandingPage() {
           </div>
         </section>
 
+        {/* Featured businesses */}
+        {featuredBusinesses.length > 0 && (
+          <section className="bg-surface-subtle py-20 sm:py-28">
+            <div className="container">
+              <Reveal className="mx-auto max-w-2xl text-center">
+                <h2 className="text-3xl font-semibold text-navy-900 sm:text-4xl">Platformumuzdaki işletmeleri keşfedin</h2>
+                <p className="mt-4 text-navy-500">
+                  Yemeksepeti'nin restoranları ve menülerini listelemesi gibi, biz de işletmeleri ve hizmetlerini
+                  listeliyoruz — böylece bulunma oranınız artıyor.
+                </p>
+              </Reveal>
+              <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {featuredBusinesses.map((b, i) => {
+                  const stats = getReviewStats(b.id);
+                  return (
+                    <Reveal key={b.id} delay={i * 60}>
+                      <Link
+                        href={`/${b.slug}`}
+                        className="group block h-full overflow-hidden rounded-2xl border border-navy-100 bg-white shadow-card transition-all duration-300 hover:-translate-y-1 hover:shadow-soft"
+                      >
+                        <div
+                          className="h-24 bg-brand-gradient"
+                          style={
+                            b.coverUrl
+                              ? { backgroundImage: `url(${b.coverUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
+                              : undefined
+                          }
+                        />
+                        <div className="p-5">
+                          <div className="flex items-start gap-3">
+                            <div
+                              className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-semibold text-white"
+                              style={{ backgroundColor: b.themeColor }}
+                            >
+                              {b.logoUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={b.logoUrl} alt={b.name} className="h-full w-full object-cover" />
+                              ) : (
+                                initials(b.name) || "?"
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h3 className="truncate text-base font-semibold text-navy-900 group-hover:text-violet-600">{b.name}</h3>
+                              <p className="text-xs text-navy-400">{SECTOR_LABELS[b.sector] ?? b.sector}</p>
+                            </div>
+                          </div>
+                          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-navy-500">
+                            {(b.city || b.district) && (
+                              <span className="flex items-center gap-1">
+                                <MapPin className="h-3.5 w-3.5" />
+                                {[b.district, b.city].filter(Boolean).join(", ")}
+                              </span>
+                            )}
+                            <span className="flex items-center gap-1">
+                              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                              {stats.count > 0 ? stats.average.toFixed(1) : "Yeni"}
+                              {stats.count > 0 && ` (${stats.count})`}
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    </Reveal>
+                  );
+                })}
+              </div>
+              <div className="mt-12 text-center">
+                <Link href="/isletmeler">
+                  <Button variant="outline" size="lg">
+                    Tüm işletmeleri görüntüle <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Pricing */}
         <PricingSection plans={plans} />
 
@@ -380,6 +464,7 @@ export default async function LandingPage() {
             <div>
               <p className="text-sm font-semibold text-navy-900">Ürün</p>
               <ul className="mt-3 space-y-2 text-sm text-navy-500">
+                <li><Link href="/isletmeler" className="hover:text-navy-900">İşletmeler</Link></li>
                 <li><a href="#ozellikler" className="hover:text-navy-900">Özellikler</a></li>
                 <li><a href="#fiyatlandirma" className="hover:text-navy-900">Fiyatlandırma</a></li>
                 <li><a href="#sss" className="hover:text-navy-900">SSS</a></li>

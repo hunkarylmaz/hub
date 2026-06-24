@@ -9,8 +9,13 @@ import { cn, formatCurrencyTRY } from "@/lib/utils";
 import { addDaysKey, combineDateTime, formatDateShortTR, formatDateTimeTR, isoWeekday, todayKey } from "@/lib/date";
 import { WEEKDAY_LABELS_SHORT } from "@/lib/types";
 import type { PublicPageSettings, Service, ServiceCategory, Staff } from "@/lib/types";
-import type { AvailableSlot } from "@/lib/availability";
-import { createPublicAppointmentAction, fetchPublicSlotsAction, type CreatePublicAppointmentResult } from "./actions";
+import type { AvailableSlot, NextAvailableSlot } from "@/lib/availability";
+import {
+  createPublicAppointmentAction,
+  fetchPublicSlotsAction,
+  fetchNextAvailableSlotAction,
+  type CreatePublicAppointmentResult,
+} from "./actions";
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -47,6 +52,8 @@ export function BookingWidget({
   const [dateKey, setDateKey] = useState(() => todayKey());
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [nextSlot, setNextSlot] = useState<NextAvailableSlot | null>(null);
+  const [loadingNextSlot, setLoadingNextSlot] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -72,9 +79,24 @@ export function BookingWidget({
     let cancelled = false;
     setLoadingSlots(true);
     setSelectedSlot(null);
+    setNextSlot(null);
     fetchPublicSlotsAction({ slug, serviceId, staffId, dateKey })
       .then((res) => {
-        if (!cancelled) setSlots(res);
+        if (cancelled) return;
+        setSlots(res);
+        if (res.length === 0) {
+          setLoadingNextSlot(true);
+          fetchNextAvailableSlotAction({ slug, serviceId, staffId, dateKey })
+            .then((next) => {
+              if (!cancelled) setNextSlot(next);
+            })
+            .catch(() => {
+              if (!cancelled) setNextSlot(null);
+            })
+            .finally(() => {
+              if (!cancelled) setLoadingNextSlot(false);
+            });
+        }
       })
       .catch(() => {
         if (!cancelled) setSlots([]);
@@ -321,9 +343,33 @@ export function BookingWidget({
                 <Loader2 className="h-4 w-4 animate-spin" /> Uygun saatler yükleniyor...
               </div>
             ) : slots.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-navy-200 bg-navy-50/40 px-4 py-6 text-center text-sm text-navy-500">
-                Bu tarihte uygun saat bulunamadı, başka bir tarih seçmeyi dene.
-              </p>
+              <div className="rounded-xl border border-dashed border-navy-200 bg-navy-50/40 px-4 py-6 text-center text-sm text-navy-500">
+                <p>Bu tarihte uygun saat bulunamadı.</p>
+                {loadingNextSlot ? (
+                  <p className="mt-3 flex items-center justify-center gap-2 text-navy-400">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> En yakın uygun randevu aranıyor...
+                  </p>
+                ) : nextSlot ? (
+                  <div className="mt-3 flex flex-col items-center gap-2">
+                    <p className="text-navy-700">
+                      En yakın uygun randevu: <span className="font-semibold">{dateChipLabel(nextSlot.dateKey).day}</span> ·{" "}
+                      <span className="font-semibold">{nextSlot.time}</span>
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setDateKey(nextSlot.dateKey);
+                      }}
+                    >
+                      Bu randevuya geç
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="mt-2">Yakın tarihlerde de uygun saat bulunamadı, lütfen daha sonra tekrar dene.</p>
+                )}
+              </div>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {slots.map((slot) => (

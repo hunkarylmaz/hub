@@ -15,6 +15,7 @@ export type PaymentMethod = "cash" | "card" | "transfer";
 export type SubscriptionStatus = "trial" | "active" | "past_due" | "cancelled" | "suspended";
 export type BillingCycle = "monthly" | "yearly";
 export type NotificationChannel = "inapp" | "email" | "sms" | "whatsapp" | "push";
+export type CompensationType = "FIXED" | "COMMISSION" | "FIXED_COMMISSION";
 
 export interface User {
   id: string;
@@ -117,6 +118,9 @@ export interface Staff {
   title: string | null;
   isBookableOnline: boolean;
   isActive: boolean;
+  compensationType: CompensationType;
+  baseSalary: number;
+  commissionRate: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -345,6 +349,30 @@ export interface PublicPageSettings {
   socialLinks: Record<string, string>;
   updatedAt: string;
 }
+
+export interface BusinessImage {
+  id: string;
+  businessId: string;
+  url: string;
+  sortOrder: number;
+  createdAt: string;
+}
+
+export interface Review {
+  id: string;
+  businessId: string;
+  customerName: string;
+  rating: number;
+  comment: string | null;
+  isPublished: boolean;
+  createdAt: string;
+}
+
+export const COMPENSATION_TYPE_LABELS: Record<CompensationType, string> = {
+  FIXED: "Sabit Maaşlı",
+  COMMISSION: "Komisyonlu",
+  FIXED_COMMISSION: "Sabit + Komisyon",
+};
 
 export interface AuditLog {
   id: string;

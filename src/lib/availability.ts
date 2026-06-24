@@ -1,5 +1,5 @@
 import { getDb } from "@/lib/db/client";
-import { combineDateTime, isoWeekday, timeToMinutes, minutesToTime } from "@/lib/date";
+import { addDaysKey, combineDateTime, isoWeekday, timeToMinutes, minutesToTime } from "@/lib/date";
 import { listWorkingHours, listStaffWorkingHours, listBlockedTimes, findSpecialDay } from "@/lib/db/repo/staff";
 import { listServiceIdsForStaff, listStaffIdsForService } from "@/lib/db/repo/services";
 import { findStaffById, listStaff } from "@/lib/db/repo/staff";
@@ -229,6 +229,23 @@ function buildSlot(dateKey: string, startMin: number, durationMinutes: number, s
   const startAt = combineDateTime(dateKey, time);
   const endAt = new Date(new Date(startAt).getTime() + durationMinutes * 60000).toISOString();
   return { time, startAt, endAt, staffId };
+}
+
+export interface NextAvailableSlot extends AvailableSlot {
+  dateKey: string;
+}
+
+/** Scans forward day-by-day from (and including) startDateKey for the first date with an open slot — powers the "bu tarihte yer yok, en yakın uygun randevu" suggestion. */
+export function findNextAvailableSlot(
+  params: Omit<AvailabilityParams, "dateKey"> & { startDateKey: string; maxDaysAhead?: number }
+): NextAvailableSlot | null {
+  const maxDays = params.maxDaysAhead ?? 30;
+  for (let i = 0; i <= maxDays; i++) {
+    const dateKey = addDaysKey(params.startDateKey, i);
+    const slots = getAvailableSlotsForDate({ ...params, dateKey });
+    if (slots.length > 0) return { ...slots[0], dateKey };
+  }
+  return null;
 }
 
 /** Server-side guard used before persisting an appointment: re-validates the slot is still free. */

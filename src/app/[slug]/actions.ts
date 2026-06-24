@@ -8,9 +8,10 @@ import { findOrCreateCustomerByPhone } from "@/lib/db/repo/customers";
 import { createAppointment } from "@/lib/db/repo/appointments";
 import { createNotification } from "@/lib/db/repo/notifications";
 import { recordAuditLog } from "@/lib/db/repo/auditLogs";
-import { getAvailableSlotsForDate, isSlotStillAvailable, type AvailableSlot } from "@/lib/availability";
+import { createReview } from "@/lib/db/repo/reviews";
+import { getAvailableSlotsForDate, isSlotStillAvailable, findNextAvailableSlot, type AvailableSlot, type NextAvailableSlot } from "@/lib/availability";
 import { addDaysKey, todayKey, formatDateTimeTR } from "@/lib/date";
-import type { AppointmentStatus, Business, PublicPageSettings, Service } from "@/lib/types";
+import type { AppointmentStatus, Business, PublicPageSettings, Review, Service } from "@/lib/types";
 
 function resolveBusiness(slug: string): Business {
   const business = findBusinessBySlug(slug);
@@ -57,6 +58,30 @@ export async function fetchPublicSlotsAction(input: {
     staffId: input.staffId ?? undefined,
     dateKey: input.dateKey,
     minNoticeHours: settings.minNoticeHours,
+  });
+}
+
+export async function fetchNextAvailableSlotAction(input: {
+  slug: string;
+  serviceId: string;
+  staffId?: string | null;
+  dateKey: string;
+}): Promise<NextAvailableSlot | null> {
+  const business = resolveBusiness(input.slug);
+  const settings = getOrCreatePublicPageSettings(business.id);
+  const service = resolveBookableService(business.id, input.serviceId);
+  if (input.staffId) assertBookableStaff(business.id, input.staffId);
+
+  const maxKey = addDaysKey(todayKey(), settings.bookingWindowDays);
+  const startKey = addDaysKey(input.dateKey, 1) > maxKey ? input.dateKey : addDaysKey(input.dateKey, 1);
+
+  return findNextAvailableSlot({
+    businessId: business.id,
+    service,
+    staffId: input.staffId ?? undefined,
+    minNoticeHours: settings.minNoticeHours,
+    startDateKey: startKey,
+    maxDaysAhead: Math.max(0, Math.min(settings.bookingWindowDays, 60)),
   });
 }
 
@@ -133,4 +158,26 @@ export async function createPublicAppointmentAction(
   });
 
   return { status: appointment.status, startAt: appointment.startAt, endAt: appointment.endAt };
+}
+
+export interface CreatePublicReviewPayload {
+  slug: string;
+  customerName: string;
+  rating: number;
+  comment?: string | null;
+}
+
+export async function createPublicReviewAction(payload: CreatePublicReviewPayload): Promise<Review> {
+  const business = resolveBusiness(payload.slug);
+
+  const customerName = payload.customerName.trim();
+  const rating = Math.round(payload.rating);
+  if (!customerName) throw new Error("Ad Soyad zorunludur.");
+  if (rating < 1 || rating > 5) throw new Error("Lütfen 1 ile 5 arasında bir puan seçin.");
+
+  return createReview(business.id, {
+    customerName,
+    rating,
+    comment: payload.comment?.trim() || null,
+  });
 }

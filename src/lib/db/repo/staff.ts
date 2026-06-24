@@ -1,6 +1,6 @@
 import { getDb, uid, nowIso } from "../client";
 import { b } from "../mappers";
-import type { Staff, WorkingHour, StaffWorkingHour, BlockedTime, SpecialDay } from "@/lib/types";
+import type { Staff, WorkingHour, StaffWorkingHour, BlockedTime, SpecialDay, CompensationType } from "@/lib/types";
 
 function mapStaff(row: any): Staff {
   return {
@@ -15,6 +15,9 @@ function mapStaff(row: any): Staff {
     title: row.title,
     isBookableOnline: b(row.is_bookable_online),
     isActive: b(row.is_active),
+    compensationType: row.compensation_type,
+    baseSalary: row.base_salary,
+    commissionRate: row.commission_rate,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -40,27 +43,34 @@ export interface StaffInput {
   email?: string | null;
   title?: string | null;
   isBookableOnline?: boolean;
+  compensationType?: CompensationType;
+  baseSalary?: number;
+  commissionRate?: number;
 }
 
-export function createStaff(businessId: string, input: StaffInput): Staff {
+export function createStaff(businessId: string, input: StaffInput, userId: string | null = null): Staff {
   const id = uid();
   const now = nowIso();
   getDb()
     .prepare(
       `INSERT INTO staff (id, business_id, branch_id, user_id, full_name, photo_url, phone, email, title,
-        is_bookable_online, is_active, created_at, updated_at)
-       VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, 1, ?, ?)`
+        is_bookable_online, is_active, compensation_type, base_salary, commission_rate, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`
     )
     .run(
       id,
       businessId,
       input.branchId ?? null,
+      userId,
       input.fullName,
       input.photoUrl ?? null,
       input.phone ?? null,
       input.email ?? null,
       input.title ?? null,
       input.isBookableOnline === false ? 0 : 1,
+      input.compensationType ?? "FIXED",
+      input.baseSalary ?? 0,
+      input.commissionRate ?? 0,
       now,
       now
     );
@@ -79,10 +89,14 @@ export function updateStaff(id: string, input: Partial<StaffInput> & { isActive?
     title: input.title === undefined ? current.title : input.title,
     isBookableOnline: input.isBookableOnline ?? current.isBookableOnline,
     isActive: input.isActive ?? current.isActive,
+    compensationType: input.compensationType ?? current.compensationType,
+    baseSalary: input.baseSalary ?? current.baseSalary,
+    commissionRate: input.commissionRate ?? current.commissionRate,
   };
   getDb()
     .prepare(
-      `UPDATE staff SET branch_id=?, full_name=?, photo_url=?, phone=?, email=?, title=?, is_bookable_online=?, is_active=?, updated_at=?
+      `UPDATE staff SET branch_id=?, full_name=?, photo_url=?, phone=?, email=?, title=?, is_bookable_online=?, is_active=?,
+       compensation_type=?, base_salary=?, commission_rate=?, updated_at=?
        WHERE id = ?`
     )
     .run(
@@ -94,10 +108,68 @@ export function updateStaff(id: string, input: Partial<StaffInput> & { isActive?
       merged.title,
       merged.isBookableOnline ? 1 : 0,
       merged.isActive ? 1 : 0,
+      merged.compensationType,
+      merged.baseSalary,
+      merged.commissionRate,
       nowIso(),
       id
     );
   return findStaffById(id)!;
+}
+
+export function findStaffByUserId(userId: string): Staff | null {
+  const row = getDb().prepare("SELECT * FROM staff WHERE user_id = ?").get(userId);
+  return row ? mapStaff(row) : null;
+}
+
+export interface StaffEarnings {
+  staffId: string;
+  compensationType: CompensationType;
+  baseSalary: number;
+  commissionRate: number;
+  completedCount: number;
+  totalRevenue: number;
+  commissionEarned: number;
+  totalEarnings: number;
+}
+
+/** Computes a staff member's earnings from completed appointments in an optional date range (ISO instants, inclusive start / exclusive end). */
+export function calculateStaffEarnings(staffId: string, fromIso?: string, toIso?: string): StaffEarnings {
+  const staff = findStaffById(staffId);
+  if (!staff) throw new Error("Çalışan bulunamadı");
+
+  let row: any;
+  if (fromIso && toIso) {
+    row = getDb()
+      .prepare(
+        `SELECT COUNT(*) as cnt, COALESCE(SUM(price), 0) as revenue FROM appointments
+         WHERE staff_id = ? AND status = 'completed' AND start_at >= ? AND start_at < ?`
+      )
+      .get(staffId, fromIso, toIso);
+  } else {
+    row = getDb()
+      .prepare(`SELECT COUNT(*) as cnt, COALESCE(SUM(price), 0) as revenue FROM appointments WHERE staff_id = ? AND status = 'completed'`)
+      .get(staffId);
+  }
+
+  const completedCount = row.cnt as number;
+  const totalRevenue = row.revenue as number;
+  const commissionEarned =
+    staff.compensationType === "COMMISSION" || staff.compensationType === "FIXED_COMMISSION"
+      ? Math.round(totalRevenue * (staff.commissionRate / 100) * 100) / 100
+      : 0;
+  const baseSalary = staff.compensationType === "FIXED" || staff.compensationType === "FIXED_COMMISSION" ? staff.baseSalary : 0;
+
+  return {
+    staffId,
+    compensationType: staff.compensationType,
+    baseSalary: staff.baseSalary,
+    commissionRate: staff.commissionRate,
+    completedCount,
+    totalRevenue,
+    commissionEarned,
+    totalEarnings: baseSalary + commissionEarned,
+  };
 }
 
 export function deleteStaff(id: string) {

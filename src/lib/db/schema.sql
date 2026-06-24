@@ -110,6 +110,9 @@ CREATE TABLE IF NOT EXISTS staff (
   title TEXT,
   is_bookable_online INTEGER NOT NULL DEFAULT 1,
   is_active INTEGER NOT NULL DEFAULT 1,
+  compensation_type TEXT NOT NULL DEFAULT 'FIXED' CHECK (compensation_type IN ('FIXED','COMMISSION','FIXED_COMMISSION')),
+  base_salary REAL NOT NULL DEFAULT 0,
+  commission_rate REAL NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -369,6 +372,26 @@ CREATE TABLE IF NOT EXISTS public_page_settings (
   social_links TEXT NOT NULL DEFAULT '{}',
   updated_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS business_images (
+  id TEXT PRIMARY KEY,
+  business_id TEXT NOT NULL REFERENCES businesses(id),
+  url TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_business_images_business ON business_images(business_id);
+
+CREATE TABLE IF NOT EXISTS reviews (
+  id TEXT PRIMARY KEY,
+  business_id TEXT NOT NULL REFERENCES businesses(id),
+  customer_name TEXT NOT NULL,
+  rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  comment TEXT,
+  is_published INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_reviews_business ON reviews(business_id);
 
 CREATE TABLE IF NOT EXISTS audit_logs (
   id TEXT PRIMARY KEY,
