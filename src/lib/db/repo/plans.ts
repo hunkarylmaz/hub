@@ -60,6 +60,33 @@ export function createPlan(input: Omit<Plan, "id">): Plan {
   return findPlanById(id)!;
 }
 
+export function updatePlan(id: string, patch: Partial<Omit<Plan, "id">>): Plan {
+  const current = findPlanById(id);
+  if (!current) throw new Error("Plan bulunamadı.");
+  const merged = { ...current, ...patch };
+  getDb()
+    .prepare(
+      `UPDATE plans SET name=?, slug=?, monthly_price=?, yearly_price=?, max_staff=?, max_branches=?, max_monthly_appointments=?,
+       has_accounting=?, has_advanced_reports=?, has_sms_whatsapp=?, is_active=?, sort_order=? WHERE id = ?`
+    )
+    .run(
+      merged.name,
+      merged.slug,
+      merged.monthlyPrice,
+      merged.yearlyPrice,
+      merged.maxStaff,
+      merged.maxBranches,
+      merged.maxMonthlyAppointments,
+      merged.hasAccounting ? 1 : 0,
+      merged.hasAdvancedReports ? 1 : 0,
+      merged.hasSmsWhatsapp ? 1 : 0,
+      merged.isActive ? 1 : 0,
+      merged.sortOrder,
+      id
+    );
+  return findPlanById(id)!;
+}
+
 function mapSubscription(row: any): Subscription {
   return {
     id: row.id,
