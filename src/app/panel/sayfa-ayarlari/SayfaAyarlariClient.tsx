@@ -2,14 +2,22 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Globe, Image as ImageIcon, MapPin, Clock, Check, ShieldCheck } from "lucide-react";
+import { Globe, Image as ImageIcon, Images, MapPin, Clock, Check, ShieldCheck, Trash2, Plus } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea, Select, Label } from "@/components/ui/Input";
 import { Switch } from "@/components/ui/Switch";
-import type { Business, WorkingHour, PublicPageSettings } from "@/lib/types";
+import type { Business, WorkingHour, PublicPageSettings, BusinessImage } from "@/lib/types";
 import { SECTORS, WEEKDAY_LABELS } from "@/lib/types";
-import { updateBusinessProfileAction, saveBusinessHoursAction, updateBookingSettingsAction, type BusinessHourInput, type BookingSettingsInput } from "./actions";
+import {
+  updateBusinessProfileAction,
+  saveBusinessHoursAction,
+  updateBookingSettingsAction,
+  addBusinessImageAction,
+  deleteBusinessImageAction,
+  type BusinessHourInput,
+  type BookingSettingsInput,
+} from "./actions";
 
 interface HourRow {
   weekday: number;
@@ -46,10 +54,12 @@ export function SayfaAyarlariClient({
   business,
   workingHours,
   pageSettings,
+  images,
 }: {
   business: Business;
   workingHours: WorkingHour[];
   pageSettings: PublicPageSettings;
+  images: BusinessImage[];
 }) {
   const router = useRouter();
   const [form, setForm] = useState({
@@ -87,6 +97,43 @@ export function SayfaAyarlariClient({
   const [submitting, startSubmit] = useTransition();
   const [savingHours, startSaveHours] = useTransition();
   const [savingBooking, startSaveBooking] = useTransition();
+
+  const [galleryImages, setGalleryImages] = useState<BusinessImage[]>(images);
+  const [newImageUrl, setNewImageUrl] = useState("");
+  const [galleryError, setGalleryError] = useState<string | null>(null);
+  const [addingImage, startAddImage] = useTransition();
+  const [removingImageId, setRemovingImageId] = useState<string | null>(null);
+
+  function handleAddImage() {
+    setGalleryError(null);
+    const url = newImageUrl.trim();
+    if (!url) {
+      setGalleryError("Görsel adresi zorunludur.");
+      return;
+    }
+    startAddImage(async () => {
+      try {
+        const updated = await addBusinessImageAction(url);
+        setGalleryImages(updated);
+        setNewImageUrl("");
+      } catch (e) {
+        setGalleryError(e instanceof Error ? e.message : "Görsel eklenemedi.");
+      }
+    });
+  }
+
+  async function handleRemoveImage(imageId: string) {
+    setGalleryError(null);
+    setRemovingImageId(imageId);
+    try {
+      const updated = await deleteBusinessImageAction(imageId);
+      setGalleryImages(updated);
+    } catch (e) {
+      setGalleryError(e instanceof Error ? e.message : "Görsel silinemedi.");
+    } finally {
+      setRemovingImageId(null);
+    }
+  }
 
   function updateBookingForm(patch: Partial<BookingSettingsInput>) {
     setBookingForm((f) => ({ ...f, ...patch }));
@@ -314,6 +361,51 @@ export function SayfaAyarlariClient({
           Bilgileri Kaydet
         </Button>
       </div>
+
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>Galeri</CardTitle>
+            <CardDescription>Randevu sayfanda gösterilecek işletme fotoğrafları</CardDescription>
+          </div>
+          <Images className="h-5 w-5 shrink-0 text-navy-400" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {galleryImages.length > 0 && (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {galleryImages.map((img) => (
+                <div key={img.id} className="group relative h-28 overflow-hidden rounded-xl border border-navy-100 bg-navy-50">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={img.url} alt="" className="h-full w-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveImage(img.id)}
+                    disabled={removingImageId === img.id}
+                    className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-red-600 shadow-card transition-opacity hover:bg-white disabled:opacity-50"
+                    aria-label="Görseli sil"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-0 flex-1">
+              <Label>Görsel Adresi</Label>
+              <Input
+                value={newImageUrl}
+                onChange={(e) => setNewImageUrl(e.target.value)}
+                placeholder="https://..."
+              />
+            </div>
+            <Button type="button" variant="outline" loading={addingImage} onClick={handleAddImage}>
+              <Plus className="h-4 w-4" /> Ekle
+            </Button>
+          </div>
+          {galleryError && <p className="text-sm font-medium text-red-600">{galleryError}</p>}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

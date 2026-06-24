@@ -6,6 +6,7 @@ import { updateBusiness } from "@/lib/db/repo/businesses";
 import { setWorkingHours } from "@/lib/db/repo/staff";
 import { updatePublicPageSettings } from "@/lib/db/repo/publicPageSettings";
 import { recordAuditLog } from "@/lib/db/repo/auditLogs";
+import { addBusinessImage, deleteBusinessImage, listBusinessImages } from "@/lib/db/repo/businessImages";
 
 function revalidateSayfaAyarlariViews() {
   revalidatePath("/panel/sayfa-ayarlari");
@@ -97,4 +98,41 @@ export async function saveBusinessHoursAction(hours: BusinessHourInput[]) {
   });
 
   revalidateSayfaAyarlariViews();
+}
+
+export async function addBusinessImageAction(url: string) {
+  const { user, business } = await requireBusinessContext();
+  const trimmed = url.trim();
+  if (!trimmed) throw new Error("Görsel adresi zorunludur.");
+
+  addBusinessImage(business.id, trimmed);
+
+  recordAuditLog({
+    businessId: business.id,
+    actorUserId: user.id,
+    action: "business.image_added",
+    entityType: "business",
+    entityId: business.id,
+  });
+
+  revalidateSayfaAyarlariViews();
+  return listBusinessImages(business.id);
+}
+
+export async function deleteBusinessImageAction(imageId: string) {
+  const { user, business } = await requireBusinessContext();
+  const owned = listBusinessImages(business.id).some((img) => img.id === imageId);
+  if (!owned) throw new Error("Görsel bulunamadı.");
+  deleteBusinessImage(imageId);
+
+  recordAuditLog({
+    businessId: business.id,
+    actorUserId: user.id,
+    action: "business.image_removed",
+    entityType: "business",
+    entityId: business.id,
+  });
+
+  revalidateSayfaAyarlariViews();
+  return listBusinessImages(business.id);
 }
