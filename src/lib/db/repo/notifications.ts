@@ -36,6 +36,11 @@ export function createNotification(input: {
   return mapNotification(getDb().prepare("SELECT * FROM notifications WHERE id = ?").get(id));
 }
 
+export function findNotificationById(id: string): NotificationRecord | null {
+  const row = getDb().prepare("SELECT * FROM notifications WHERE id = ?").get(id);
+  return row ? mapNotification(row) : null;
+}
+
 export function listNotificationsForBusiness(businessId: string, limit = 50): NotificationRecord[] {
   return getDb()
     .prepare("SELECT * FROM notifications WHERE business_id = ? ORDER BY created_at DESC LIMIT ?")
