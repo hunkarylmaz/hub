@@ -1,8 +1,14 @@
 node_modules/
+.next/
+out/
 dist/
 .env
 .env.local
 *.db
 *.db-shm
 *.db-wal
+*.db-journal
+*.tsbuildinfo
 backend/node_modules/
+npm-debug.log*
+.DS_Store

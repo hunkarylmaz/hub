@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+  body {
+    @apply bg-surface-subtle text-ink antialiased;
+  }
+}
+
+@layer components {
+  .status-badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap;
+  }
+  .status-pending {
+    @apply bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200;
+  }
+  .status-confirmed {
+    @apply bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200;
+  }
+  .status-arrived {
+    @apply bg-cyan-50 text-cyan-700 ring-1 ring-inset ring-cyan-200;
+  }
+  .status-completed {
+    @apply bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200;
+  }
+  .status-cancelled {
+    @apply bg-red-50 text-red-700 ring-1 ring-inset ring-red-200;
+  }
+  .status-noshow {
+    @apply bg-gray-100 text-gray-600 ring-1 ring-inset ring-gray-200;
+  }
+  .status-rescheduled {
+    @apply bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-200;
+  }
+
+  .panel-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .panel-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-navy-200 rounded-full;
+  }
+  .panel-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
