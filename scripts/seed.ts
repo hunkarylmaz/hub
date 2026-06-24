@@ -295,16 +295,19 @@ async function main() {
   console.log("Abonelik planları oluşturuluyor...");
   const starter = createPlan({
     name: "Başlangıç", slug: "baslangic", monthlyPrice: 299, yearlyPrice: 2990,
+    originalMonthlyPrice: null, originalYearlyPrice: null,
     maxStaff: 2, maxBranches: 1, maxMonthlyAppointments: 150,
     hasAccounting: false, hasAdvancedReports: false, hasSmsWhatsapp: false, isActive: true, sortOrder: 0,
   });
   const pro = createPlan({
     name: "Profesyonel", slug: "profesyonel", monthlyPrice: 599, yearlyPrice: 5990,
+    originalMonthlyPrice: 799, originalYearlyPrice: 7990,
     maxStaff: 8, maxBranches: 3, maxMonthlyAppointments: 1000,
     hasAccounting: true, hasAdvancedReports: true, hasSmsWhatsapp: false, isActive: true, sortOrder: 1,
   });
   const premium = createPlan({
     name: "Premium", slug: "premium", monthlyPrice: 999, yearlyPrice: 9990,
+    originalMonthlyPrice: 1299, originalYearlyPrice: 12990,
     maxStaff: null, maxBranches: null, maxMonthlyAppointments: null,
     hasAccounting: true, hasAdvancedReports: true, hasSmsWhatsapp: true, isActive: true, sortOrder: 2,
   });

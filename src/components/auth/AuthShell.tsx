@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { CalendarCheck2, ShieldCheck, Sparkles } from "lucide-react";
+import { ShieldCheck, Sparkles } from "lucide-react";
+import { LogoMark } from "@/components/brand/Logo";
 
 export function AuthShell({
   children,
@@ -15,9 +16,7 @@ export function AuthShell({
       <div className="relative hidden flex-col justify-between overflow-hidden bg-brand-gradient p-10 text-white lg:flex">
         <div className="absolute inset-0 bg-hero-grid opacity-40" />
         <Link href="/" className="relative z-10 flex items-center gap-2 text-lg font-semibold">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">
-            <CalendarCheck2 className="h-4.5 w-4.5" />
-          </span>
+          <LogoMark className="h-8 w-8" tone="white" />
           Rezervasyo
         </Link>
         <div className="relative z-10 max-w-md">
@@ -42,9 +41,7 @@ export function AuthShell({
       <div className="flex items-center justify-center bg-surface-subtle p-6 sm:p-10">
         <div className="w-full max-w-sm">
           <Link href="/" className="mb-8 flex items-center gap-2 text-lg font-semibold text-navy-900 lg:hidden">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-navy-900 text-white">
-              <CalendarCheck2 className="h-4.5 w-4.5" />
-            </span>
+            <LogoMark className="h-8 w-8" />
             Rezervasyo
           </Link>
           <h1 className="text-2xl font-semibold text-navy-900">{title}</h1>

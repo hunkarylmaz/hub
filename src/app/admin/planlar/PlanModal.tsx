@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { Switch } from "@/components/ui/Switch";
 import type { Plan } from "@/lib/types";
-import { updatePlanAction } from "./actions";
+import { updatePlanAction, createPlanAction } from "./actions";
 
 interface FormState {
   name: string;
   monthlyPrice: string;
   yearlyPrice: string;
+  originalMonthlyPrice: string;
+  originalYearlyPrice: string;
   maxStaff: string;
   maxBranches: string;
   maxMonthlyAppointments: string;
@@ -22,11 +24,28 @@ interface FormState {
   isActive: boolean;
 }
 
+const EMPTY_FORM: FormState = {
+  name: "",
+  monthlyPrice: "",
+  yearlyPrice: "",
+  originalMonthlyPrice: "",
+  originalYearlyPrice: "",
+  maxStaff: "",
+  maxBranches: "",
+  maxMonthlyAppointments: "",
+  hasAccounting: false,
+  hasAdvancedReports: false,
+  hasSmsWhatsapp: false,
+  isActive: true,
+};
+
 function toForm(plan: Plan): FormState {
   return {
     name: plan.name,
     monthlyPrice: String(plan.monthlyPrice),
     yearlyPrice: String(plan.yearlyPrice),
+    originalMonthlyPrice: plan.originalMonthlyPrice === null ? "" : String(plan.originalMonthlyPrice),
+    originalYearlyPrice: plan.originalYearlyPrice === null ? "" : String(plan.originalYearlyPrice),
     maxStaff: plan.maxStaff === null ? "" : String(plan.maxStaff),
     maxBranches: plan.maxBranches === null ? "" : String(plan.maxBranches),
     maxMonthlyAppointments: plan.maxMonthlyAppointments === null ? "" : String(plan.maxMonthlyAppointments),
@@ -39,21 +58,21 @@ function toForm(plan: Plan): FormState {
 
 export function PlanModal({ open, onClose, plan }: { open: boolean; onClose: () => void; plan: Plan | null }) {
   const router = useRouter();
-  const [form, setForm] = useState<FormState | null>(null);
+  const isCreate = plan === null;
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
   const [submitting, startSubmit] = useTransition();
 
   useEffect(() => {
-    if (open && plan) {
+    if (open) {
       setError(null);
-      setForm(toForm(plan));
+      setForm(plan ? toForm(plan) : EMPTY_FORM);
     }
   }, [open, plan]);
 
-  if (!open || !plan || !form) return null;
+  if (!open) return null;
 
   function handleSubmit() {
-    if (!form || !plan) return;
     setError(null);
     if (!form.name.trim()) {
       setError("Plan adı zorunludur.");
@@ -65,21 +84,39 @@ export function PlanModal({ open, onClose, plan }: { open: boolean; onClose: () 
       setError("Geçerli fiyatlar girin.");
       return;
     }
+    const originalMonthlyPrice = form.originalMonthlyPrice === "" ? null : Number(form.originalMonthlyPrice);
+    const originalYearlyPrice = form.originalYearlyPrice === "" ? null : Number(form.originalYearlyPrice);
+    if (originalMonthlyPrice !== null && (Number.isNaN(originalMonthlyPrice) || originalMonthlyPrice < 0)) {
+      setError("Geçerli bir aylık çizik fiyat girin.");
+      return;
+    }
+    if (originalYearlyPrice !== null && (Number.isNaN(originalYearlyPrice) || originalYearlyPrice < 0)) {
+      setError("Geçerli bir yıllık çizik fiyat girin.");
+      return;
+    }
+
+    const payload = {
+      name: form.name.trim(),
+      monthlyPrice,
+      yearlyPrice,
+      originalMonthlyPrice,
+      originalYearlyPrice,
+      maxStaff: form.maxStaff === "" ? null : Number(form.maxStaff),
+      maxBranches: form.maxBranches === "" ? null : Number(form.maxBranches),
+      maxMonthlyAppointments: form.maxMonthlyAppointments === "" ? null : Number(form.maxMonthlyAppointments),
+      hasAccounting: form.hasAccounting,
+      hasAdvancedReports: form.hasAdvancedReports,
+      hasSmsWhatsapp: form.hasSmsWhatsapp,
+      isActive: form.isActive,
+    };
 
     startSubmit(async () => {
       try {
-        await updatePlanAction(plan.id, {
-          name: form.name.trim(),
-          monthlyPrice,
-          yearlyPrice,
-          maxStaff: form.maxStaff === "" ? null : Number(form.maxStaff),
-          maxBranches: form.maxBranches === "" ? null : Number(form.maxBranches),
-          maxMonthlyAppointments: form.maxMonthlyAppointments === "" ? null : Number(form.maxMonthlyAppointments),
-          hasAccounting: form.hasAccounting,
-          hasAdvancedReports: form.hasAdvancedReports,
-          hasSmsWhatsapp: form.hasSmsWhatsapp,
-          isActive: form.isActive,
-        });
+        if (isCreate) {
+          await createPlanAction(payload);
+        } else if (plan) {
+          await updatePlanAction(plan.id, payload);
+        }
         router.refresh();
         onClose();
       } catch (e) {
@@ -89,7 +126,7 @@ export function PlanModal({ open, onClose, plan }: { open: boolean; onClose: () 
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Planı Düzenle" size="lg">
+    <Modal open={open} onClose={onClose} title={isCreate ? "Yeni Plan Oluştur" : "Planı Düzenle"} size="lg">
       <div className="space-y-4">
         <div>
           <Label>Plan Adı</Label>
@@ -105,7 +142,32 @@ export function PlanModal({ open, onClose, plan }: { open: boolean; onClose: () 
             <Label>Yıllık Fiyat (TRY)</Label>
             <Input type="number" min={0} step={50} value={form.yearlyPrice} onChange={(e) => setForm({ ...form, yearlyPrice: e.target.value })} />
           </div>
+          <div>
+            <Label>Aylık Çizik Fiyat (TRY)</Label>
+            <Input
+              type="number"
+              min={0}
+              step={50}
+              placeholder="İndirim yok"
+              value={form.originalMonthlyPrice}
+              onChange={(e) => setForm({ ...form, originalMonthlyPrice: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label>Yıllık Çizik Fiyat (TRY)</Label>
+            <Input
+              type="number"
+              min={0}
+              step={50}
+              placeholder="İndirim yok"
+              value={form.originalYearlyPrice}
+              onChange={(e) => setForm({ ...form, originalYearlyPrice: e.target.value })}
+            />
+          </div>
         </div>
+        <p className="-mt-2 text-xs text-navy-400">
+          Çizik fiyat girilirse, landing sayfada gerçek fiyatın yanında üstü çizili olarak gösterilir.
+        </p>
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div>

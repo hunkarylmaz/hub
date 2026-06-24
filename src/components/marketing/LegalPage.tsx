@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { CalendarCheck2, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { LogoMark } from "@/components/brand/Logo";
 
 export function LegalPage({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -7,9 +8,7 @@ export function LegalPage({ title, children }: { title: string; children: React.
       <header className="border-b border-navy-100 bg-white">
         <div className="container flex h-16 items-center justify-between">
           <Link href="/" className="flex items-center gap-2 text-base font-semibold text-navy-900">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-navy-900 text-white">
-              <CalendarCheck2 className="h-4 w-4" />
-            </span>
+            <LogoMark className="h-7 w-7" />
             Rezervasyo
           </Link>
           <Link href="/" className="flex items-center gap-1.5 text-sm font-medium text-navy-500 hover:text-navy-900">

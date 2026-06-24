@@ -19,8 +19,23 @@ function createDb(): DatabaseSync {
 
   const schema = fs.readFileSync(path.join(process.cwd(), "src", "lib", "db", "schema.sql"), "utf-8");
   db.exec(schema);
+  runMigrations(db);
 
   return db;
+}
+
+function runMigrations(db: DatabaseSync) {
+  const statements = [
+    "ALTER TABLE plans ADD COLUMN original_monthly_price REAL",
+    "ALTER TABLE plans ADD COLUMN original_yearly_price REAL",
+  ];
+  for (const sql of statements) {
+    try {
+      db.exec(sql);
+    } catch (err) {
+      if (!(err instanceof Error) || !/duplicate column/i.test(err.message)) throw err;
+    }
+  }
 }
 
 export function getDb(): DatabaseSync {

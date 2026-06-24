@@ -9,6 +9,8 @@ function mapPlan(row: any): Plan {
     slug: row.slug,
     monthlyPrice: row.monthly_price,
     yearlyPrice: row.yearly_price,
+    originalMonthlyPrice: row.original_monthly_price,
+    originalYearlyPrice: row.original_yearly_price,
     maxStaff: row.max_staff,
     maxBranches: row.max_branches,
     maxMonthlyAppointments: row.max_monthly_appointments,
@@ -38,9 +40,10 @@ export function createPlan(input: Omit<Plan, "id">): Plan {
   const id = uid();
   getDb()
     .prepare(
-      `INSERT INTO plans (id, name, slug, monthly_price, yearly_price, max_staff, max_branches, max_monthly_appointments,
+      `INSERT INTO plans (id, name, slug, monthly_price, yearly_price, original_monthly_price, original_yearly_price,
+        max_staff, max_branches, max_monthly_appointments,
         has_accounting, has_advanced_reports, has_sms_whatsapp, is_active, sort_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       id,
@@ -48,6 +51,8 @@ export function createPlan(input: Omit<Plan, "id">): Plan {
       input.slug,
       input.monthlyPrice,
       input.yearlyPrice,
+      input.originalMonthlyPrice,
+      input.originalYearlyPrice,
       input.maxStaff,
       input.maxBranches,
       input.maxMonthlyAppointments,
@@ -66,7 +71,8 @@ export function updatePlan(id: string, patch: Partial<Omit<Plan, "id">>): Plan {
   const merged = { ...current, ...patch };
   getDb()
     .prepare(
-      `UPDATE plans SET name=?, slug=?, monthly_price=?, yearly_price=?, max_staff=?, max_branches=?, max_monthly_appointments=?,
+      `UPDATE plans SET name=?, slug=?, monthly_price=?, yearly_price=?, original_monthly_price=?, original_yearly_price=?,
+       max_staff=?, max_branches=?, max_monthly_appointments=?,
        has_accounting=?, has_advanced_reports=?, has_sms_whatsapp=?, is_active=?, sort_order=? WHERE id = ?`
     )
     .run(
@@ -74,6 +80,8 @@ export function updatePlan(id: string, patch: Partial<Omit<Plan, "id">>): Plan {
       merged.slug,
       merged.monthlyPrice,
       merged.yearlyPrice,
+      merged.originalMonthlyPrice,
+      merged.originalYearlyPrice,
       merged.maxStaff,
       merged.maxBranches,
       merged.maxMonthlyAppointments,

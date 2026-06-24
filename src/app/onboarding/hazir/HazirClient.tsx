@@ -13,10 +13,10 @@ import {
   QrCode,
   ExternalLink,
   ArrowRight,
-  CalendarCheck2,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
+import { LogoMark } from "@/components/brand/Logo";
 
 export function HazirClient({ businessName, slug }: { businessName: string; slug: string }) {
   const router = useRouter();
@@ -48,9 +48,7 @@ export function HazirClient({ businessName, slug }: { businessName: string; slug
       <header className="border-b border-navy-100 bg-white">
         <div className="container flex h-16 items-center justify-between">
           <Link href="/" className="flex items-center gap-2 text-base font-semibold text-navy-900">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-navy-900 text-white">
-              <CalendarCheck2 className="h-4 w-4" />
-            </span>
+            <LogoMark className="h-7 w-7" />
             Rezervasyo
           </Link>
         </div>

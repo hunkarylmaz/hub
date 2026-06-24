@@ -327,6 +327,8 @@ CREATE TABLE IF NOT EXISTS plans (
   slug TEXT NOT NULL UNIQUE,
   monthly_price REAL NOT NULL,
   yearly_price REAL NOT NULL,
+  original_monthly_price REAL,
+  original_yearly_price REAL,
   max_staff INTEGER,
   max_branches INTEGER,
   max_monthly_appointments INTEGER,

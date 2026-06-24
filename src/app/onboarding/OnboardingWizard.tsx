@@ -4,7 +4,6 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
-  CalendarCheck2,
   Building2,
   Sparkles,
   Users,
@@ -22,6 +21,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Input, Textarea, Select, Label, FieldError } from "@/components/ui/Input";
 import { Switch } from "@/components/ui/Switch";
+import { LogoMark } from "@/components/brand/Logo";
 import { cn, formatCurrencyTRY } from "@/lib/utils";
 import { normalizeSlug } from "@/lib/slug";
 import { SECTORS, WEEKDAY_LABELS } from "@/lib/types";
@@ -177,9 +177,7 @@ export function OnboardingWizard({ ownerName }: { ownerName: string }) {
       <header className="border-b border-navy-100 bg-white">
         <div className="container flex h-16 items-center justify-between">
           <Link href="/" className="flex items-center gap-2 text-base font-semibold text-navy-900">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-navy-900 text-white">
-              <CalendarCheck2 className="h-4 w-4" />
-            </span>
+            <LogoMark className="h-7 w-7" />
             Rezervasyo
           </Link>
           <p className="hidden text-sm text-navy-500 sm:block">Hoş geldin, {ownerName.split(" ")[0]}</p>
