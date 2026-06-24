@@ -25,6 +25,34 @@ export function listCustomers(businessId: string): Customer[] {
   return getDb().prepare("SELECT * FROM customers WHERE business_id = ? ORDER BY created_at DESC").all(businessId).map(mapCustomer);
 }
 
+export interface CustomerWithStats extends Customer {
+  totalSpent: number;
+  totalAppointments: number;
+  lastVisitAt: string | null;
+}
+
+export function listCustomersWithStats(businessId: string): CustomerWithStats[] {
+  const rows = getDb()
+    .prepare(
+      `SELECT c.*,
+        COALESCE(SUM(CASE WHEN a.status='completed' THEN a.price ELSE 0 END), 0) as total_spent,
+        COUNT(a.id) as total_appointments,
+        MAX(CASE WHEN a.status='completed' THEN a.start_at ELSE NULL END) as last_visit
+       FROM customers c
+       LEFT JOIN appointments a ON a.customer_id = c.id
+       WHERE c.business_id = ?
+       GROUP BY c.id
+       ORDER BY c.created_at DESC`
+    )
+    .all(businessId);
+  return rows.map((row: any) => ({
+    ...mapCustomer(row),
+    totalSpent: row.total_spent || 0,
+    totalAppointments: row.total_appointments || 0,
+    lastVisitAt: row.last_visit || null,
+  }));
+}
+
 export function findCustomerById(id: string): Customer | null {
   const row = getDb().prepare("SELECT * FROM customers WHERE id = ?").get(id);
   return row ? mapCustomer(row) : null;
