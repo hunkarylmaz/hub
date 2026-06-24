@@ -1197,7 +1197,7 @@ app.get('/api/bayi/raporlar', bayiAuthMiddleware, wrap(async (req, res) => {
   )
 
   const kurye_hakedis = await all(
-    `SELECT bk.ad, bk.durum, COUNT(bs.id) as teslim_sayisi, SUM(bs.tutar) as toplam_tutar
+    `SELECT bk.ad, bk.durum, COUNT(bs.id) as teslim_sayisi, COALESCE(SUM(bs.tutar), 0) as toplam_tutar
      FROM bayi_kuryeler bk
      LEFT JOIN bayi_siparisler bs ON bs.kurye_id=bk.id AND bs.durum='Teslim Edildi' AND bs.bayilik_id=?
      WHERE bk.bayilik_id=?
@@ -1206,7 +1206,7 @@ app.get('/api/bayi/raporlar', bayiAuthMiddleware, wrap(async (req, res) => {
   )
 
   const restoran_hakedis = await all(
-    `SELECT br.ad, COUNT(bs.id) as siparis_sayisi, SUM(bs.tutar) as toplam_tutar
+    `SELECT br.ad, COUNT(bs.id) as siparis_sayisi, COALESCE(SUM(bs.tutar), 0) as toplam_tutar
      FROM bayi_restoranlar br
      LEFT JOIN bayi_siparisler bs ON bs.restoran_id=br.id AND bs.durum='Teslim Edildi' AND bs.bayilik_id=?
      WHERE br.bayilik_id=?
@@ -1434,7 +1434,7 @@ app.get('/api/bayi/performans', bayiAuthMiddleware, wrap(async (req, res) => {
   const isletme_perf = await all(
     `SELECT br.ad, COUNT(bs.id) as toplam,
      COUNT(CASE WHEN bs.durum='Teslim Edildi' THEN 1 END) as teslim,
-     SUM(bs.tutar) as ciro
+     COALESCE(SUM(bs.tutar), 0) as ciro
      FROM bayi_restoranlar br
      LEFT JOIN bayi_siparisler bs ON bs.restoran_id=br.id AND bs.bayilik_id=?
      WHERE br.bayilik_id=?

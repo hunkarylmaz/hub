@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Loader2, ChevronLeft, ChevronRight, Check, X, Coffee } from 'lucide-react'
+import { Loader2, ChevronLeft, ChevronRight, Check, X, Coffee, Pencil } from 'lucide-react'
 import { api, Kurye, Vardiya } from '../../lib/api'
 
 const DAYS_TR = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
@@ -250,37 +250,42 @@ export default function Vardiyalar() {
                           </button>
                         </div>
                       ) : (
-                        <button
-                          onClick={() => {
-                            if (cell.state === 'shift') {
-                              setEditCell({ kuryeId: k.id, dayIdx: di })
-                            } else {
-                              cycleCell(k.id, di)
-                            }
-                          }}
-                          disabled={isSaving}
-                          className={`w-full min-h-[48px] rounded-lg border transition-colors text-xs font-medium flex flex-col items-center justify-center gap-0.5 ${
-                            cell.state === 'shift'
-                              ? 'bg-primary-50 border-primary-200 text-primary-700 hover:bg-primary-100'
-                              : cell.state === 'izin'
-                              ? 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
-                              : 'bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100'
-                          }`}
-                        >
-                          {isSaving ? (
-                            <Loader2 size={12} className="animate-spin" />
-                          ) : cell.state === 'shift' ? (
-                            <>
-                              <span>{cell.baslangic}</span>
-                              <span className="text-gray-400">—</span>
-                              <span>{cell.bitis}</span>
-                            </>
-                          ) : cell.state === 'izin' ? (
-                            <><Coffee size={14} /><span>İzin</span></>
-                          ) : (
-                            <span className="text-gray-300">—</span>
+                        <div className="relative">
+                          <button
+                            onClick={() => cycleCell(k.id, di)}
+                            disabled={isSaving}
+                            className={`w-full min-h-[48px] rounded-lg border transition-colors text-xs font-medium flex flex-col items-center justify-center gap-0.5 ${
+                              cell.state === 'shift'
+                                ? 'bg-primary-50 border-primary-200 text-primary-700 hover:bg-primary-100'
+                                : cell.state === 'izin'
+                                ? 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
+                                : 'bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100'
+                            }`}
+                          >
+                            {isSaving ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : cell.state === 'shift' ? (
+                              <>
+                                <span>{cell.baslangic}</span>
+                                <span className="text-gray-400">—</span>
+                                <span>{cell.bitis}</span>
+                              </>
+                            ) : cell.state === 'izin' ? (
+                              <><Coffee size={14} /><span>İzin</span></>
+                            ) : (
+                              <span className="text-gray-300">—</span>
+                            )}
+                          </button>
+                          {cell.state === 'shift' && !isSaving && (
+                            <button
+                              onClick={e => { e.stopPropagation(); setEditCell({ kuryeId: k.id, dayIdx: di }) }}
+                              className="absolute -top-1.5 -right-1.5 p-0.5 rounded-full bg-white border border-gray-200 text-gray-400 hover:text-primary-600 hover:border-primary-300"
+                              title="Saati düzenle"
+                            >
+                              <Pencil size={10} />
+                            </button>
                           )}
-                        </button>
+                        </div>
                       )}
                     </td>
                   )
@@ -309,7 +314,7 @@ export default function Vardiyalar() {
       </div>
 
       <p className="mt-3 text-xs text-gray-400">
-        Vardiya hücrelerine tıklayarak döngü oluşturabilirsiniz: boş → vardiya (saate tıkla ile düzenle) → izin → boş. Değişiklikler anlık kaydedilir.
+        Vardiya hücrelerine tıklayarak döngü oluşturabilirsiniz: boş → vardiya → izin → boş. Vardiya saatini değiştirmek için hücredeki kalem simgesine tıklayın. Değişiklikler anlık kaydedilir.
       </p>
     </div>
   )
