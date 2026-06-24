@@ -34,6 +34,8 @@ export const metadata: Metadata = {
   title: "Randevu, Müşteri ve Ön Muhasebe Yönetimi",
 };
 
+export const dynamic = "force-dynamic";
+
 const FEATURES = [
   {
     icon: CalendarCheck2,
