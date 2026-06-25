@@ -6,6 +6,7 @@ import {
   createStaff,
   updateStaff,
   findStaffById,
+  setStaffUserId,
   listStaffWorkingHours,
   setStaffWorkingHours,
   calculateStaffEarnings,
@@ -13,7 +14,7 @@ import {
 } from "@/lib/db/repo/staff";
 import { listServiceIdsForStaff } from "@/lib/db/repo/services";
 import { recordAuditLog } from "@/lib/db/repo/auditLogs";
-import { createUser, findUserByEmail } from "@/lib/db/repo/users";
+import { createUser, findUserByEmail, updateUserPassword } from "@/lib/db/repo/users";
 import { addBusinessUser } from "@/lib/db/repo/businesses";
 import { hashPassword, generateTempPassword } from "@/lib/password";
 
@@ -90,6 +91,42 @@ export async function toggleStaffActiveAction(staffId: string, isActive: boolean
   const updated = updateStaff(staffId, { isActive });
   revalidateStaffViews();
   return updated;
+}
+
+export async function grantStaffLoginAction(staffId: string, email: string) {
+  const { user, business } = await requireBusinessContext();
+  const existing = findStaffById(staffId);
+  if (!existing || existing.businessId !== business.id) throw new Error("Çalışan bulunamadı.");
+  if (existing.userId) throw new Error("Bu çalışanın zaten panel girişi var.");
+
+  const trimmedEmail = email.trim().toLowerCase();
+  if (!trimmedEmail) throw new Error("Giriş yetkisi için e-posta zorunludur.");
+  if (findUserByEmail(trimmedEmail)) throw new Error("Bu e-posta adresi zaten kullanılıyor.");
+
+  const generatedPassword = generateTempPassword();
+  const passwordHash = await hashPassword(generatedPassword);
+  const newUser = createUser({ email: trimmedEmail, passwordHash, fullName: existing.fullName, role: "STAFF" });
+  addBusinessUser(business.id, newUser.id, "STAFF");
+  setStaffUserId(staffId, newUser.id);
+  if (existing.email !== trimmedEmail) updateStaff(staffId, { email: trimmedEmail });
+
+  recordAuditLog({ businessId: business.id, actorUserId: user.id, action: "staff.login_granted", entityType: "staff", entityId: staffId });
+  revalidateStaffViews();
+  return { generatedPassword };
+}
+
+export async function resetStaffPasswordAction(staffId: string) {
+  const { user, business } = await requireBusinessContext();
+  const existing = findStaffById(staffId);
+  if (!existing || existing.businessId !== business.id) throw new Error("Çalışan bulunamadı.");
+  if (!existing.userId) throw new Error("Bu çalışanın panel girişi yok.");
+
+  const generatedPassword = generateTempPassword();
+  const passwordHash = await hashPassword(generatedPassword);
+  updateUserPassword(existing.userId, passwordHash);
+
+  recordAuditLog({ businessId: business.id, actorUserId: user.id, action: "staff.password_reset", entityType: "staff", entityId: staffId });
+  return { generatedPassword };
 }
 
 export async function fetchStaffDetailAction(staffId: string) {

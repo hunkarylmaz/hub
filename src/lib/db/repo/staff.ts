@@ -117,6 +117,11 @@ export function updateStaff(id: string, input: Partial<StaffInput> & { isActive?
   return findStaffById(id)!;
 }
 
+export function setStaffUserId(staffId: string, userId: string | null): Staff {
+  getDb().prepare("UPDATE staff SET user_id = ?, updated_at = ? WHERE id = ?").run(userId, nowIso(), staffId);
+  return findStaffById(staffId)!;
+}
+
 export function findStaffByUserId(userId: string): Staff | null {
   const row = getDb().prepare("SELECT * FROM staff WHERE user_id = ?").get(userId);
   return row ? mapStaff(row) : null;

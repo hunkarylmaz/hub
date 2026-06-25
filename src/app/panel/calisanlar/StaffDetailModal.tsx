@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Pencil, Phone, Mail, Clock, Wallet } from "lucide-react";
+import { Loader2, Pencil, Phone, Mail, Clock, Wallet, KeyRound, Copy, Check } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
@@ -17,6 +17,8 @@ import {
   updateStaffAction,
   saveStaffWorkingHoursAction,
   clearStaffWorkingHoursAction,
+  grantStaffLoginAction,
+  resetStaffPasswordAction,
   type WorkingHourInput,
 } from "./actions";
 import type { StaffEarnings } from "@/lib/db/repo/staff";
@@ -67,16 +69,23 @@ export function StaffDetailModal({
   const [error, setError] = useState<string | null>(null);
   const [submitting, startSubmit] = useTransition();
   const [savingHours, startSaveHours] = useTransition();
+  const [loginEmail, setLoginEmail] = useState("");
+  const [grantingLogin, startGrantLogin] = useTransition();
+  const [resettingPassword, startResetPassword] = useTransition();
+  const [revealedPassword, setRevealedPassword] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!staffId) {
       setDetail(null);
       setEditing(false);
       setError(null);
+      setRevealedPassword(null);
       return;
     }
     let cancelled = false;
     setLoading(true);
+    setRevealedPassword(null);
     fetchStaffDetailAction(staffId)
       .then((result) => {
         if (cancelled) return;
@@ -87,6 +96,7 @@ export function StaffDetailModal({
           phone: result.staff.phone ?? "",
           email: result.staff.email ?? "",
         });
+        setLoginEmail(result.staff.email ?? "");
         if (result.workingHours.length > 0) {
           const rows = defaultHours();
           for (const wh of result.workingHours) {
@@ -153,6 +163,46 @@ export function StaffDetailModal({
       } catch (e) {
         setError(e instanceof Error ? e.message : "Güncellenemedi.");
       }
+    });
+  }
+
+  function handleGrantLogin() {
+    if (!staffId) return;
+    setError(null);
+    if (!loginEmail.trim()) {
+      setError("Giriş yetkisi için e-posta zorunludur.");
+      return;
+    }
+    startGrantLogin(async () => {
+      try {
+        const result = await grantStaffLoginAction(staffId, loginEmail);
+        setRevealedPassword(result.generatedPassword);
+        refreshDetail();
+        router.refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Giriş yetkisi verilemedi.");
+      }
+    });
+  }
+
+  function handleResetPassword() {
+    if (!staffId) return;
+    setError(null);
+    startResetPassword(async () => {
+      try {
+        const result = await resetStaffPasswordAction(staffId);
+        setRevealedPassword(result.generatedPassword);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Şifre sıfırlanamadı.");
+      }
+    });
+  }
+
+  function handleCopyPassword() {
+    if (!revealedPassword) return;
+    navigator.clipboard.writeText(revealedPassword).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
     });
   }
 
@@ -266,6 +316,48 @@ export function StaffDetailModal({
               <p className="text-xs text-navy-400">Kapalıysa müşteriler online randevuda bu çalışanı seçemez.</p>
             </div>
             <Switch checked={detail.staff.isBookableOnline} onChange={(v) => handleToggleField("isBookableOnline", v)} disabled={submitting} />
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-navy-100 p-4">
+            <div className="flex items-center gap-2">
+              <KeyRound className="h-4 w-4 text-navy-400" />
+              <p className="text-sm font-medium text-navy-900">Panel Girişi</p>
+            </div>
+
+            {revealedPassword ? (
+              <div className="space-y-3">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-xs font-semibold text-amber-800">Bu şifre yalnızca bir kez gösterilir. Not edin.</p>
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-subtle p-3 text-sm">
+                  <span className="font-mono font-medium text-navy-900">{revealedPassword}</span>
+                  <Button variant="outline" size="sm" onClick={handleCopyPassword}>
+                    {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                    {copied ? "Kopyalandı" : "Kopyala"}
+                  </Button>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setRevealedPassword(null)}>
+                  Kapat
+                </Button>
+              </div>
+            ) : detail.staff.userId ? (
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs text-navy-400">Bu çalışan panele giriş yapabiliyor. Şifresini unuttuysa yeni bir şifre oluşturabilirsin.</p>
+                <Button variant="outline" size="sm" loading={resettingPassword} onClick={handleResetPassword}>
+                  Şifreyi Sıfırla
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs text-navy-400">Bu çalışanın panele girişi yok. E-posta belirleyip giriş yetkisi verebilirsin.</p>
+                <div className="flex gap-2">
+                  <Input value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="ayse@example.com" className="flex-1" />
+                  <Button size="sm" loading={grantingLogin} onClick={handleGrantLogin}>
+                    Giriş Yetkisi Ver
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div>
