@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { ShieldCheck, LayoutDashboard, Building2, CreditCard, Layers, Users, ScrollText, Menu, X } from "lucide-react";
+import { ShieldCheck, LayoutDashboard, Building2, CreditCard, Layers, Users, ScrollText, MoreHorizontal, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -14,6 +14,8 @@ const NAV = [
   { href: "/admin/kullanicilar", label: "Kullanıcılar", icon: Users },
   { href: "/admin/denetim-kayitlari", label: "Denetim Kayıtları", icon: ScrollText },
 ] as const;
+
+const MOBILE_TAB_COUNT = 4;
 
 function SidebarHeader({ onClose }: { onClose?: () => void }) {
   return (
@@ -36,12 +38,18 @@ function SidebarHeader({ onClose }: { onClose?: () => void }) {
 export function AdminSidebar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const tabItems = NAV.slice(0, MOBILE_TAB_COUNT);
+  const overflowItems = NAV.slice(MOBILE_TAB_COUNT);
+
+  function isActive(href: string) {
+    return href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
+  }
 
   function NavLinks() {
     return (
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4 panel-scrollbar">
         {NAV.map((item) => {
-          const active = item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
+          const active = isActive(item.href);
           return (
             <Link
               key={item.href}
@@ -61,17 +69,10 @@ export function AdminSidebar() {
     );
   }
 
+  const moreActive = overflowItems.some((item) => isActive(item.href));
+
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setMobileOpen(true)}
-        className="fixed left-4 top-4 z-30 flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-card lg:hidden"
-        aria-label="Menüyü aç"
-      >
-        <Menu className="h-5 w-5 text-navy-700" />
-      </button>
-
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-ink/50" onClick={() => setMobileOpen(false)} />
@@ -86,6 +87,41 @@ export function AdminSidebar() {
         <SidebarHeader />
         <NavLinks />
       </aside>
+
+      <nav
+        className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-navy-100 bg-white/95 backdrop-blur lg:hidden"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        {tabItems.map((item) => {
+          const active = isActive(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex flex-1 flex-col items-center gap-0.5 px-1 py-2 text-[10.5px] font-medium transition-colors",
+                active ? "text-violet-700" : "text-navy-400"
+              )}
+            >
+              <item.icon className="h-5 w-5" />
+              <span className="truncate">{item.label}</span>
+            </Link>
+          );
+        })}
+        {overflowItems.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            className={cn(
+              "flex flex-1 flex-col items-center gap-0.5 px-1 py-2 text-[10.5px] font-medium transition-colors",
+              moreActive ? "text-violet-700" : "text-navy-400"
+            )}
+          >
+            <MoreHorizontal className="h-5 w-5" />
+            <span>Daha Fazla</span>
+          </button>
+        )}
+      </nav>
     </>
   );
 }

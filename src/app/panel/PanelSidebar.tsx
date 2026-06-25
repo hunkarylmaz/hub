@@ -18,7 +18,7 @@ import {
   Settings,
   CreditCard,
   BadgeDollarSign,
-  Menu,
+  MoreHorizontal,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -42,6 +42,8 @@ const NAV = [
   { href: "/panel/abonelik", label: "Abonelik", icon: CreditCard, roles: ["OWNER"] },
 ] as const;
 
+const MOBILE_TAB_COUNT = 4;
+
 function SidebarHeader({ businessName, onClose }: { businessName: string; onClose?: () => void }) {
   return (
     <div className="flex h-16 items-center justify-between gap-2 border-b border-navy-100 px-4">
@@ -62,12 +64,18 @@ export function PanelSidebar({ businessName, membershipRole }: { businessName: s
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const visibleNav = NAV.filter((item) => (item.roles as readonly string[]).includes(membershipRole));
+  const tabItems = visibleNav.slice(0, MOBILE_TAB_COUNT);
+  const overflowItems = visibleNav.slice(MOBILE_TAB_COUNT);
+
+  function isActive(href: string) {
+    return href === "/panel" ? pathname === "/panel" : pathname.startsWith(href);
+  }
 
   function NavLinks() {
     return (
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4 panel-scrollbar">
         {visibleNav.map((item) => {
-          const active = item.href === "/panel" ? pathname === "/panel" : pathname.startsWith(item.href);
+          const active = isActive(item.href);
           return (
             <Link
               key={item.href}
@@ -87,17 +95,10 @@ export function PanelSidebar({ businessName, membershipRole }: { businessName: s
     );
   }
 
+  const moreActive = overflowItems.some((item) => isActive(item.href));
+
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setMobileOpen(true)}
-        className="fixed left-4 top-4 z-30 flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-card lg:hidden"
-        aria-label="Menüyü aç"
-      >
-        <Menu className="h-5 w-5 text-navy-700" />
-      </button>
-
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-ink/50" onClick={() => setMobileOpen(false)} />
@@ -112,6 +113,41 @@ export function PanelSidebar({ businessName, membershipRole }: { businessName: s
         <SidebarHeader businessName={businessName} />
         <NavLinks />
       </aside>
+
+      <nav
+        className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-navy-100 bg-white/95 backdrop-blur lg:hidden"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        {tabItems.map((item) => {
+          const active = isActive(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex flex-1 flex-col items-center gap-0.5 px-1 py-2 text-[10.5px] font-medium transition-colors",
+                active ? "text-violet-700" : "text-navy-400"
+              )}
+            >
+              <item.icon className="h-5 w-5" />
+              <span className="truncate">{item.label}</span>
+            </Link>
+          );
+        })}
+        {overflowItems.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            className={cn(
+              "flex flex-1 flex-col items-center gap-0.5 px-1 py-2 text-[10.5px] font-medium transition-colors",
+              moreActive ? "text-violet-700" : "text-navy-400"
+            )}
+          >
+            <MoreHorizontal className="h-5 w-5" />
+            <span>Daha Fazla</span>
+          </button>
+        )}
+      </nav>
     </>
   );
 }

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Toaster } from "sonner";
+import { PwaRegister } from "@/components/PwaRegister";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -10,12 +11,18 @@ export const metadata: Metadata = {
   description:
     "Rezervasyo; berber, kuaför, güzellik salonu, klinik, psikolog ve danışmanlık işletmeleri için online randevu, müşteri yönetimi ve ön muhasebe platformu.",
   manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Rezervasyo",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: "#161B3C",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -24,6 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-sans">
         {children}
         <Toaster position="top-center" richColors closeButton />
+        <PwaRegister />
       </body>
     </html>
   );
