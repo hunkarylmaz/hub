@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSuperAdmin } from "@/lib/session";
-import { findUserByEmail, createUser } from "@/lib/db/repo/users";
+import { findUserByEmail, findUserById, createUser, updateUserProfile, setUserActive } from "@/lib/db/repo/users";
 import { findBusinessById, addBusinessUser } from "@/lib/db/repo/businesses";
 import { hashPassword } from "@/lib/password";
 import { recordAuditLog } from "@/lib/db/repo/auditLogs";
@@ -52,6 +52,53 @@ export async function createUserAction(input: CreateUserInput) {
     entityType: "user",
     entityId: user.id,
     meta: { email: user.email, role: user.role, businessId: business?.id ?? null },
+  });
+
+  revalidatePath("/admin/kullanicilar");
+  const { passwordHash: _omit, ...safeUser } = user;
+  return safeUser;
+}
+
+export interface UpdateUserInput {
+  fullName: string;
+  phone: string;
+}
+
+export async function updateUserAction(userId: string, input: UpdateUserInput) {
+  const actor = await requireSuperAdmin();
+  const existing = findUserById(userId);
+  if (!existing) throw new Error("Kullanıcı bulunamadı.");
+
+  const fullName = input.fullName.trim();
+  if (!fullName) throw new Error("Ad soyad zorunludur.");
+
+  const user = updateUserProfile(userId, { fullName, phone: input.phone.trim() || null });
+
+  recordAuditLog({
+    actorUserId: actor.id,
+    action: "user.updated",
+    entityType: "user",
+    entityId: userId,
+  });
+
+  revalidatePath("/admin/kullanicilar");
+  const { passwordHash: _omit, ...safeUser } = user;
+  return safeUser;
+}
+
+export async function setUserActiveAction(userId: string, isActive: boolean) {
+  const actor = await requireSuperAdmin();
+  const existing = findUserById(userId);
+  if (!existing) throw new Error("Kullanıcı bulunamadı.");
+  if (existing.id === actor.id && !isActive) throw new Error("Kendi hesabınızı pasif hale getiremezsiniz.");
+
+  const user = setUserActive(userId, isActive);
+
+  recordAuditLog({
+    actorUserId: actor.id,
+    action: isActive ? "user.activated" : "user.deactivated",
+    entityType: "user",
+    entityId: userId,
   });
 
   revalidatePath("/admin/kullanicilar");

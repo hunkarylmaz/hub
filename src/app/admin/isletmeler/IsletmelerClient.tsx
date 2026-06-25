@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Building2, ExternalLink, Plus } from "lucide-react";
+import { Search, Building2, ExternalLink, Pencil, Plus } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -36,6 +36,7 @@ export function IsletmelerClient({ rows, plans }: { rows: Row[]; plans: Plan[] }
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [creating, setCreating] = useState(false);
+  const [editingBusiness, setEditingBusiness] = useState<Business | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -131,14 +132,19 @@ export function IsletmelerClient({ rows, plans }: { rows: Row[]; plans: Plan[] }
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Button
-                      size="sm"
-                      variant={business.status === "active" ? "danger" : "outline"}
-                      loading={isPending && pendingId === business.id}
-                      onClick={() => handleToggleStatus(business.id, business.status)}
-                    >
-                      {business.status === "active" ? "Askıya Al" : "Etkinleştir"}
-                    </Button>
+                    <div className="flex items-center justify-end gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setEditingBusiness(business)}>
+                        <Pencil className="h-3.5 w-3.5" /> Düzenle
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={business.status === "active" ? "danger" : "outline"}
+                        loading={isPending && pendingId === business.id}
+                        onClick={() => handleToggleStatus(business.id, business.status)}
+                      >
+                        {business.status === "active" ? "Askıya Al" : "Etkinleştir"}
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -148,6 +154,7 @@ export function IsletmelerClient({ rows, plans }: { rows: Row[]; plans: Plan[] }
       )}
 
       <BusinessModal open={creating} onClose={() => setCreating(false)} plans={plans} />
+      <BusinessModal open={editingBusiness !== null} onClose={() => setEditingBusiness(null)} plans={plans} editBusiness={editingBusiness} />
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Plus, TrendingDown, TrendingUp, Wallet, Banknote, CreditCard, ArrowLeftRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2, TrendingDown, TrendingUp, Wallet, Banknote, CreditCard, ArrowLeftRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/Stat";
@@ -12,7 +12,7 @@ import { todayKey, addDaysKey, dateKeyToLongTR, dateKeyToWeekdayTR } from "@/lib
 import { PAYMENT_METHOD_LABELS } from "@/lib/types";
 import type { AccountingCategory, IncomeRecord, ExpenseRecord, Customer, Service, Staff } from "@/lib/types";
 import { deleteIncomeAction, deleteExpenseAction } from "../gelir-gider/actions";
-import { NewRecordModal } from "../gelir-gider/NewRecordModal";
+import { NewRecordModal, type EditTarget } from "../gelir-gider/NewRecordModal";
 
 export function OnMuhasebeClient({
   income,
@@ -32,6 +32,7 @@ export function OnMuhasebeClient({
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState(todayKey());
   const [newType, setNewType] = useState<"income" | "expense" | null>(null);
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [, startDelete] = useTransition();
 
@@ -150,6 +151,27 @@ export function OnMuhasebeClient({
                   <div className="flex shrink-0 items-center gap-2">
                     <Badge>{PAYMENT_METHOD_LABELS[r.paymentMethod]}</Badge>
                     <span className="font-semibold text-emerald-600">+{formatCurrencyTRY(r.amount)}</span>
+                    {!r.appointmentId && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setEditTarget({ type: "income", record: r })}
+                          className="rounded-lg p-1 text-navy-300 hover:bg-violet-50 hover:text-violet-600"
+                          aria-label="Düzenle"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete("income", r.id)}
+                          disabled={deletingId === r.id}
+                          className="rounded-lg p-1 text-navy-300 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                          aria-label="Sil"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -179,11 +201,20 @@ export function OnMuhasebeClient({
                     <span className="font-semibold text-red-600">-{formatCurrencyTRY(r.amount)}</span>
                     <button
                       type="button"
+                      onClick={() => setEditTarget({ type: "expense", record: r })}
+                      className="rounded-lg p-1 text-navy-300 hover:bg-violet-50 hover:text-violet-600"
+                      aria-label="Düzenle"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => handleDelete("expense", r.id)}
                       disabled={deletingId === r.id}
-                      className="text-xs font-medium text-navy-300 hover:text-red-600 disabled:opacity-50"
+                      className="rounded-lg p-1 text-navy-300 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                      aria-label="Sil"
                     >
-                      Sil
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
@@ -193,7 +224,17 @@ export function OnMuhasebeClient({
         </div>
       </div>
 
-      <NewRecordModal open={newType !== null} onClose={() => setNewType(null)} categories={categories} defaultType={newType ?? "income"} defaultDate={selectedDate} />
+      <NewRecordModal
+        open={newType !== null || editTarget !== null}
+        onClose={() => {
+          setNewType(null);
+          setEditTarget(null);
+        }}
+        categories={categories}
+        defaultType={newType ?? "income"}
+        defaultDate={selectedDate}
+        editTarget={editTarget}
+      />
     </div>
   );
 }

@@ -66,6 +66,11 @@ export function updateUserPassword(id: string, passwordHash: string) {
   getDb().prepare("UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?").run(passwordHash, nowIso(), id);
 }
 
+export function setUserActive(id: string, isActive: boolean): User {
+  getDb().prepare("UPDATE users SET is_active = ?, updated_at = ? WHERE id = ?").run(isActive ? 1 : 0, nowIso(), id);
+  return findUserById(id)!;
+}
+
 export function listAllUsers(): User[] {
   const rows = getDb().prepare("SELECT * FROM users ORDER BY created_at DESC").all();
   return rows.map(mapUser);

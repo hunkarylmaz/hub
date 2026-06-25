@@ -1,9 +1,11 @@
 import { listAllUsers } from "@/lib/db/repo/users";
 import { listBusinesses, listBusinessUsers } from "@/lib/db/repo/businesses";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { requireSuperAdmin } from "@/lib/session";
 import { KullanicilarClient } from "./KullanicilarClient";
 
 export default async function AdminUsersPage() {
+  const actor = await requireSuperAdmin();
   const users = listAllUsers();
   const businesses = listBusinesses();
 
@@ -20,7 +22,7 @@ export default async function AdminUsersPage() {
   return (
     <div>
       <PageHeader title="Kullanıcılar" description="Platformdaki tüm kullanıcı hesapları" />
-      <KullanicilarClient users={rows} businesses={businesses.map((b) => ({ id: b.id, name: b.name }))} />
+      <KullanicilarClient users={rows} businesses={businesses.map((b) => ({ id: b.id, name: b.name }))} currentUserId={actor.id} />
     </div>
   );
 }

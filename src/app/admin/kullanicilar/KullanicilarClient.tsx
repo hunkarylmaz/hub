@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Search, Users, Plus } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Search, Users, Pencil, Plus } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
@@ -10,6 +11,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/utils";
 import { formatDateShortTR } from "@/lib/date";
 import type { SafeUser } from "@/lib/types";
+import { setUserActiveAction } from "./actions";
 import { UserModal } from "./UserModal";
 
 type UserRow = SafeUser & { businessName: string | null };
@@ -29,12 +31,34 @@ const ROLE_BADGE_CLASSES: Record<SafeUser["role"], string> = {
 export function KullanicilarClient({
   users,
   businesses,
+  currentUserId,
 }: {
   users: UserRow[];
   businesses: { id: string; name: string }[];
+  currentUserId: string;
 }) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserRow | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [toggleError, setToggleError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleToggleActive(user: UserRow) {
+    setPendingId(user.id);
+    setToggleError(null);
+    startTransition(async () => {
+      try {
+        await setUserActiveAction(user.id, !user.isActive);
+        router.refresh();
+      } catch (e) {
+        setToggleError(e instanceof Error ? e.message : "İşlem gerçekleştirilemedi.");
+      } finally {
+        setPendingId(null);
+      }
+    });
+  }
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -59,6 +83,10 @@ export function KullanicilarClient({
         </Button>
       </div>
 
+      {toggleError && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{toggleError}</div>
+      )}
+
       {filtered.length === 0 ? (
         <EmptyState
           icon={Users}
@@ -76,6 +104,7 @@ export function KullanicilarClient({
                 <th className="px-4 py-3">İşletme</th>
                 <th className="px-4 py-3">Kayıt Tarihi</th>
                 <th className="px-4 py-3">Durum</th>
+                <th className="px-4 py-3 text-right">İşlem</th>
               </tr>
             </thead>
             <tbody>
@@ -101,6 +130,23 @@ export function KullanicilarClient({
                       {u.isActive ? "Aktif" : "Pasif"}
                     </Badge>
                   </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setEditingUser(u)}>
+                        <Pencil className="h-3.5 w-3.5" /> Düzenle
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={u.isActive ? "danger" : "outline"}
+                        loading={isPending && pendingId === u.id}
+                        disabled={u.id === currentUserId}
+                        title={u.id === currentUserId ? "Kendi hesabınızı pasif hale getiremezsiniz." : undefined}
+                        onClick={() => handleToggleActive(u)}
+                      >
+                        {u.isActive ? "Pasifleştir" : "Etkinleştir"}
+                      </Button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -109,6 +155,7 @@ export function KullanicilarClient({
       )}
 
       <UserModal open={creating} onClose={() => setCreating(false)} businesses={businesses} />
+      <UserModal open={editingUser !== null} onClose={() => setEditingUser(null)} businesses={businesses} editUser={editingUser} />
     </div>
   );
 }

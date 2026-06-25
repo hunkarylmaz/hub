@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Select } from "@/components/ui/Input";
-import { createUserAction } from "./actions";
-import type { UserRole } from "@/lib/types";
+import { createUserAction, updateUserAction } from "./actions";
+import type { SafeUser, UserRole } from "@/lib/types";
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: "OWNER", label: "İşletme Sahibi" },
@@ -26,21 +26,39 @@ export function UserModal({
   open,
   onClose,
   businesses,
+  editUser,
 }: {
   open: boolean;
   onClose: () => void;
   businesses: { id: string; name: string }[];
+  editUser?: SafeUser | null;
 }) {
   const router = useRouter();
-  const [form, setForm] = useState({ ...EMPTY_FORM, businessId: businesses[0]?.id ?? "" });
+  const isEdit = !!editUser;
+  const [form, setForm] = useState(
+    editUser ? { ...EMPTY_FORM, fullName: editUser.fullName, phone: editUser.phone ?? "" } : { ...EMPTY_FORM, businessId: businesses[0]?.id ?? "" }
+  );
   const [error, setError] = useState<string | null>(null);
   const [submitting, startSubmit] = useTransition();
   const isBusinessUser = form.role !== "SUPER_ADMIN";
 
+  function resetForm() {
+    setForm(
+      editUser ? { ...EMPTY_FORM, fullName: editUser.fullName, phone: editUser.phone ?? "" } : { ...EMPTY_FORM, businessId: businesses[0]?.id ?? "" }
+    );
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    resetForm();
+    setError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editUser]);
+
   if (!open) return null;
 
   function handleClose() {
-    setForm({ ...EMPTY_FORM, businessId: businesses[0]?.id ?? "" });
+    resetForm();
     setError(null);
     onClose();
   }
@@ -51,6 +69,20 @@ export function UserModal({
       setError("Ad soyad zorunludur.");
       return;
     }
+
+    if (isEdit && editUser) {
+      startSubmit(async () => {
+        try {
+          await updateUserAction(editUser.id, { fullName: form.fullName, phone: form.phone });
+          router.refresh();
+          handleClose();
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "Kullanıcı güncellenemedi.");
+        }
+      });
+      return;
+    }
+
     if (!form.email.trim()) {
       setError("E-posta zorunludur.");
       return;
@@ -76,7 +108,7 @@ export function UserModal({
   }
 
   return (
-    <Modal open={open} onClose={handleClose} title="Yeni Kullanıcı Oluştur" size="lg">
+    <Modal open={open} onClose={handleClose} title={isEdit ? "Kullanıcıyı Düzenle" : "Yeni Kullanıcı Oluştur"} size="lg">
       <div className="space-y-4">
         <div>
           <Label>Ad Soyad</Label>
@@ -86,7 +118,11 @@ export function UserModal({
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <Label>E-posta</Label>
-            <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            {isEdit ? (
+              <Input type="email" value={editUser?.email ?? ""} disabled />
+            ) : (
+              <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            )}
           </div>
           <div>
             <Label>Telefon</Label>
@@ -94,29 +130,31 @@ export function UserModal({
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <Label>Geçici Şifre</Label>
-            <Input
-              type="text"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              placeholder="En az 6 karakter"
-            />
+        {!isEdit && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label>Geçici Şifre</Label>
+              <Input
+                type="text"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                placeholder="En az 6 karakter"
+              />
+            </div>
+            <div>
+              <Label>Rol</Label>
+              <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as UserRole })}>
+                {ROLE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </div>
-          <div>
-            <Label>Rol</Label>
-            <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as UserRole })}>
-              {ROLE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </Select>
-          </div>
-        </div>
+        )}
 
-        {isBusinessUser && (
+        {!isEdit && isBusinessUser && (
           <div>
             <Label>İşletme</Label>
             <Select value={form.businessId} onChange={(e) => setForm({ ...form, businessId: e.target.value })}>
@@ -140,7 +178,7 @@ export function UserModal({
             Vazgeç
           </Button>
           <Button variant="primary" loading={submitting} onClick={handleSubmit}>
-            Kullanıcı Oluştur
+            {isEdit ? "Kaydet" : "Kullanıcı Oluştur"}
           </Button>
         </div>
       </div>

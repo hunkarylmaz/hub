@@ -7,10 +7,12 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input, Select, Label } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
-import type { AccountingCategory, PaymentMethod } from "@/lib/types";
+import type { AccountingCategory, PaymentMethod, IncomeRecord, ExpenseRecord } from "@/lib/types";
 import { PAYMENT_METHOD_LABELS } from "@/lib/types";
 import { todayKey } from "@/lib/date";
-import { createIncomeAction, createExpenseAction, createAccountingCategoryAction } from "./actions";
+import { createIncomeAction, createExpenseAction, createAccountingCategoryAction, updateIncomeAction, updateExpenseAction } from "./actions";
+
+export type EditTarget = { type: "income"; record: IncomeRecord } | { type: "expense"; record: ExpenseRecord };
 
 export function NewRecordModal({
   open,
@@ -18,21 +20,24 @@ export function NewRecordModal({
   categories,
   defaultType,
   defaultDate,
+  editTarget,
 }: {
   open: boolean;
   onClose: () => void;
   categories: AccountingCategory[];
   defaultType?: "income" | "expense";
   defaultDate?: string;
+  editTarget?: EditTarget | null;
 }) {
   const router = useRouter();
-  const [type, setType] = useState<"income" | "expense">(defaultType ?? "income");
-  const [date, setDate] = useState(defaultDate ?? todayKey());
-  const [amount, setAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
-  const [categoryId, setCategoryId] = useState("");
-  const [description, setDescription] = useState("");
-  const [supplierName, setSupplierName] = useState("");
+  const isEdit = !!editTarget;
+  const [type, setType] = useState<"income" | "expense">(editTarget?.type ?? defaultType ?? "income");
+  const [date, setDate] = useState(editTarget?.record.date ?? defaultDate ?? todayKey());
+  const [amount, setAmount] = useState(editTarget ? String(editTarget.record.amount) : "");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(editTarget?.record.paymentMethod ?? "cash");
+  const [categoryId, setCategoryId] = useState(editTarget?.record.categoryId ?? "");
+  const [description, setDescription] = useState(editTarget?.record.description ?? "");
+  const [supplierName, setSupplierName] = useState(editTarget?.type === "expense" ? editTarget.record.supplierName ?? "" : "");
   const [localCategories, setLocalCategories] = useState(categories);
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -42,18 +47,18 @@ export function NewRecordModal({
 
   useEffect(() => {
     if (!open) return;
-    setType(defaultType ?? "income");
-    setDate(defaultDate ?? todayKey());
-    setAmount("");
-    setPaymentMethod("cash");
-    setCategoryId("");
-    setDescription("");
-    setSupplierName("");
+    setType(editTarget?.type ?? defaultType ?? "income");
+    setDate(editTarget?.record.date ?? defaultDate ?? todayKey());
+    setAmount(editTarget ? String(editTarget.record.amount) : "");
+    setPaymentMethod(editTarget?.record.paymentMethod ?? "cash");
+    setCategoryId(editTarget?.record.categoryId ?? "");
+    setDescription(editTarget?.record.description ?? "");
+    setSupplierName(editTarget?.type === "expense" ? editTarget.record.supplierName ?? "" : "");
     setLocalCategories(categories);
     setShowNewCategory(false);
     setNewCategoryName("");
     setError(null);
-  }, [open, defaultType, defaultDate, categories]);
+  }, [open, defaultType, defaultDate, categories, editTarget]);
 
   if (!open) return null;
 
@@ -84,57 +89,71 @@ export function NewRecordModal({
     startSubmit(async () => {
       try {
         if (type === "income") {
-          await createIncomeAction({
+          const payload = {
             date,
             amount: numericAmount,
             paymentMethod,
             description: description || null,
             categoryId: categoryId || null,
-          });
+          };
+          if (isEdit && editTarget) await updateIncomeAction(editTarget.record.id, payload);
+          else await createIncomeAction(payload);
         } else {
-          await createExpenseAction({
+          const payload = {
             date,
             amount: numericAmount,
             paymentMethod,
             description: description || null,
             categoryId: categoryId || null,
             supplierName: supplierName || null,
-          });
+          };
+          if (isEdit && editTarget) await updateExpenseAction(editTarget.record.id, payload);
+          else await createExpenseAction(payload);
         }
         router.refresh();
         onClose();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Kayıt oluşturulamadı.");
+        setError(e instanceof Error ? e.message : (isEdit ? "Kayıt güncellenemedi." : "Kayıt oluşturulamadı."));
       }
     });
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Yeni Kayıt" description="Manuel bir gelir veya gider kaydı ekle" size="md">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={isEdit ? "Kaydı Düzenle" : "Yeni Kayıt"}
+      description={isEdit ? "Mevcut gelir veya gider kaydını güncelle" : "Manuel bir gelir veya gider kaydı ekle"}
+      size="md"
+    >
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
+            disabled={isEdit}
             onClick={() => {
               setType("income");
               setCategoryId("");
             }}
             className={cn(
               "rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors",
-              type === "income" ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "border-navy-200 text-navy-500 hover:bg-navy-50"
+              type === "income" ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "border-navy-200 text-navy-500 hover:bg-navy-50",
+              isEdit && "cursor-not-allowed opacity-60"
             )}
           >
             Gelir
           </button>
           <button
             type="button"
+            disabled={isEdit}
             onClick={() => {
               setType("expense");
               setCategoryId("");
             }}
             className={cn(
               "rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors",
-              type === "expense" ? "border-red-300 bg-red-50 text-red-700" : "border-navy-200 text-navy-500 hover:bg-navy-50"
+              type === "expense" ? "border-red-300 bg-red-50 text-red-700" : "border-navy-200 text-navy-500 hover:bg-navy-50",
+              isEdit && "cursor-not-allowed opacity-60"
             )}
           >
             Gider
@@ -216,7 +235,7 @@ export function NewRecordModal({
             Vazgeç
           </Button>
           <Button variant="primary" loading={submitting} onClick={handleSubmit}>
-            Kaydet
+            {isEdit ? "Güncelle" : "Kaydet"}
           </Button>
         </div>
       </div>

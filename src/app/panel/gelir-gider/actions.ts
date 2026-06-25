@@ -10,6 +10,8 @@ import {
   findExpenseRecordById,
   deleteIncomeRecord,
   deleteExpenseRecord,
+  updateIncomeRecord,
+  updateExpenseRecord,
   type IncomeInput,
   type ExpenseInput,
 } from "@/lib/db/repo/accounting";
@@ -52,6 +54,47 @@ export async function createExpenseAction(input: ExpenseInput) {
     action: "expense.created",
     entityType: "expense_record",
     entityId: record.id,
+  });
+
+  revalidateAccountingViews();
+  return record;
+}
+
+export async function updateIncomeAction(id: string, input: IncomeInput) {
+  const { user, business } = await requireBusinessContext();
+  const existing = findIncomeRecordById(id);
+  if (!existing || existing.businessId !== business.id) throw new Error("Kayıt bulunamadı.");
+  if (existing.appointmentId) throw new Error("Randevuya bağlı gelir kayıtları düzenlenemez.");
+  if (!input.amount || input.amount <= 0) throw new Error("Tutar sıfırdan büyük olmalıdır.");
+
+  const record = updateIncomeRecord(id, input);
+
+  recordAuditLog({
+    businessId: business.id,
+    actorUserId: user.id,
+    action: "income.updated",
+    entityType: "income_record",
+    entityId: id,
+  });
+
+  revalidateAccountingViews();
+  return record;
+}
+
+export async function updateExpenseAction(id: string, input: ExpenseInput) {
+  const { user, business } = await requireBusinessContext();
+  const existing = findExpenseRecordById(id);
+  if (!existing || existing.businessId !== business.id) throw new Error("Kayıt bulunamadı.");
+  if (!input.amount || input.amount <= 0) throw new Error("Tutar sıfırdan büyük olmalıdır.");
+
+  const record = updateExpenseRecord(id, input);
+
+  recordAuditLog({
+    businessId: business.id,
+    actorUserId: user.id,
+    action: "expense.updated",
+    entityType: "expense_record",
+    entityId: id,
   });
 
   revalidateAccountingViews();

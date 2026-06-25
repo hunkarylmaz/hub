@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Wallet, TrendingDown, TrendingUp } from "lucide-react";
+import { Plus, Pencil, Trash2, Wallet, TrendingDown, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
@@ -13,7 +13,7 @@ import { formatDateShortTR, todayKey, addDaysKey, combineDateTime } from "@/lib/
 import { PAYMENT_METHOD_LABELS } from "@/lib/types";
 import type { AccountingCategory, IncomeRecord, ExpenseRecord, Customer, Service, Staff } from "@/lib/types";
 import { deleteIncomeAction, deleteExpenseAction } from "./actions";
-import { NewRecordModal } from "./NewRecordModal";
+import { NewRecordModal, type EditTarget } from "./NewRecordModal";
 
 interface LedgerRow {
   id: string;
@@ -53,6 +53,7 @@ export function GelirGiderClient({
   const [typeFilter, setTypeFilter] = useState<"all" | "income" | "expense">("all");
   const [period, setPeriod] = useState<string>("30");
   const [showNew, setShowNew] = useState(false);
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [, startDelete] = useTransition();
 
@@ -60,6 +61,8 @@ export function GelirGiderClient({
   const customerMap = useMemo(() => new Map(customers.map((c) => [c.id, c.fullName])), [customers]);
   const serviceMap = useMemo(() => new Map(services.map((s) => [s.id, s.name])), [services]);
   const staffMap = useMemo(() => new Map(staff.map((s) => [s.id, s.fullName])), [staff]);
+  const incomeById = useMemo(() => new Map(income.map((r) => [r.id, r])), [income]);
+  const expenseById = useMemo(() => new Map(expense.map((r) => [r.id, r])), [expense]);
 
   const rows: LedgerRow[] = useMemo(() => {
     const incomeRows: LedgerRow[] = income.map((r) => ({
@@ -101,6 +104,16 @@ export function GelirGiderClient({
 
   const totalIncome = filteredRows.filter((r) => r.type === "income").reduce((sum, r) => sum + r.amount, 0);
   const totalExpense = filteredRows.filter((r) => r.type === "expense").reduce((sum, r) => sum + r.amount, 0);
+
+  function handleEdit(row: LedgerRow) {
+    if (row.type === "income") {
+      const record = incomeById.get(row.id);
+      if (record) setEditTarget({ type: "income", record });
+    } else {
+      const record = expenseById.get(row.id);
+      if (record) setEditTarget({ type: "expense", record });
+    }
+  }
 
   function handleDelete(row: LedgerRow) {
     setDeletingId(row.id);
@@ -180,15 +193,25 @@ export function GelirGiderClient({
                   </td>
                   <td className="px-4 py-3 text-right">
                     {row.deletable && (
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(row)}
-                        disabled={deletingId === row.id}
-                        className="rounded-lg p-1.5 text-navy-300 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-                        aria-label="Sil"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleEdit(row)}
+                          className="rounded-lg p-1.5 text-navy-300 hover:bg-violet-50 hover:text-violet-600"
+                          aria-label="Düzenle"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(row)}
+                          disabled={deletingId === row.id}
+                          className="rounded-lg p-1.5 text-navy-300 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                          aria-label="Sil"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -198,7 +221,15 @@ export function GelirGiderClient({
         </div>
       )}
 
-      <NewRecordModal open={showNew} onClose={() => setShowNew(false)} categories={categories} />
+      <NewRecordModal
+        open={showNew || editTarget !== null}
+        onClose={() => {
+          setShowNew(false);
+          setEditTarget(null);
+        }}
+        categories={categories}
+        editTarget={editTarget}
+      />
     </div>
   );
 }

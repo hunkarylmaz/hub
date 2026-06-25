@@ -116,6 +116,31 @@ export function deleteIncomeRecord(id: string) {
   getDb().prepare("DELETE FROM income_records WHERE id = ?").run(id);
 }
 
+export function updateIncomeRecord(id: string, patch: Partial<IncomeInput>): IncomeRecord {
+  const current = findIncomeRecordById(id);
+  if (!current) throw new Error("Gelir kaydı bulunamadı");
+  const merged = { ...current, ...patch };
+  getDb()
+    .prepare(
+      `UPDATE income_records SET date=?, amount=?, payment_method=?, description=?, customer_id=?, appointment_id=?, service_id=?, staff_id=?, category_id=?, status=?
+       WHERE id = ?`
+    )
+    .run(
+      merged.date,
+      merged.amount,
+      merged.paymentMethod,
+      merged.description ?? null,
+      merged.customerId ?? null,
+      merged.appointmentId ?? null,
+      merged.serviceId ?? null,
+      merged.staffId ?? null,
+      merged.categoryId ?? null,
+      merged.status ?? "paid",
+      id
+    );
+  return mapIncome(getDb().prepare("SELECT * FROM income_records WHERE id = ?").get(id));
+}
+
 function mapExpense(row: any): ExpenseRecord {
   return {
     id: row.id,
@@ -171,6 +196,19 @@ export function findExpenseRecordById(id: string): ExpenseRecord | null {
 
 export function deleteExpenseRecord(id: string) {
   getDb().prepare("DELETE FROM expense_records WHERE id = ?").run(id);
+}
+
+export function updateExpenseRecord(id: string, patch: Partial<ExpenseInput>): ExpenseRecord {
+  const current = findExpenseRecordById(id);
+  if (!current) throw new Error("Gider kaydı bulunamadı");
+  const merged = { ...current, ...patch };
+  getDb()
+    .prepare(
+      `UPDATE expense_records SET date=?, amount=?, category_id=?, description=?, payment_method=?, receipt_url=?, supplier_name=?
+       WHERE id = ?`
+    )
+    .run(merged.date, merged.amount, merged.categoryId ?? null, merged.description ?? null, merged.paymentMethod, merged.receiptUrl ?? null, merged.supplierName ?? null, id);
+  return mapExpense(getDb().prepare("SELECT * FROM expense_records WHERE id = ?").get(id));
 }
 
 export interface DailySummary {

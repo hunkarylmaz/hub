@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSuperAdmin } from "@/lib/session";
-import { findBusinessById, setBusinessStatus, createBusiness, slugExists } from "@/lib/db/repo/businesses";
+import { findBusinessById, setBusinessStatus, createBusiness, updateBusiness, slugExists } from "@/lib/db/repo/businesses";
 import { findUserByEmail, createUser } from "@/lib/db/repo/users";
 import { hashPassword } from "@/lib/password";
 import { generateUniqueSlug } from "@/lib/slug";
@@ -26,6 +26,43 @@ export async function setBusinessStatusAction(businessId: string, status: "activ
 
   revalidatePath("/admin/isletmeler");
   revalidatePath("/admin");
+}
+
+export interface UpdateBusinessInput {
+  name: string;
+  sector: string;
+  phone: string;
+  email: string;
+  city: string;
+}
+
+export async function updateBusinessAction(businessId: string, input: UpdateBusinessInput) {
+  const actor = await requireSuperAdmin();
+  const existing = findBusinessById(businessId);
+  if (!existing) throw new Error("İşletme bulunamadı.");
+
+  const name = input.name.trim();
+  if (!name) throw new Error("İşletme adı zorunludur.");
+
+  const business = updateBusiness(businessId, {
+    name,
+    sector: input.sector,
+    phone: input.phone.trim() || null,
+    email: input.email.trim() || null,
+    city: input.city.trim() || null,
+  });
+
+  recordAuditLog({
+    businessId,
+    actorUserId: actor.id,
+    action: "business.updated",
+    entityType: "business",
+    entityId: businessId,
+  });
+
+  revalidatePath("/admin/isletmeler");
+  revalidatePath("/admin");
+  return business;
 }
 
 export interface CreateBusinessInput {

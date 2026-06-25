@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Select } from "@/components/ui/Input";
-import { createBusinessAction } from "./actions";
+import { createBusinessAction, updateBusinessAction } from "./actions";
 import { SECTORS } from "@/lib/types";
-import type { Plan } from "@/lib/types";
+import type { Business, Plan } from "@/lib/types";
 
 const EMPTY_FORM = {
   name: "",
@@ -23,16 +23,46 @@ const EMPTY_FORM = {
   subscriptionStatus: "trial" as "trial" | "active",
 };
 
-export function BusinessModal({ open, onClose, plans }: { open: boolean; onClose: () => void; plans: Plan[] }) {
+export function BusinessModal({
+  open,
+  onClose,
+  plans,
+  editBusiness,
+}: {
+  open: boolean;
+  onClose: () => void;
+  plans: Plan[];
+  editBusiness?: Business | null;
+}) {
   const router = useRouter();
-  const [form, setForm] = useState({ ...EMPTY_FORM, planId: plans[0]?.id ?? "" });
+  const isEdit = !!editBusiness;
+  const [form, setForm] = useState(
+    editBusiness
+      ? { ...EMPTY_FORM, name: editBusiness.name, sector: editBusiness.sector, phone: editBusiness.phone ?? "", email: editBusiness.email ?? "", city: editBusiness.city ?? "" }
+      : { ...EMPTY_FORM, planId: plans[0]?.id ?? "" }
+  );
   const [error, setError] = useState<string | null>(null);
   const [submitting, startSubmit] = useTransition();
+
+  function resetForm() {
+    setForm(
+      editBusiness
+        ? { ...EMPTY_FORM, name: editBusiness.name, sector: editBusiness.sector, phone: editBusiness.phone ?? "", email: editBusiness.email ?? "", city: editBusiness.city ?? "" }
+        : { ...EMPTY_FORM, planId: plans[0]?.id ?? "" }
+    );
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    resetForm();
+    setError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editBusiness]);
 
   if (!open) return null;
 
   function handleClose() {
-    setForm({ ...EMPTY_FORM, planId: plans[0]?.id ?? "" });
+    resetForm();
     setError(null);
     onClose();
   }
@@ -43,6 +73,26 @@ export function BusinessModal({ open, onClose, plans }: { open: boolean; onClose
       setError("İşletme adı zorunludur.");
       return;
     }
+
+    if (isEdit && editBusiness) {
+      startSubmit(async () => {
+        try {
+          await updateBusinessAction(editBusiness.id, {
+            name: form.name,
+            sector: form.sector,
+            phone: form.phone,
+            email: form.email,
+            city: form.city,
+          });
+          router.refresh();
+          handleClose();
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "İşletme güncellenemedi.");
+        }
+      });
+      return;
+    }
+
     if (!form.ownerFullName.trim()) {
       setError("İşletme sahibi adı zorunludur.");
       return;
@@ -72,7 +122,7 @@ export function BusinessModal({ open, onClose, plans }: { open: boolean; onClose
   }
 
   return (
-    <Modal open={open} onClose={handleClose} title="Yeni İşletme Ekle" size="lg">
+    <Modal open={open} onClose={handleClose} title={isEdit ? "İşletmeyi Düzenle" : "Yeni İşletme Ekle"} size="lg">
       <div className="space-y-5">
         <div>
           <Label>İşletme Adı</Label>
@@ -107,61 +157,65 @@ export function BusinessModal({ open, onClose, plans }: { open: boolean; onClose
           </div>
         </div>
 
-        <div className="border-t border-navy-100 pt-4">
-          <p className="mb-3 text-sm font-semibold text-navy-900">İşletme Sahibi</p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label>Ad Soyad</Label>
-              <Input value={form.ownerFullName} onChange={(e) => setForm({ ...form, ownerFullName: e.target.value })} />
+        {!isEdit && (
+          <>
+            <div className="border-t border-navy-100 pt-4">
+              <p className="mb-3 text-sm font-semibold text-navy-900">İşletme Sahibi</p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <Label>Ad Soyad</Label>
+                  <Input value={form.ownerFullName} onChange={(e) => setForm({ ...form, ownerFullName: e.target.value })} />
+                </div>
+                <div>
+                  <Label>E-posta (giriş)</Label>
+                  <Input type="email" value={form.ownerEmail} onChange={(e) => setForm({ ...form, ownerEmail: e.target.value })} />
+                </div>
+              </div>
+              <div className="mt-4">
+                <Label>Geçici Şifre</Label>
+                <Input
+                  type="text"
+                  value={form.ownerPassword}
+                  onChange={(e) => setForm({ ...form, ownerPassword: e.target.value })}
+                  placeholder="En az 6 karakter"
+                />
+              </div>
             </div>
-            <div>
-              <Label>E-posta (giriş)</Label>
-              <Input type="email" value={form.ownerEmail} onChange={(e) => setForm({ ...form, ownerEmail: e.target.value })} />
-            </div>
-          </div>
-          <div className="mt-4">
-            <Label>Geçici Şifre</Label>
-            <Input
-              type="text"
-              value={form.ownerPassword}
-              onChange={(e) => setForm({ ...form, ownerPassword: e.target.value })}
-              placeholder="En az 6 karakter"
-            />
-          </div>
-        </div>
 
-        <div className="border-t border-navy-100 pt-4">
-          <p className="mb-3 text-sm font-semibold text-navy-900">Plan &amp; Abonelik</p>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div>
-              <Label>Plan</Label>
-              <Select value={form.planId} onChange={(e) => setForm({ ...form, planId: e.target.value })}>
-                {plans.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </Select>
+            <div className="border-t border-navy-100 pt-4">
+              <p className="mb-3 text-sm font-semibold text-navy-900">Plan &amp; Abonelik</p>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <Label>Plan</Label>
+                  <Select value={form.planId} onChange={(e) => setForm({ ...form, planId: e.target.value })}>
+                    {plans.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div>
+                  <Label>Faturalandırma</Label>
+                  <Select value={form.billingCycle} onChange={(e) => setForm({ ...form, billingCycle: e.target.value as "monthly" | "yearly" })}>
+                    <option value="monthly">Aylık</option>
+                    <option value="yearly">Yıllık</option>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Durum</Label>
+                  <Select
+                    value={form.subscriptionStatus}
+                    onChange={(e) => setForm({ ...form, subscriptionStatus: e.target.value as "trial" | "active" })}
+                  >
+                    <option value="trial">Deneme (14 gün)</option>
+                    <option value="active">Aktif</option>
+                  </Select>
+                </div>
+              </div>
             </div>
-            <div>
-              <Label>Faturalandırma</Label>
-              <Select value={form.billingCycle} onChange={(e) => setForm({ ...form, billingCycle: e.target.value as "monthly" | "yearly" })}>
-                <option value="monthly">Aylık</option>
-                <option value="yearly">Yıllık</option>
-              </Select>
-            </div>
-            <div>
-              <Label>Durum</Label>
-              <Select
-                value={form.subscriptionStatus}
-                onChange={(e) => setForm({ ...form, subscriptionStatus: e.target.value as "trial" | "active" })}
-              >
-                <option value="trial">Deneme (14 gün)</option>
-                <option value="active">Aktif</option>
-              </Select>
-            </div>
-          </div>
-        </div>
+          </>
+        )}
 
         {error && <p className="text-sm font-medium text-red-600">{error}</p>}
 
@@ -170,7 +224,7 @@ export function BusinessModal({ open, onClose, plans }: { open: boolean; onClose
             Vazgeç
           </Button>
           <Button variant="primary" loading={submitting} onClick={handleSubmit}>
-            İşletme Oluştur
+            {isEdit ? "Kaydet" : "İşletme Oluştur"}
           </Button>
         </div>
       </div>
