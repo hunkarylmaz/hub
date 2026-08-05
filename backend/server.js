@@ -615,6 +615,8 @@ async function initBayiDb() {
   try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN lat REAL') } catch {}
   try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN lon REAL') } catch {}
   try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN son_konum_tarihi TEXT') } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN email TEXT') } catch {}
+  try { await run('ALTER TABLE bayi_kuryeler ADD COLUMN sifre_hash TEXT') } catch {}
   try { await run('ALTER TABLE bayi_siparisler ADD COLUMN musteri_lat REAL') } catch {}
   try { await run('ALTER TABLE bayi_siparisler ADD COLUMN musteri_lon REAL') } catch {}
   try { await run("ALTER TABLE bayi_siparisler ADD COLUMN kanal TEXT DEFAULT 'Telefon'") } catch {}
@@ -810,15 +812,41 @@ app.get('/api/bayi/dashboard', bayiAuthMiddleware, wrap(async (req, res) => {
 }))
 
 // ── BAYİ KURYELERi ───────────────────────────────────────────────────────────
+function safeKurye(k) {
+  if (!k) return k
+  const { sifre_hash, ...rest } = k
+  return { ...rest, giris_aktif: !!(k.email && k.sifre_hash) }
+}
+
 app.get('/api/bayi/kuryeler', bayiAuthMiddleware, wrap(async (req, res) => {
-  res.json(await all('SELECT * FROM bayi_kuryeler WHERE bayilik_id=? ORDER BY id ASC', [req.bayi.bayilikId]))
+  const rows = await all('SELECT * FROM bayi_kuryeler WHERE bayilik_id=? ORDER BY id ASC', [req.bayi.bayilikId])
+  res.json(rows.map(safeKurye))
 }))
 
 app.post('/api/bayi/kuryeler', bayiAuthMiddleware, wrap(async (req, res) => {
-  const { ad, telefon } = req.body || {}
+  const {
+    ad, telefon, plaka,
+    calisma_tipi, paket_basi_ucret, km_baslangic, km_ucret,
+    komisyon_yuzdesi, saatlik_ucret, coklu_paket,
+    odeme_tipleri, paket_limiti, paket_iptali, odeme_duzenleme,
+    email, sifre
+  } = req.body || {}
   if (!ad) return res.status(400).json({ message: 'Kurye adı gerekli' })
-  const { lastID } = await run('INSERT INTO bayi_kuryeler (bayilik_id,ad,telefon) VALUES (?,?,?)', [req.bayi.bayilikId, ad, telefon||null])
-  res.status(201).json(await get('SELECT * FROM bayi_kuryeler WHERE id=?', [lastID]))
+  const sifre_hash = (email && sifre) ? bcrypt.hashSync(sifre, 10) : null
+  const odeme_str = odeme_tipleri ? (Array.isArray(odeme_tipleri) ? JSON.stringify(odeme_tipleri) : odeme_tipleri) : '["Nakit","Kredi Kartı"]'
+  const coklu_str = coklu_paket ? (Array.isArray(coklu_paket) ? JSON.stringify(coklu_paket) : coklu_paket) : null
+  const { lastID } = await run(
+    `INSERT INTO bayi_kuryeler
+      (bayilik_id,ad,telefon,plaka,calisma_tipi,paket_basi_ucret,km_baslangic,km_ucret,
+       komisyon_yuzdesi,saatlik_ucret,coklu_paket,odeme_tipleri,paket_limiti,paket_iptali,odeme_duzenleme,email,sifre_hash)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [req.bayi.bayilikId, ad, telefon||null, plaka||null,
+     calisma_tipi||'Paket Başı', paket_basi_ucret??0, km_baslangic??0, km_ucret??0,
+     komisyon_yuzdesi??0, saatlik_ucret??0, coklu_str, odeme_str,
+     paket_limiti??5, paket_iptali??0, odeme_duzenleme??1,
+     email||null, sifre_hash]
+  )
+  res.status(201).json(safeKurye(await get('SELECT * FROM bayi_kuryeler WHERE id=?', [lastID])))
 }))
 
 app.put('/api/bayi/kuryeler/:id', bayiAuthMiddleware, wrap(async (req, res) => {
@@ -856,7 +884,18 @@ app.put('/api/bayi/kuryeler/:id', bayiAuthMiddleware, wrap(async (req, res) => {
       req.params.id
     ]
   )
-  res.json(await get('SELECT * FROM bayi_kuryeler WHERE id=?', [req.params.id]))
+  res.json(safeKurye(await get('SELECT * FROM bayi_kuryeler WHERE id=?', [req.params.id])))
+}))
+
+app.put('/api/bayi/kuryeler/:id/giris-bilgisi', bayiAuthMiddleware, wrap(async (req, res) => {
+  const k = await get('SELECT * FROM bayi_kuryeler WHERE id=? AND bayilik_id=?', [req.params.id, req.bayi.bayilikId])
+  if (!k) return res.status(404).json({ message: 'Kurye bulunamadı' })
+  const { email, sifre } = req.body || {}
+  if (!email) return res.status(400).json({ message: 'Email gerekli' })
+  const sifre_hash = sifre ? bcrypt.hashSync(sifre, 10) : k.sifre_hash
+  await run('UPDATE bayi_kuryeler SET email=?, sifre_hash=? WHERE id=?', [email, sifre_hash, req.params.id])
+  const updated = await get('SELECT * FROM bayi_kuryeler WHERE id=?', [req.params.id])
+  res.json({ email: updated.email, giris_aktif: !!(updated.email && updated.sifre_hash) })
 }))
 
 app.put('/api/bayi/kuryeler/:id/durum', bayiAuthMiddleware, wrap(async (req, res) => {
@@ -864,7 +903,7 @@ app.put('/api/bayi/kuryeler/:id/durum', bayiAuthMiddleware, wrap(async (req, res
   if (!k) return res.status(404).json({ message: 'Kurye bulunamadı' })
   const { durum } = req.body || {}
   await run('UPDATE bayi_kuryeler SET durum=? WHERE id=?', [durum, req.params.id])
-  res.json({ ...k, durum })
+  res.json(safeKurye({ ...k, durum }))
 }))
 
 app.delete('/api/bayi/kuryeler/:id', bayiAuthMiddleware, wrap(async (req, res) => {
@@ -1124,6 +1163,38 @@ function restoranAuthMiddleware(req, res, next) {
     return res.status(401).json({ message: 'Geçersiz token' })
   }
 }
+
+function kuryeAuthMiddleware(req, res, next) {
+  const token = (req.headers.authorization || '').replace('Bearer ', '')
+  if (!token) return res.status(401).json({ message: 'Yetkisiz erişim' })
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET)
+    if (decoded.type !== 'kurye') return res.status(401).json({ message: 'Geçersiz token tipi' })
+    req.kurye = decoded
+    next()
+  } catch {
+    return res.status(401).json({ message: 'Geçersiz token' })
+  }
+}
+
+app.post('/api/kurye/auth/login', wrap(async (req, res) => {
+  const { email, sifre } = req.body || {}
+  if (!email || !sifre) return res.status(400).json({ message: 'Email ve şifre gerekli' })
+  const k = await get('SELECT * FROM bayi_kuryeler WHERE email=? AND aktif=1', [email])
+  if (!k || !k.sifre_hash || !bcrypt.compareSync(sifre, k.sifre_hash))
+    return res.status(401).json({ message: 'Geçersiz email veya şifre' })
+  const token = jwt.sign(
+    { type: 'kurye', kuryeId: k.id, bayilikId: k.bayilik_id, ad: k.ad },
+    JWT_SECRET, { expiresIn: '30d' }
+  )
+  res.json({ token, kurye: safeKurye(k) })
+}))
+
+app.get('/api/kurye/auth/me', kuryeAuthMiddleware, wrap(async (req, res) => {
+  const k = await get('SELECT * FROM bayi_kuryeler WHERE id=?', [req.kurye.kuryeId])
+  if (!k) return res.status(404).json({ message: 'Kurye bulunamadı' })
+  res.json(safeKurye(k))
+}))
 
 app.post('/api/restoran/auth/login', wrap(async (req, res) => {
   const { email, sifre } = req.body || {}
