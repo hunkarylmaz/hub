@@ -487,18 +487,23 @@ function YonetimPaneliModal({ restoran, onClose, onSave }: { restoran: Restoran;
 
 // ── Yeni / Düzenle Modal ──────────────────────────────────────────────────────
 function RestoranModal({ restoran, onClose, onSave }: { restoran?: Restoran; onClose: () => void; onSave: () => void }) {
-  const [form, setForm] = useState({ ad: restoran?.ad || '', adres: restoran?.adres || '', telefon: restoran?.telefon || '', ilce: restoran?.ilce || '' })
+  const [form, setForm] = useState({ ad: restoran?.ad || '', adres: restoran?.adres || '', telefon: restoran?.telefon || '', ilce: restoran?.ilce || '', email: '', sifre: '' })
   const [konum, setKonum] = useState<{ lat: number | null; lon: number | null }>({ lat: restoran?.lat ?? null, lon: restoran?.lon ?? null })
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
   async function handleSave() {
     if (!form.ad.trim()) { setErr('Restoran adı zorunlu'); return }
+    if (!restoran && form.email && !form.sifre) { setErr('E-posta girildiğinde şifre de zorunlu'); return }
     setSaving(true)
     try {
-      const data = { ...form, lat: konum.lat, lon: konum.lon }
-      if (restoran) await api.restoranlar.update(restoran.id, data)
-      else await api.restoranlar.create(data)
+      const { email, sifre, ...base } = form
+      const data = { ...base, lat: konum.lat, lon: konum.lon }
+      if (restoran) {
+        await api.restoranlar.update(restoran.id, data)
+      } else {
+        await api.restoranlar.create({ ...data, ...(email ? { email, sifre } : {}) })
+      }
       onSave(); onClose()
     } catch (e) { setErr(e instanceof Error ? e.message : 'Hata') } finally { setSaving(false) }
   }
@@ -544,6 +549,25 @@ function RestoranModal({ restoran, onClose, onSave }: { restoran?: Restoran; onC
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
             </div>
           </div>
+          {!restoran && (
+            <div className="pt-3 border-t border-gray-100 space-y-3">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sipariş Portalı Girişi <span className="font-normal text-gray-400 normal-case">(opsiyonel)</span></p>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">E-posta</label>
+                <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                  placeholder="restoran@isletme.com"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
+              </div>
+              {form.email && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Şifre *</label>
+                  <input type="password" value={form.sifre} onChange={e => setForm(f => ({ ...f, sifre: e.target.value }))}
+                    placeholder="••••••••"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
           <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-200 rounded-lg text-gray-600">İptal</button>
@@ -688,7 +712,15 @@ export default function Restoranlar() {
             ) : (
               paged.map(r => (
                 <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50/60 transition-colors">
-                  <td className="px-5 py-3.5 text-sm font-medium text-gray-800">{r.ad}</td>
+                  <td className="px-5 py-3.5">
+                    <p className="text-sm font-medium text-gray-800">{r.ad}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="text-xs text-gray-400">#{r.id}</span>
+                      {r.giris_aktif ? (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded ring-1 ring-inset ring-emerald-100">Portal Aktif</span>
+                      ) : null}
+                    </div>
+                  </td>
                   <td className="px-5 py-3.5 text-sm text-gray-600">{r.telefon || '—'}</td>
                   <td className="px-5 py-3.5 text-sm text-gray-500 max-w-xs truncate">{r.adres || '—'}</td>
                   <td className="px-5 py-3.5">

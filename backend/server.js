@@ -889,11 +889,12 @@ app.get('/api/bayi/restoranlar', bayiAuthMiddleware, wrap(async (req, res) => {
 }))
 
 app.post('/api/bayi/restoranlar', bayiAuthMiddleware, wrap(async (req, res) => {
-  const { ad, adres, telefon, ilce, lat, lon } = req.body || {}
+  const { ad, adres, telefon, ilce, lat, lon, email, sifre } = req.body || {}
   if (!ad) return res.status(400).json({ message: 'Restoran adı gerekli' })
+  const sifre_hash = (email && sifre) ? bcrypt.hashSync(sifre, 10) : null
   const { lastID } = await run(
-    'INSERT INTO bayi_restoranlar (bayilik_id,ad,adres,telefon,ilce,lat,lon) VALUES (?,?,?,?,?,?,?)',
-    [req.bayi.bayilikId, ad, adres||null, telefon||null, ilce||null, lat??null, lon??null]
+    'INSERT INTO bayi_restoranlar (bayilik_id,ad,adres,telefon,ilce,lat,lon,email,sifre_hash) VALUES (?,?,?,?,?,?,?,?,?)',
+    [req.bayi.bayilikId, ad, adres||null, telefon||null, ilce||null, lat??null, lon??null, email||null, sifre_hash]
   )
   res.status(201).json(stripSifre(await get('SELECT * FROM bayi_restoranlar WHERE id=?', [lastID])))
 }))
