@@ -1337,14 +1337,17 @@ app.put('/api/bayi/ayarlar/genel', bayiAuthMiddleware, wrap(async (req, res) => 
 
 // ── BAYİ VARDİYALAR ────────────────────────────────────────────────────────────
 app.get('/api/bayi/vardiyalar', bayiAuthMiddleware, wrap(async (req, res) => {
-  const { hafta_baslangic } = req.query
+  const { baslangic, bitis, hafta_baslangic } = req.query
   let where = 'bayilik_id=?'
   const params = [req.bayi.bayilikId]
-  if (hafta_baslangic) {
-    const bitis = new Date(hafta_baslangic)
-    bitis.setDate(bitis.getDate() + 7)
+  if (baslangic && bitis) {
+    where += ' AND tarih >= ? AND tarih <= ?'
+    params.push(baslangic, bitis)
+  } else if (hafta_baslangic) {
+    const end = new Date(hafta_baslangic)
+    end.setDate(end.getDate() + 7)
     where += ' AND tarih >= ? AND tarih < ?'
-    params.push(hafta_baslangic, bitis.toISOString().slice(0, 10))
+    params.push(hafta_baslangic, end.toISOString().slice(0, 10))
   }
   res.json(await all(`SELECT * FROM bayi_vardiyalar WHERE ${where} ORDER BY tarih,kurye_id`, params))
 }))
@@ -1958,11 +1961,12 @@ app.get('/api/bayi/raporlar/odeme-dagilimi', bayiAuthMiddleware, wrap(async (req
     const kid = s.kurye_id
     if (kid == null) continue
     if (!kuryeMap[kid]) {
-      kuryeMap[kid] = { kurye_id: kid, kurye_ad: s.kurye_ad || 'Bilinmiyor' }
-      for (const k of ODEME_KEYS) kuryeMap[kid][k] = 0
+      kuryeMap[kid] = { id: kid, ad: s.kurye_ad || 'Bilinmiyor', gruplari: {} }
+      for (const k of ODEME_KEYS) kuryeMap[kid].gruplari[k] = { sayi: 0, tutar: 0 }
     }
     const key = ODEME_KEYS.includes(s.odeme_yontemi) ? s.odeme_yontemi : 'Diğer'
-    kuryeMap[kid][key] += s.tutar || 0
+    kuryeMap[kid].gruplari[key].sayi++
+    kuryeMap[kid].gruplari[key].tutar += s.tutar || 0
   }
   const kuryeler = Object.values(kuryeMap)
 

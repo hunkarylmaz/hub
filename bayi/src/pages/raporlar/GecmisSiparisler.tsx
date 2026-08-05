@@ -92,7 +92,13 @@ export default function GecmisSiparisler() {
 
   function handleFiltre() { setSayfa(1); fetchData() }
 
-  const siparisler = data?.siparisler || []
+  const rawSiparisler = data?.siparisler || []
+  const siparisler = [...rawSiparisler].sort((a, b) => {
+    if (siralama === 'Eski → Yeni') return new Date(a.olusturma_tarihi).getTime() - new Date(b.olusturma_tarihi).getTime()
+    if (siralama === 'Tutar ↓') return b.tutar - a.tutar
+    if (siralama === 'Tutar ↑') return a.tutar - b.tutar
+    return new Date(b.olusturma_tarihi).getTime() - new Date(a.olusturma_tarihi).getTime()
+  })
   const ozet = data?.ozet
 
   return (
