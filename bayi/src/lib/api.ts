@@ -392,7 +392,16 @@ export const api = {
 
   restoranlar: {
     list: () => request<Restoran[]>('/api/bayi/restoranlar', { headers: authHeaders() }),
-    create: (data: { ad: string; adres?: string; telefon?: string; ilce?: string; lat?: number | null; lon?: number | null; email?: string; sifre?: string }) =>
+    create: (data: {
+      ad: string; adres?: string; telefon?: string; ilce?: string;
+      lat?: number | null; lon?: number | null;
+      email?: string; sifre?: string;
+      calisma_tipi?: string; paket_basi_ucret?: number;
+      km_baslangic?: number; km_ucret?: number; komisyon_yuzdesi?: number;
+      saatlik_ucret?: number; coklu_paket?: number[];
+      hazirlanma_suresi?: number; iban?: string; iban_sahibi?: string;
+      harita_konum?: boolean; odeme_duzenleme?: boolean;
+    }) =>
       request<Restoran>('/api/bayi/restoranlar', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
     update: (id: number, data: Record<string, unknown>) =>
       request<Restoran>(`/api/bayi/restoranlar/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),

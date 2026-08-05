@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Plus, Search, Loader2, AlertCircle, X, MoreVertical, ChevronRight, Check } from 'lucide-react'
 import { api, Restoran } from '../lib/api'
 import { BakiyeHareketiModal } from './PeriyodikRapor'
@@ -485,25 +485,332 @@ function YonetimPaneliModal({ restoran, onClose, onSave }: { restoran: Restoran;
   )
 }
 
-// ── Yeni / Düzenle Modal ──────────────────────────────────────────────────────
-function RestoranModal({ restoran, onClose, onSave }: { restoran?: Restoran; onClose: () => void; onSave: () => void }) {
-  const [form, setForm] = useState({ ad: restoran?.ad || '', adres: restoran?.adres || '', telefon: restoran?.telefon || '', ilce: restoran?.ilce || '', email: '', sifre: '' })
-  const [konum, setKonum] = useState<{ lat: number | null; lon: number | null }>({ lat: restoran?.lat ?? null, lon: restoran?.lon ?? null })
+// ── Yeni Restoran Sihirbazı (4 adım) ─────────────────────────────────────────
+const WIZARD_STEPS = ['Temel Bilgiler', 'Konum', 'Çalışma Tipi', 'Portal & Finans']
+
+function RestoranEkleModal({ onClose, onSave }: { onClose: () => void; onSave: () => void }) {
+  const [step, setStep] = useState(0)
+  const [form, setForm] = useState({
+    ad: '', telefon: '', ilce: '',
+    lat: null as number | null, lon: null as number | null, adres: '',
+    calisma_tipi: 'Paket Başı',
+    paket_basi_ucret: 0, km_baslangic: 0, km_ucret: 0,
+    komisyon_yuzdesi: 0, saatlik_ucret: 0,
+    coklu_paket: [100, 60, 40] as number[],
+    hazirlanma_suresi: 30,
+    email: '', sifre: '',
+    harita_konum: true, odeme_duzenleme: true,
+    iban: '', iban_sahibi: '',
+  })
+  const [err, setErr] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  function F({ label, children }: { label: string; children: React.ReactNode }) {
+    return (
+      <div>
+        <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+        {children}
+      </div>
+    )
+  }
+
+  const inp = "w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20"
+
+  function next() {
+    setErr('')
+    if (step === 0 && !form.ad.trim()) { setErr('Restoran adı zorunlu'); return }
+    if (step === WIZARD_STEPS.length - 1) { handleSave(); return }
+    setStep(s => s + 1)
+  }
+
+  async function handleSave() {
+    if (form.email && !form.sifre) { setErr('E-posta girildiğinde şifre zorunlu'); return }
+    setSaving(true); setErr('')
+    try {
+      await api.restoranlar.create({
+        ad: form.ad,
+        telefon: form.telefon || undefined,
+        ilce: form.ilce || undefined,
+        adres: form.adres || undefined,
+        lat: form.lat, lon: form.lon,
+        calisma_tipi: form.calisma_tipi,
+        paket_basi_ucret: form.paket_basi_ucret,
+        km_baslangic: form.km_baslangic,
+        km_ucret: form.km_ucret,
+        komisyon_yuzdesi: form.komisyon_yuzdesi,
+        saatlik_ucret: form.saatlik_ucret,
+        coklu_paket: form.coklu_paket,
+        hazirlanma_suresi: form.hazirlanma_suresi,
+        email: form.email || undefined,
+        sifre: form.sifre || undefined,
+        harita_konum: form.harita_konum,
+        odeme_duzenleme: form.odeme_duzenleme,
+        iban: form.iban || undefined,
+        iban_sahibi: form.iban_sahibi || undefined,
+      })
+      onSave(); onClose()
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Hata')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[92vh] flex flex-col">
+        {/* Header + step indicator */}
+        <div className="px-6 pt-5 pb-4 border-b border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-800">Yeni Restoran Ekle</h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+          </div>
+          <div className="flex items-center">
+            {WIZARD_STEPS.map((label, i) => (
+              <div key={i} className={`flex items-center ${i < WIZARD_STEPS.length - 1 ? 'flex-1' : ''}`}>
+                <div className="flex flex-col items-center gap-1">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${i < step ? 'bg-primary-600 text-white' : i === step ? 'bg-primary-600 text-white ring-4 ring-primary-100' : 'bg-gray-100 text-gray-400'}`}>
+                    {i < step ? <Check size={13} /> : i + 1}
+                  </div>
+                  <span className={`text-[10px] font-medium whitespace-nowrap ${i === step ? 'text-primary-600' : 'text-gray-400'}`}>{label}</span>
+                </div>
+                {i < WIZARD_STEPS.length - 1 && (
+                  <div className={`h-0.5 flex-1 mx-2 mb-4 transition-colors ${i < step ? 'bg-primary-600' : 'bg-gray-200'}`} />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          {err && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg mb-4">{err}</p>}
+
+          {step === 0 && (
+            <div className="space-y-4">
+              <F label="İşletme Adı *">
+                <input value={form.ad} onChange={e => setForm(f => ({ ...f, ad: e.target.value }))}
+                  placeholder="Örn: Pizza House" autoFocus className={inp} />
+              </F>
+              <F label="Telefon">
+                <input value={form.telefon} onChange={e => setForm(f => ({ ...f, telefon: e.target.value }))}
+                  placeholder="0555 123 4567" className={inp} />
+              </F>
+              <F label="Şehir / İlçe">
+                <input value={form.ilce} onChange={e => setForm(f => ({ ...f, ilce: e.target.value }))}
+                  placeholder="Örn: Kadıköy, İstanbul" className={inp} />
+              </F>
+            </div>
+          )}
+
+          {step === 1 && (
+            <div className="space-y-3">
+              <p className="text-xs text-gray-500">Harita üzerinde restoranın konumunu işaretleyin. Konum seçildiğinde adres otomatik doldurulur.</p>
+              <KonumSecici
+                lat={form.lat} lon={form.lon}
+                onChange={(lat, lon) => setForm(f => ({ ...f, lat, lon }))}
+                onAdresBulundu={s => setForm(f => ({ ...f, adres: s.display_name, ilce: s.ilce || f.ilce }))}
+                height={320}
+              />
+              <F label="Açık Adres">
+                <textarea value={form.adres} onChange={e => setForm(f => ({ ...f, adres: e.target.value }))} rows={2}
+                  placeholder="Haritadan seçildiğinde otomatik dolar, düzenleyebilirsiniz..."
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20 resize-none" />
+              </F>
+              {form.lat !== null && (
+                <div className="flex items-center gap-2 p-2 bg-emerald-50 border border-emerald-100 rounded-lg text-xs text-emerald-700">
+                  <Check size={12} />
+                  <span>Konum seçildi: {form.lat.toFixed(5)}, {form.lon?.toFixed(5)}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-5">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-2">Çalışma Tipi</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {CALISMA_TIPLERI.map(tip => (
+                    <button key={tip} type="button" onClick={() => setForm(f => ({ ...f, calisma_tipi: tip }))}
+                      className={`py-2.5 px-3 text-sm rounded-lg border text-left transition-colors ${form.calisma_tipi === tip ? 'border-primary-600 bg-primary-50 text-primary-700 font-medium' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                      {tip}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {(form.calisma_tipi === 'Paket Başı' || form.calisma_tipi === 'Paket + Km') && (
+                <div className="space-y-3 pt-3 border-t border-gray-100">
+                  <p className="text-xs font-semibold text-gray-500 uppercase">Paket Başı Ayarları</p>
+                  <F label="Paket Başı Ücret (₺)">
+                    <input type="number" min={0} step={0.5} value={form.paket_basi_ucret}
+                      onChange={e => setForm(f => ({ ...f, paket_basi_ucret: Number(e.target.value) }))} className={inp} />
+                  </F>
+                </div>
+              )}
+              {(form.calisma_tipi === 'Km Aralığı' || form.calisma_tipi === 'Paket + Km') && (
+                <div className="space-y-3 pt-3 border-t border-gray-100">
+                  <p className="text-xs font-semibold text-gray-500 uppercase">Km Ayarları</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <F label="Başlangıç Ücreti (₺)">
+                      <input type="number" min={0} step={0.5} value={form.km_baslangic}
+                        onChange={e => setForm(f => ({ ...f, km_baslangic: Number(e.target.value) }))} className={inp} />
+                    </F>
+                    <F label="Km Başı Ücret (₺)">
+                      <input type="number" min={0} step={0.5} value={form.km_ucret}
+                        onChange={e => setForm(f => ({ ...f, km_ucret: Number(e.target.value) }))} className={inp} />
+                    </F>
+                  </div>
+                </div>
+              )}
+              {form.calisma_tipi === 'Komisyon' && (
+                <div className="space-y-3 pt-3 border-t border-gray-100">
+                  <p className="text-xs font-semibold text-gray-500 uppercase">Komisyon Ayarları</p>
+                  <F label="Komisyon Yüzdesi (%)">
+                    <input type="number" min={0} max={100} step={0.5} value={form.komisyon_yuzdesi}
+                      onChange={e => setForm(f => ({ ...f, komisyon_yuzdesi: Number(e.target.value) }))} className={inp} />
+                  </F>
+                </div>
+              )}
+              {form.calisma_tipi === 'Saatlik Ücret' && (
+                <div className="space-y-3 pt-3 border-t border-gray-100">
+                  <p className="text-xs font-semibold text-gray-500 uppercase">Saatlik Ücret</p>
+                  <F label="Saat Başı Ücret (₺)">
+                    <input type="number" min={0} step={0.5} value={form.saatlik_ucret}
+                      onChange={e => setForm(f => ({ ...f, saatlik_ucret: Number(e.target.value) }))} className={inp} />
+                  </F>
+                </div>
+              )}
+              {form.calisma_tipi === 'Çoklu Paket' && (
+                <div className="space-y-3 pt-3 border-t border-gray-100">
+                  <p className="text-xs font-semibold text-gray-500 uppercase">Çoklu Paket Ücretleri</p>
+                  <p className="text-xs text-gray-400">Aynı anda çıkan paketlerde sıralı ücret.</p>
+                  <div className="grid grid-cols-5 gap-2">
+                    {[0, 1, 2, 3, 4].map(i => (
+                      <F key={i} label={`${i + 1}. Paket`}>
+                        <input type="number" min={0} step={1} value={form.coklu_paket[i] ?? 0}
+                          onChange={e => {
+                            const next = [...form.coklu_paket]
+                            while (next.length <= i) next.push(0)
+                            next[i] = Number(e.target.value)
+                            setForm(f => ({ ...f, coklu_paket: next }))
+                          }}
+                          className="w-full px-2 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20 text-center" />
+                      </F>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-3 border-t border-gray-100">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <p className="text-xs font-medium text-gray-600">Hazırlanma Süresi</p>
+                    <p className="text-xs text-gray-400">Sipariş ortalama hazırlanma süresi</p>
+                  </div>
+                  <span className="text-sm font-semibold text-primary-600">{form.hazirlanma_suresi} dk</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400">5</span>
+                  <input type="range" min={5} max={120} step={5} value={form.hazirlanma_suresi}
+                    onChange={e => setForm(f => ({ ...f, hazirlanma_suresi: Number(e.target.value) }))}
+                    className="flex-1 accent-primary-600" />
+                  <span className="text-xs text-gray-400">120</span>
+                </div>
+                <div className="flex gap-1 mt-1">
+                  {[15, 20, 30, 45, 60].map(v => (
+                    <button key={v} type="button" onClick={() => setForm(f => ({ ...f, hazirlanma_suresi: v }))}
+                      className={`text-xs px-2 py-1 rounded-md transition-colors ${form.hazirlanma_suresi === v ? 'bg-primary-100 text-primary-700 font-medium' : 'text-gray-400 hover:text-gray-600'}`}>
+                      {v}dk
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-5">
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sipariş Portalı Girişi <span className="font-normal text-gray-400 normal-case">(opsiyonel)</span></p>
+                <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-lg text-xs text-amber-700">
+                  <span>ⓘ</span>
+                  <span>Bu bilgilerle restoran <strong>/restoran-girisi</strong> adresinden giriş yapıp kendi siparişini girebilir. Girilen siparişler doğrudan bu panele düşer.</span>
+                </div>
+                <F label="E-posta">
+                  <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                    placeholder="restoran@isletme.com" className={inp} />
+                </F>
+                {form.email && (
+                  <F label="Şifre *">
+                    <input type="password" value={form.sifre} onChange={e => setForm(f => ({ ...f, sifre: e.target.value }))}
+                      placeholder="••••••••" className={inp} />
+                  </F>
+                )}
+              </div>
+
+              <div className="pt-3 border-t border-gray-100 space-y-1">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Özellikler</p>
+                {[
+                  { key: 'harita_konum' as const, label: 'Harita Konum Zorunluluğu', desc: 'Sipariş oluştururken haritadan konum seçimi zorunlu olsun' },
+                  { key: 'odeme_duzenleme' as const, label: 'Ödeme Düzenleme', desc: 'Restoran ödeme bilgilerini düzenleyebilsin' },
+                ].map(item => (
+                  <div key={item.key} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">{item.label}</p>
+                      <p className="text-xs text-gray-400">{item.desc}</p>
+                    </div>
+                    <Tog val={form[item.key]} onChange={v => setForm(f => ({ ...f, [item.key]: v }))} />
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-3 border-t border-gray-100 space-y-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Finansal Bilgiler <span className="font-normal text-gray-400 normal-case">(opsiyonel)</span></p>
+                <F label="IBAN">
+                  <input value={form.iban} onChange={e => setForm(f => ({ ...f, iban: e.target.value }))}
+                    placeholder="TR00 0000 0000 0000 0000 0000 00"
+                    className={`${inp} font-mono`} />
+                </F>
+                <F label="IBAN Sahibi">
+                  <input value={form.iban_sahibi} onChange={e => setForm(f => ({ ...f, iban_sahibi: e.target.value }))}
+                    placeholder="Ad Soyad / Şirket Adı" className={inp} />
+                </F>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/60 rounded-b-2xl">
+          <button onClick={step === 0 ? onClose : () => { setErr(''); setStep(s => s - 1) }}
+            className="px-4 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-white transition-colors">
+            {step === 0 ? 'İptal' : '← Geri'}
+          </button>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-400">{step + 1} / {WIZARD_STEPS.length}</span>
+            <button onClick={next} disabled={saving}
+              className="px-5 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-60 font-medium flex items-center gap-1.5 transition-colors">
+              {saving ? 'Kaydediliyor...' : step === WIZARD_STEPS.length - 1 ? 'Kaydet' : 'Devam →'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Düzenle Modal ─────────────────────────────────────────────────────────────
+function RestoranModal({ restoran, onClose, onSave }: { restoran: Restoran; onClose: () => void; onSave: () => void }) {
+  const [form, setForm] = useState({ ad: restoran.ad, adres: restoran.adres || '', telefon: restoran.telefon || '', ilce: restoran.ilce || '' })
+  const [konum, setKonum] = useState<{ lat: number | null; lon: number | null }>({ lat: restoran.lat ?? null, lon: restoran.lon ?? null })
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
   async function handleSave() {
     if (!form.ad.trim()) { setErr('Restoran adı zorunlu'); return }
-    if (!restoran && form.email && !form.sifre) { setErr('E-posta girildiğinde şifre de zorunlu'); return }
     setSaving(true)
     try {
-      const { email, sifre, ...base } = form
-      const data = { ...base, lat: konum.lat, lon: konum.lon }
-      if (restoran) {
-        await api.restoranlar.update(restoran.id, data)
-      } else {
-        await api.restoranlar.create({ ...data, ...(email ? { email, sifre } : {}) })
-      }
+      await api.restoranlar.update(restoran.id, { ...form, lat: konum.lat, lon: konum.lon })
       onSave(); onClose()
     } catch (e) { setErr(e instanceof Error ? e.message : 'Hata') } finally { setSaving(false) }
   }
@@ -512,7 +819,7 @@ function RestoranModal({ restoran, onClose, onSave }: { restoran?: Restoran; onC
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h3 className="font-semibold text-gray-800">{restoran ? 'Restoran Düzenle' : 'Yeni Restoran'}</h3>
+          <h3 className="font-semibold text-gray-800">Restoran Düzenle</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
         </div>
         <div className="p-6 space-y-4">
@@ -530,8 +837,7 @@ function RestoranModal({ restoran, onClose, onSave }: { restoran?: Restoran; onC
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Adres / Konum</label>
             <KonumSecici
-              lat={konum.lat}
-              lon={konum.lon}
+              lat={konum.lat} lon={konum.lon}
               onChange={(lat, lon) => setKonum({ lat, lon })}
               onAdresBulundu={s => setForm(f => ({ ...f, adres: s.display_name, ilce: s.ilce || f.ilce }))}
               height={260}
@@ -549,25 +855,6 @@ function RestoranModal({ restoran, onClose, onSave }: { restoran?: Restoran; onC
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
             </div>
           </div>
-          {!restoran && (
-            <div className="pt-3 border-t border-gray-100 space-y-3">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sipariş Portalı Girişi <span className="font-normal text-gray-400 normal-case">(opsiyonel)</span></p>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">E-posta</label>
-                <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  placeholder="restoran@isletme.com"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
-              </div>
-              {form.email && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Şifre *</label>
-                  <input type="password" value={form.sifre} onChange={e => setForm(f => ({ ...f, sifre: e.target.value }))}
-                    placeholder="••••••••"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
-                </div>
-              )}
-            </div>
-          )}
         </div>
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
           <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-200 rounded-lg text-gray-600">İptal</button>
@@ -654,7 +941,7 @@ export default function Restoranlar() {
   return (
     <div>
       {/* Modals */}
-      {modal?.type === 'yeni' && <RestoranModal onClose={() => setModal(null)} onSave={fetchData} />}
+      {modal?.type === 'yeni' && <RestoranEkleModal onClose={() => setModal(null)} onSave={fetchData} />}
       {modal?.type === 'edit' && <RestoranModal restoran={modal.restoran} onClose={() => setModal(null)} onSave={fetchData} />}
       {modal?.type === 'panel' && <YonetimPaneliModal restoran={modal.restoran} onClose={() => setModal(null)} onSave={fetchData} />}
       {modal?.type === 'calisma' && <CalismaModal label="Çalışma Tipi" restoran={modal.restoran} onClose={() => setModal(null)} onSave={fetchData} />}

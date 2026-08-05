@@ -889,12 +889,26 @@ app.get('/api/bayi/restoranlar', bayiAuthMiddleware, wrap(async (req, res) => {
 }))
 
 app.post('/api/bayi/restoranlar', bayiAuthMiddleware, wrap(async (req, res) => {
-  const { ad, adres, telefon, ilce, lat, lon, email, sifre } = req.body || {}
+  const {
+    ad, adres, telefon, ilce, lat, lon, email, sifre,
+    calisma_tipi, paket_basi_ucret, km_baslangic, km_ucret,
+    komisyon_yuzdesi, saatlik_ucret, coklu_paket, hazirlanma_suresi,
+    iban, iban_sahibi, harita_konum, odeme_duzenleme
+  } = req.body || {}
   if (!ad) return res.status(400).json({ message: 'Restoran adı gerekli' })
   const sifre_hash = (email && sifre) ? bcrypt.hashSync(sifre, 10) : null
+  const coklu_str = coklu_paket ? (Array.isArray(coklu_paket) ? JSON.stringify(coklu_paket) : coklu_paket) : null
   const { lastID } = await run(
-    'INSERT INTO bayi_restoranlar (bayilik_id,ad,adres,telefon,ilce,lat,lon,email,sifre_hash) VALUES (?,?,?,?,?,?,?,?,?)',
-    [req.bayi.bayilikId, ad, adres||null, telefon||null, ilce||null, lat??null, lon??null, email||null, sifre_hash]
+    `INSERT INTO bayi_restoranlar
+      (bayilik_id,ad,adres,telefon,ilce,lat,lon,email,sifre_hash,
+       calisma_tipi,paket_basi_ucret,km_baslangic,km_ucret,komisyon_yuzdesi,
+       saatlik_ucret,coklu_paket,hazirlanma_suresi,iban,iban_sahibi,harita_konum,odeme_duzenleme)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [req.bayi.bayilikId, ad, adres||null, telefon||null, ilce||null, lat??null, lon??null,
+     email||null, sifre_hash,
+     calisma_tipi||'Paket Başı', paket_basi_ucret??0, km_baslangic??0, km_ucret??0,
+     komisyon_yuzdesi??0, saatlik_ucret??0, coklu_str, hazirlanma_suresi??30,
+     iban||null, iban_sahibi||null, harita_konum?1:0, odeme_duzenleme===false?0:1]
   )
   res.status(201).json(stripSifre(await get('SELECT * FROM bayi_restoranlar WHERE id=?', [lastID])))
 }))
