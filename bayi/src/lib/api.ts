@@ -231,6 +231,7 @@ export interface KontorTalep {
   miktar: number
   banka: string | null
   gonderen: string | null
+  not_text: string | null
   durum: string
   olusturma_tarihi: string
 }

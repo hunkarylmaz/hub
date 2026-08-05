@@ -366,7 +366,6 @@ function YonetimPaneliModal({ restoran, onClose, onSave }: { restoran: Restoran;
     { key: 'hazirlanma', label: 'Hazırlanma Süresi', desc: 'Sipariş hazırlama süresi ayarı', onClick: () => setShowHazirlanma(true), disabled: false },
     { key: 'konum', label: 'Konum Düzenle', desc: 'Harita üzerinde konum ayarla', onClick: () => setShowKonum(true), disabled: false },
     { key: 'muhasebe', label: 'Muhasebe Yönetim', desc: 'Ödeme ve finans kayıtları', onClick: () => setShowMuhasebe(true), disabled: false },
-    { key: 'engelli', label: 'Engelli Kuryeler', desc: 'Kurye engelleme listesi', onClick: () => {}, disabled: true },
     { key: 'kullanici', label: 'İşletme Kullanıcıları', desc: restoran.giris_aktif ? 'Sipariş girişi aktif' : 'Restoran sipariş girişi için giriş bilgisi tanımla', onClick: () => setShowGiris(true), disabled: false },
   ]
 

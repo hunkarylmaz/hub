@@ -1379,15 +1379,15 @@ app.post('/api/bayi/kontor-talep', bayiAuthMiddleware, wrap(async (req, res) => 
   if (!b) return res.status(404).json({ message: 'Bayilik bulunamadı' })
   const talep_no = 'KT' + Date.now()
   const { lastID } = await run(
-    'INSERT INTO odeme_talepleri (talep_no,bayilik_id,miktar,banka,gonderen,durum,user_id) VALUES (?,?,?,?,?,?,?)',
-    [talep_no, b.id, miktar, banka||null, gonderen||null, 'Beklemede', b.user_id]
+    'INSERT INTO odeme_talepleri (talep_no,bayilik_id,miktar,banka,gonderen,not_text,durum,user_id) VALUES (?,?,?,?,?,?,?,?)',
+    [talep_no, b.id, miktar, banka||null, gonderen||null, not_text||null, 'Beklemede', b.user_id]
   )
-  res.json(await get('SELECT ot.*,b.ad as bayilik_ad FROM odeme_talepleri ot JOIN bayilikler b ON b.id=ot.bayilik_id WHERE ot.id=?', [lastID]))
+  res.json(await get('SELECT ot.*,ot.tarih as olusturma_tarihi,b.ad as bayilik_ad FROM odeme_talepleri ot JOIN bayilikler b ON b.id=ot.bayilik_id WHERE ot.id=?', [lastID]))
 }))
 
 app.get('/api/bayi/kontor-talepler', bayiAuthMiddleware, wrap(async (req, res) => {
   const rows = await all(
-    'SELECT * FROM odeme_talepleri WHERE bayilik_id=? ORDER BY id DESC',
+    'SELECT *, tarih as olusturma_tarihi FROM odeme_talepleri WHERE bayilik_id=? ORDER BY id DESC',
     [req.bayi.bayilikId]
   )
   res.json(rows)
