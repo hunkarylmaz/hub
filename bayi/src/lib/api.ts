@@ -22,7 +22,6 @@ export interface Kurye {
   ad: string
   telefon: string | null
   plaka: string | null
-  email?: string | null
   durum: 'Müsait' | 'Dağıtımda' | 'Mola' | 'Çevrimdışı'
   aktif: number
   toplam_teslimat: number
@@ -386,7 +385,7 @@ export const api = {
       saatlik_ucret?: number; coklu_paket?: number[];
       odeme_tipleri?: string[]; paket_limiti?: number;
       paket_iptali?: number; odeme_duzenleme?: number;
-      email?: string; sifre?: string;
+      sifre?: string;
     }) =>
       request<Kurye>('/api/bayi/kuryeler', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
     update: (id: number, data: Record<string, unknown>) =>
@@ -395,8 +394,8 @@ export const api = {
       request<Kurye>(`/api/bayi/kuryeler/${id}/durum`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ durum }) }),
     delete: (id: number) =>
       request<{ success: boolean }>(`/api/bayi/kuryeler/${id}`, { method: 'DELETE', headers: authHeaders() }),
-    setGirisBilgisi: (id: number, data: { email: string; sifre?: string }) =>
-      request<{ email: string; giris_aktif: boolean }>(`/api/bayi/kuryeler/${id}/giris-bilgisi`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+    setGirisBilgisi: (id: number, data: { sifre: string }) =>
+      request<{ telefon: string; giris_aktif: boolean }>(`/api/bayi/kuryeler/${id}/giris-bilgisi`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
     konumlar: () => request<{ kuryeler: KuryeKonum[]; merkez: { lat: number | null; lon: number | null; sehir: string | null; ilce: string | null } }>('/api/bayi/kuryeler/konumlar', { headers: authHeaders() }),
     updateKonum: (id: number, lat: number, lon: number) =>
       request<{ id: number; lat: number; lon: number }>(`/api/bayi/kuryeler/${id}/konum`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ lat, lon }) }),

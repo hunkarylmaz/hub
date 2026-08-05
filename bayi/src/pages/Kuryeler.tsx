@@ -259,18 +259,17 @@ function FinansModal({ kurye, onClose, onSave }: { kurye: Kurye; onClose: () => 
 
 // ── Uygulama Girişi Modal ─────────────────────────────────────────────────────
 function KuryeGirisModal({ kurye, onClose, onSave }: { kurye: Kurye; onClose: () => void; onSave: () => void }) {
-  const [email, setEmail] = useState(kurye.email || '')
   const [sifre, setSifre] = useState('')
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
   const [success, setSuccess] = useState('')
 
   async function handleSave() {
-    if (!email.trim()) { setErr('E-posta gerekli'); return }
+    if (!sifre.trim()) { setErr('Şifre gerekli'); return }
     setSaving(true); setErr('')
     try {
-      const res = await api.kuryeler.setGirisBilgisi(kurye.id, { email, sifre: sifre || undefined })
-      setSuccess(res.giris_aktif ? 'Giriş bilgileri kaydedildi' : 'E-posta kaydedildi')
+      await api.kuryeler.setGirisBilgisi(kurye.id, { sifre })
+      setSuccess('Uygulama girişi aktifleştirildi')
       setSifre('')
       onSave()
       setTimeout(() => setSuccess(''), 2000)
@@ -292,7 +291,7 @@ function KuryeGirisModal({ kurye, onClose, onSave }: { kurye: Kurye; onClose: ()
         <div className="p-6 space-y-4">
           <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-lg text-xs text-amber-700">
             <span>ⓘ</span>
-            <span>Bu bilgilerle kurye mobil uygulamaya giriş yapabilir. Kurye aktif olduğu sürece hesabı çalışır.</span>
+            <span>Kurye, <strong>telefon numarası</strong> ve aşağıdaki şifre ile mobil uygulamaya giriş yapar.</span>
           </div>
           {err && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{err}</p>}
           {success && <p className="text-sm text-emerald-700 bg-emerald-50 px-3 py-2 rounded-lg">{success}</p>}
@@ -301,12 +300,12 @@ function KuryeGirisModal({ kurye, onClose, onSave }: { kurye: Kurye; onClose: ()
             <p className="text-xs text-gray-500">{kurye.giris_aktif ? 'Uygulama girişi aktif' : 'Uygulama girişi henüz aktif değil'}</p>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">E-posta *</label>
-            <input value={email} onChange={e => setEmail(e.target.value)} type="email"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
+            <label className="block text-xs font-medium text-gray-600 mb-1">Telefon (Kullanıcı Adı)</label>
+            <input value={kurye.telefon || '—'} readOnly
+              className="w-full px-3 py-2 text-sm border border-gray-100 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">{kurye.giris_aktif ? 'Yeni Şifre (opsiyonel)' : 'Şifre'}</label>
+            <label className="block text-xs font-medium text-gray-600 mb-1">{kurye.giris_aktif ? 'Yeni Şifre' : 'Şifre *'}</label>
             <input value={sifre} onChange={e => setSifre(e.target.value)} type="password" placeholder="••••••••"
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
           </div>
@@ -337,7 +336,7 @@ function KuryeEkleModal({ onClose, onSave }: { onClose: () => void; onSave: () =
     paket_basi_ucret: 0, km_baslangic: 0, km_ucret: 0,
     komisyon_yuzdesi: 0, saatlik_ucret: 0,
     coklu_paket: [100, 60, 40] as number[],
-    email: '', sifre: '',
+    sifre: '',
   })
   const [err, setErr] = useState('')
   const [saving, setSaving] = useState(false)
@@ -370,7 +369,7 @@ function KuryeEkleModal({ onClose, onSave }: { onClose: () => void; onSave: () =
   }
 
   async function handleSave() {
-    if (form.email && !form.sifre) { setErr('E-posta girildiğinde şifre zorunlu'); return }
+    if (form.sifre && !form.telefon) { setErr('Uygulama şifresi için önce telefon numarası girilmeli'); return }
     setSaving(true); setErr('')
     try {
       await api.kuryeler.create({
@@ -388,7 +387,6 @@ function KuryeEkleModal({ onClose, onSave }: { onClose: () => void; onSave: () =
         komisyon_yuzdesi: form.komisyon_yuzdesi,
         saatlik_ucret: form.saatlik_ucret,
         coklu_paket: form.coklu_paket,
-        email: form.email || undefined,
         sifre: form.sifre || undefined,
       })
       onSave(); onClose()
@@ -591,14 +589,19 @@ function KuryeEkleModal({ onClose, onSave }: { onClose: () => void; onSave: () =
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Uygulama Girişi <span className="font-normal text-gray-400 normal-case">(opsiyonel)</span></p>
                 <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-lg text-xs text-amber-700">
                   <span>ⓘ</span>
-                  <span>Bu bilgilerle kurye mobil uygulamaya giriş yapabilir. Kurye aktif olduğu sürece hesabı çalışır. İstemiyorsanız boş bırakabilirsiniz.</span>
+                  <span>Kurye, <strong>telefon numarası</strong> ve aşağıdaki şifre ile mobil uygulamaya giriş yapar. Şifre girilmezse uygulama erişimi kapalı kalır.</span>
                 </div>
-                <F label="E-posta">
-                  <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                    placeholder="kurye@ornek.com" className={inp} />
+                <F label="Telefon (Kullanıcı Adı)">
+                  <input value={form.telefon || '—'} readOnly
+                    className="w-full px-3 py-2.5 text-sm border border-gray-100 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed" />
                 </F>
-                {form.email && (
-                  <F label="Şifre *">
+                {!form.telefon && (
+                  <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg border border-amber-100">
+                    1. adımda telefon numarası girilmemiş. Uygulama girişi için telefon numarası zorunludur.
+                  </p>
+                )}
+                {form.telefon && (
+                  <F label="Şifre">
                     <input type="password" value={form.sifre} onChange={e => setForm(f => ({ ...f, sifre: e.target.value }))}
                       placeholder="••••••••" className={inp} />
                   </F>

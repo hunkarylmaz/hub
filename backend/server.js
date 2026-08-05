@@ -814,8 +814,8 @@ app.get('/api/bayi/dashboard', bayiAuthMiddleware, wrap(async (req, res) => {
 // ── BAYİ KURYELERi ───────────────────────────────────────────────────────────
 function safeKurye(k) {
   if (!k) return k
-  const { sifre_hash, ...rest } = k
-  return { ...rest, giris_aktif: !!(k.email && k.sifre_hash) }
+  const { sifre_hash, email, ...rest } = k
+  return { ...rest, giris_aktif: !!(k.telefon && k.sifre_hash) }
 }
 
 app.get('/api/bayi/kuryeler', bayiAuthMiddleware, wrap(async (req, res) => {
@@ -829,22 +829,22 @@ app.post('/api/bayi/kuryeler', bayiAuthMiddleware, wrap(async (req, res) => {
     calisma_tipi, paket_basi_ucret, km_baslangic, km_ucret,
     komisyon_yuzdesi, saatlik_ucret, coklu_paket,
     odeme_tipleri, paket_limiti, paket_iptali, odeme_duzenleme,
-    email, sifre
+    sifre
   } = req.body || {}
   if (!ad) return res.status(400).json({ message: 'Kurye adı gerekli' })
-  const sifre_hash = (email && sifre) ? bcrypt.hashSync(sifre, 10) : null
+  const sifre_hash = (telefon && sifre) ? bcrypt.hashSync(sifre, 10) : null
   const odeme_str = odeme_tipleri ? (Array.isArray(odeme_tipleri) ? JSON.stringify(odeme_tipleri) : odeme_tipleri) : '["Nakit","Kredi Kartı"]'
   const coklu_str = coklu_paket ? (Array.isArray(coklu_paket) ? JSON.stringify(coklu_paket) : coklu_paket) : null
   const { lastID } = await run(
     `INSERT INTO bayi_kuryeler
       (bayilik_id,ad,telefon,plaka,calisma_tipi,paket_basi_ucret,km_baslangic,km_ucret,
-       komisyon_yuzdesi,saatlik_ucret,coklu_paket,odeme_tipleri,paket_limiti,paket_iptali,odeme_duzenleme,email,sifre_hash)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       komisyon_yuzdesi,saatlik_ucret,coklu_paket,odeme_tipleri,paket_limiti,paket_iptali,odeme_duzenleme,sifre_hash)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [req.bayi.bayilikId, ad, telefon||null, plaka||null,
      calisma_tipi||'Paket Başı', paket_basi_ucret??0, km_baslangic??0, km_ucret??0,
      komisyon_yuzdesi??0, saatlik_ucret??0, coklu_str, odeme_str,
      paket_limiti??5, paket_iptali??0, odeme_duzenleme??1,
-     email||null, sifre_hash]
+     sifre_hash]
   )
   res.status(201).json(safeKurye(await get('SELECT * FROM bayi_kuryeler WHERE id=?', [lastID])))
 }))
@@ -890,12 +890,12 @@ app.put('/api/bayi/kuryeler/:id', bayiAuthMiddleware, wrap(async (req, res) => {
 app.put('/api/bayi/kuryeler/:id/giris-bilgisi', bayiAuthMiddleware, wrap(async (req, res) => {
   const k = await get('SELECT * FROM bayi_kuryeler WHERE id=? AND bayilik_id=?', [req.params.id, req.bayi.bayilikId])
   if (!k) return res.status(404).json({ message: 'Kurye bulunamadı' })
-  const { email, sifre } = req.body || {}
-  if (!email) return res.status(400).json({ message: 'Email gerekli' })
-  const sifre_hash = sifre ? bcrypt.hashSync(sifre, 10) : k.sifre_hash
-  await run('UPDATE bayi_kuryeler SET email=?, sifre_hash=? WHERE id=?', [email, sifre_hash, req.params.id])
-  const updated = await get('SELECT * FROM bayi_kuryeler WHERE id=?', [req.params.id])
-  res.json({ email: updated.email, giris_aktif: !!(updated.email && updated.sifre_hash) })
+  if (!k.telefon) return res.status(400).json({ message: 'Kurye telefon numarası olmadan uygulama girişi açılamaz' })
+  const { sifre } = req.body || {}
+  if (!sifre) return res.status(400).json({ message: 'Şifre gerekli' })
+  const sifre_hash = bcrypt.hashSync(sifre, 10)
+  await run('UPDATE bayi_kuryeler SET sifre_hash=? WHERE id=?', [sifre_hash, req.params.id])
+  res.json({ telefon: k.telefon, giris_aktif: true })
 }))
 
 app.put('/api/bayi/kuryeler/:id/durum', bayiAuthMiddleware, wrap(async (req, res) => {
@@ -1178,11 +1178,11 @@ function kuryeAuthMiddleware(req, res, next) {
 }
 
 app.post('/api/kurye/auth/login', wrap(async (req, res) => {
-  const { email, sifre } = req.body || {}
-  if (!email || !sifre) return res.status(400).json({ message: 'Email ve şifre gerekli' })
-  const k = await get('SELECT * FROM bayi_kuryeler WHERE email=? AND aktif=1', [email])
+  const { telefon, sifre } = req.body || {}
+  if (!telefon || !sifre) return res.status(400).json({ message: 'Telefon ve şifre gerekli' })
+  const k = await get('SELECT * FROM bayi_kuryeler WHERE telefon=? AND aktif=1', [telefon])
   if (!k || !k.sifre_hash || !bcrypt.compareSync(sifre, k.sifre_hash))
-    return res.status(401).json({ message: 'Geçersiz email veya şifre' })
+    return res.status(401).json({ message: 'Geçersiz telefon veya şifre' })
   const token = jwt.sign(
     { type: 'kurye', kuryeId: k.id, bayilikId: k.bayilik_id, ad: k.ad },
     JWT_SECRET, { expiresIn: '30d' }
